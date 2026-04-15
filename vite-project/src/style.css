@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark_mode, .dark_mode *));
+
+/* ========================
+   ANIMATIONS
+======================== */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideRight {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-slideRight {
+  animation: slideRight 0.3s ease-out;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ========================
+   SCROLLBAR
+======================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c4c4c4;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+.dark_mode ::-webkit-scrollbar-thumb {
+  background: #444;
+}
+
+/* ========================
+   DARK MODE
+======================== */
+.dark_mode body,
+.dark_mode #root {
+  background-color: #0e1621;
+  color: #e0e0e0;
+}
+
+.dark_mode input,
+.dark_mode textarea,
+.dark_mode select {
+  color-scheme: dark;
+}
+
+/* ========================
+   TELEGRAM CHAT BACKGROUND
+======================== */
+.tg-chat-bg {
+  background-color: #b4d7e8;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cdefs%3E%3Cstyle%3E.a%7Bfill:%239ec5d8;opacity:0.3%7D%3C/style%3E%3C/defs%3E%3Ccircle class='a' cx='25' cy='25' r='3'/%3E%3Ccircle class='a' cx='75' cy='45' r='2'/%3E%3Ccircle class='a' cx='125' cy='25' r='2.5'/%3E%3Ccircle class='a' cx='175' cy='55' r='2'/%3E%3Ccircle class='a' cx='25' cy='95' r='2'/%3E%3Ccircle class='a' cx='75' cy='115' r='3'/%3E%3Ccircle class='a' cx='125' cy='95' r='2'/%3E%3Ccircle class='a' cx='175' cy='125' r='2.5'/%3E%3Ccircle class='a' cx='50' cy='155' r='2'/%3E%3Ccircle class='a' cx='100' cy='175' r='3'/%3E%3Ccircle class='a' cx='150' cy='155' r='2'/%3E%3Cpath class='a' d='M40 65l5-3-5-3v6z'/%3E%3Cpath class='a' d='M90 75l4-6h-8l4 6z'/%3E%3Cpath class='a' d='M140 70l3-5-6 0 3 5z'/%3E%3Cpath class='a' d='M55 140l5-3-5-3v6z'/%3E%3Cpath class='a' d='M105 135l4-6h-8l4 6z'/%3E%3Cpath class='a' d='M160 145l3-5-6 0 3 5z'/%3E%3C/svg%3E");
+}
+
+.dark_mode .tg-chat-bg {
+  background-color: #0e1621;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cdefs%3E%3Cstyle%3E.a%7Bfill:%23223344;opacity:0.4%7D%3C/style%3E%3C/defs%3E%3Ccircle class='a' cx='25' cy='25' r='3'/%3E%3Ccircle class='a' cx='75' cy='45' r='2'/%3E%3Ccircle class='a' cx='125' cy='25' r='2.5'/%3E%3Ccircle class='a' cx='175' cy='55' r='2'/%3E%3Ccircle class='a' cx='25' cy='95' r='2'/%3E%3Ccircle class='a' cx='75' cy='115' r='3'/%3E%3Ccircle class='a' cx='125' cy='95' r='2'/%3E%3Ccircle class='a' cx='175' cy='125' r='2.5'/%3E%3Ccircle class='a' cx='50' cy='155' r='2'/%3E%3Ccircle class='a' cx='100' cy='175' r='3'/%3E%3Ccircle class='a' cx='150' cy='155' r='2'/%3E%3Cpath class='a' d='M40 65l5-3-5-3v6z'/%3E%3Cpath class='a' d='M90 75l4-6h-8l4 6z'/%3E%3Cpath class='a' d='M140 70l3-5-6 0 3 5z'/%3E%3Cpath class='a' d='M55 140l5-3-5-3v6z'/%3E%3Cpath class='a' d='M105 135l4-6h-8l4 6z'/%3E%3Cpath class='a' d='M160 145l3-5-6 0 3 5z'/%3E%3C/svg%3E");
+}
+
+/* ========================
+   TELEGRAM BUBBLE TAILS
+======================== */
+.msg-bubble-out > div:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 10px 10px;
+  border-color: transparent transparent transparent #effdde;
+}
+
+.msg-bubble-in > div:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 10px 10px 0;
+  border-color: transparent #ffffff transparent transparent;
+}
+
+.dark_mode .msg-bubble-out > div:first-child::after {
+  border-color: transparent transparent transparent #2b5c3a;
+}
+
+.dark_mode .msg-bubble-in > div:first-child::after {
+  border-color: transparent #212121 transparent transparent;
+}
+
+/* ========================
+   MOBILE SAFE AREA
+======================== */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ========================
+   RESPONSIVE UTILITIES
+======================== */
+@media (max-width: 768px) {
+  .mobile-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ========================
+   CHAT SPECIFIC
+======================== */
+.message-enter {
+  animation: slideUp 0.2s ease-out;
+}
+
+/* Audio player styling */
+audio::-webkit-media-controls-panel {
+  background-color: transparent;
+}
+
+/* Fix textarea auto-grow */
+textarea {
+  field-sizing: content;
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
