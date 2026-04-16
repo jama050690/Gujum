@@ -23,7 +23,11 @@ export function showDesktopNotification(title, body) {
 export async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
   try {
-    const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
+    const registration = await navigator.serviceWorker.register(
+      `${import.meta.env.BASE_URL}sw.js`,
+      { updateViaCache: "none" },
+    );
+    registration.update().catch(() => {});
     return registration;
   } catch (err) {
     console.warn("Service Worker registration failed:", err);
@@ -47,7 +51,6 @@ function urlBase64ToUint8Array(base64String) {
 export async function subscribeToPush(username) {
   if (!VAPID_PUBLIC_KEY || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
   if (Notification.permission === "denied") {
-    console.log("Push notifications permission is denied.");
     return;
   }
 

@@ -4,7 +4,7 @@ import { registerServiceWorker, subscribeToPush } from "@/utils/notifications";
 import { getBaseUrl } from "@/utils/api";
 
 const SOCKET_PATH =
-  import.meta.env.VITE_SOCKET_PATH || "/api/bootchat/socket.io";
+  import.meta.env.VITE_SOCKET_PATH || "/api/socket.io";
 const SocketContext = createContext(null);
 
 function isLocalHostname(hostname = "") {

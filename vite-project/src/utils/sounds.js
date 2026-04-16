@@ -1,24 +1,34 @@
 let audioCtx = null;
+let audioUnlocked = false;
 
 export function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
+  if (audioCtx.state === "running") {
+    audioUnlocked = true;
+    return;
+  }
   if (audioCtx.state === "suspended") {
-    audioCtx.resume().then(() => {
-      console.log("AudioContext resumed successfully");
-    }).catch(err => {
-      console.warn("AudioContext resume failed:", err);
-    });
+    audioCtx
+      .resume()
+      .then(() => {
+        audioUnlocked = true;
+      })
+      .catch(() => {
+        audioUnlocked = false;
+      });
   }
 }
 
 function getAudioContext() {
+  if (!audioUnlocked) return null;
+
   if (!audioCtx || audioCtx.state === "closed") {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   if (audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => { });
+    return null;
   }
   return audioCtx;
 }
@@ -32,6 +42,7 @@ export function playMessageSound() {
   if (!isSoundEnabled()) return;
   try {
     const ctx = getAudioContext();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -57,6 +68,7 @@ export function playCallEnd() {
   if (!isSoundEnabled()) return;
   try {
     const ctx = getAudioContext();
+    if (!ctx) return;
 
     for (let i = 0; i < 3; i++) {
       const osc = ctx.createOscillator();
@@ -91,6 +103,7 @@ export function playRingtone() {
     if (stopped) return;
     try {
       const ctx = getAudioContext();
+      if (!ctx) return;
 
       // Ring pattern: 2 ta qisqa beep
       for (let i = 0; i < 2; i++) {

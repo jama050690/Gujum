@@ -17,7 +17,6 @@ const KEYS = {
 };
 
 const LOCAL_API_FALLBACK = "http://localhost:4000";
-const PRODUCTION_API_PREFIX = "/api/bootchat";
 
 function trimTrailingSlashes(value = "") {
   return value.trim().replace(/\/+$/, "");
@@ -31,70 +30,63 @@ function isLikelyLocalUrl(value = "") {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(value);
 }
 
+function getCurrentOrigin() {
+  if (typeof window === "undefined") return "";
+  return trimTrailingSlashes(window.location.origin);
+}
+
+function getFallbackApiBaseUrl() {
+  if (typeof window !== "undefined" && isLocalHostname(window.location.hostname)) {
+    return LOCAL_API_FALLBACK;
+  }
+
+  return getCurrentOrigin() || LOCAL_API_FALLBACK;
+}
+
 function getDefaultApiBaseUrl() {
-  const envBaseUrl = trimTrailingSlashes(import.meta.env.VITE_BASE_URL || "");
-
-  if (typeof window === "undefined") {
-    return envBaseUrl || LOCAL_API_FALLBACK;
-  }
-
-  const currentOrigin = trimTrailingSlashes(window.location.origin);
-
-  if (isLocalHostname(window.location.hostname)) {
-    if (envBaseUrl.startsWith("/")) {
-      return `${currentOrigin}${envBaseUrl}`;
-    }
-    return envBaseUrl || LOCAL_API_FALLBACK;
-  }
+  const envBaseUrl = trimTrailingSlashes(
+    import.meta.env.VITE_API_URL || import.meta.env.VITE_BASE_URL || "",
+  );
 
   if (envBaseUrl) {
-    if (envBaseUrl.startsWith("/")) {
-      return `${currentOrigin}${envBaseUrl}`;
-    }
-    if (!isLikelyLocalUrl(envBaseUrl)) {
-      return envBaseUrl;
-    }
+    return normalizeApiBaseUrl(envBaseUrl);
   }
 
-  return `${currentOrigin}${PRODUCTION_API_PREFIX}`;
+  return getFallbackApiBaseUrl();
 }
 
 function normalizeApiBaseUrl(value) {
-  const fallback = getDefaultApiBaseUrl();
   const normalizedInput = trimTrailingSlashes(value || "");
+  const fallback = getFallbackApiBaseUrl();
 
-  if (!normalizedInput || typeof window === "undefined") {
+  if (!normalizedInput) {
     return normalizedInput || fallback;
   }
 
-  const currentOrigin = trimTrailingSlashes(window.location.origin);
-  const productionBaseUrl = `${currentOrigin}${PRODUCTION_API_PREFIX}`;
-
-  if (isLikelyLocalUrl(normalizedInput) && !isLocalHostname(window.location.hostname)) {
-    return productionBaseUrl;
+  if (
+    isLikelyLocalUrl(normalizedInput) &&
+    typeof window !== "undefined" &&
+    !isLocalHostname(window.location.hostname)
+  ) {
+    return fallback;
   }
 
-  let normalized = normalizedInput;
-  if (normalized.startsWith("/")) {
-    normalized = `${currentOrigin}${normalized}`;
+  if (normalizedInput.startsWith("/")) {
+    return fallback;
   }
 
   try {
-    const parsed = new URL(normalized);
+    const parsed = new URL(normalizedInput);
 
-    if (parsed.origin === currentOrigin) {
-      const path = trimTrailingSlashes(parsed.pathname || "");
-      if (
-        !path ||
-        path === "/bootchat" ||
-        path.startsWith("/bootchat/") ||
-        !path.startsWith(PRODUCTION_API_PREFIX)
-      ) {
-        return productionBaseUrl;
-      }
+    if (parsed.origin === "null") {
+      return fallback;
     }
 
-    return trimTrailingSlashes(parsed.toString());
+    if (!trimTrailingSlashes(parsed.pathname || "")) {
+      return trimTrailingSlashes(parsed.origin);
+    }
+
+    return trimTrailingSlashes(parsed.origin);
   } catch {
     return fallback;
   }
@@ -203,9 +195,11 @@ export function getProfileData() {
 }
 
 export function saveProfileData(data) {
-  if (data.fullName !== undefined) localStorage.setItem("app_fullname", data.fullName);
+  if (data.fullName !== undefined)
+    localStorage.setItem("app_fullname", data.fullName);
   if (data.phone !== undefined) localStorage.setItem(KEYS.PHONE, data.phone);
-  if (data.birthday !== undefined) localStorage.setItem(KEYS.BIRTHDAY, data.birthday);
+  if (data.birthday !== undefined)
+    localStorage.setItem(KEYS.BIRTHDAY, data.birthday);
   if (data.bio !== undefined) localStorage.setItem(KEYS.BIO, data.bio);
 }
 
@@ -219,7 +213,10 @@ export function getSettings() {
 }
 
 export function saveSetting(key, value) {
-  localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+  localStorage.setItem(
+    key,
+    typeof value === "string" ? value : JSON.stringify(value),
+  );
 }
 
 // ─── Multi-account ───
