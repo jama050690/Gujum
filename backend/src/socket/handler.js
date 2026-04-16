@@ -23,6 +23,42 @@ const lastActiveTime = new Map();
 const activeCalls = new Map(); // callId -> session
 const activeCallByUser = new Map(); // username -> callId
 const CALL_RESUME_GRACE_MS = Number(process.env.CALL_RESUME_GRACE_MS || 45000);
+const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 15000);
+const pendingOfflineTimeouts = new Map(); // username -> timeout
+const pendingCallOffers = new Map(); // username -> { payload, callerUsername, isVideo, createdAt }
+
+function hasLiveSockets(username) {
+  const sockets = onlineUsers.get(username);
+  return Boolean(sockets && sockets.size > 0);
+}
+
+function isPresenceGraceActive(username) {
+  return pendingOfflineTimeouts.has(username);
+}
+
+function clearPendingOfflineTimeout(username) {
+  const timeout = pendingOfflineTimeouts.get(username);
+  if (timeout) {
+    clearTimeout(timeout);
+    pendingOfflineTimeouts.delete(username);
+  }
+}
+
+function consumePendingCallOffer(username) {
+  const pending = pendingCallOffers.get(username) || null;
+  if (pending) {
+    pendingCallOffers.delete(username);
+  }
+  return pending;
+}
+
+function clearPendingCallOfferByCallId(callId) {
+  for (const [username, pending] of pendingCallOffers.entries()) {
+    if (pending?.payload?.callId === callId) {
+      pendingCallOffers.delete(username);
+    }
+  }
+}
 
 function getCallPeer(call, username) {
   if (!call || !username) return null;
@@ -56,6 +92,7 @@ function finalizeCallSession(callId) {
 
   clearUserActiveCall(call.caller, callId);
   clearUserActiveCall(call.callee, callId);
+  clearPendingCallOfferByCallId(callId);
   activeCalls.delete(callId);
   return call;
 }
@@ -135,7 +172,7 @@ function buildCallSessionPayload(call, username) {
 // Username ga tegishli barcha socketlarga emit qilish
 function emitToUser(username, event, data) {
   const sockets = onlineUsers.get(username);
-  if (!sockets) return false;
+  if (!sockets || sockets.size === 0) return false;
   for (const s of sockets) {
     s.emit(event, data);
   }
@@ -199,7 +236,7 @@ async function sendAllUsers(targetBrowser = null) {
       username: u.username,
       avatar: u.avatar,
       full_name: u.full_name || null,
-      online: onlineUsers.has(u.username),
+      online: hasLiveSockets(u.username) || isPresenceGraceActive(u.username),
       lastActive: lastActiveTime.get(u.username) || (u.last_seen ? new Date(u.last_seen).getTime() : null)
     }));
 
@@ -235,6 +272,7 @@ function registerSocketHandlers(io) {
       if (!username) return;
 
       browser.username = username;
+      clearPendingOfflineTimeout(username);
 
       if (!onlineUsers.has(username)) {
         onlineUsers.set(username, new Set());
@@ -257,6 +295,14 @@ function registerSocketHandlers(io) {
             callId: activeCall.id,
             username,
           });
+        }
+      }
+
+      const pendingOffer = consumePendingCallOffer(username);
+      if (pendingOffer) {
+        const delivered = emitToUser(username, "CALL_OFFER", pendingOffer.payload);
+        if (!delivered) {
+          pendingCallOffers.set(username, pendingOffer);
         }
       }
     });
@@ -640,6 +686,23 @@ function registerSocketHandlers(io) {
 
       // Target offline bo'lsa callerga xabar berish + push notification
       if (!delivered) {
+        if (isPresenceGraceActive(data.target)) {
+          pendingCallOffers.set(data.target, {
+            callerUsername: data.caller.username,
+            isVideo: Boolean(data.isVideo),
+            createdAt: Date.now(),
+            payload: {
+              callId,
+              caller: data.caller,
+              offer: data.offer,
+              isVideo: data.isVideo,
+              resume: Boolean(data.resume),
+            },
+          });
+          console.log(`Qo'ng'iroq navbatga qo'yildi: ${data.caller.username} → ${data.target}`);
+          return;
+        }
+
         finalizeCallSession(callId);
         emitToUser(data.caller.username, "CALL_NOT_DELIVERED", { target: data.target });
         sendPushToUser(data.target, {
@@ -707,21 +770,46 @@ function registerSocketHandlers(io) {
           if (sockets.size === 0) {
             const activeCall = getUserActiveCall(browser.username);
 
-            onlineUsers.delete(browser.username);
-            const now = Date.now();
-            lastActiveTime.set(browser.username, now);
-            // last_seen ni DB ga saqlash
-            pool.query(
-              `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE username = $1`,
-              [browser.username]
-            ).catch(err => console.error("last_seen yangilashda xato:", err));
-            console.log(`${browser.username} offline bo'ldi`);
+            clearPendingOfflineTimeout(browser.username);
+            pendingOfflineTimeouts.set(
+              browser.username,
+              setTimeout(() => {
+                pendingOfflineTimeouts.delete(browser.username);
+
+                const currentSockets = onlineUsers.get(browser.username);
+                if (currentSockets && currentSockets.size === 0) {
+                  onlineUsers.delete(browser.username);
+                }
+
+                const now = Date.now();
+                lastActiveTime.set(browser.username, now);
+                pool.query(
+                  `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE username = $1`,
+                  [browser.username]
+                ).catch(err => console.error("last_seen yangilashda xato:", err));
+                console.log(`${browser.username} offline bo'ldi`);
+
+                sendAllUsers();
+
+                for (const b of browsers) {
+                  b.emit("USER_STATUS_CHANGED", { username: browser.username, online: false, lastActive: Date.now() });
+                }
+
+                const pendingOffer = consumePendingCallOffer(browser.username);
+                if (pendingOffer?.callerUsername) {
+                  finalizeCallSession(pendingOffer.payload.callId);
+                  emitToUser(pendingOffer.callerUsername, "CALL_NOT_DELIVERED", { target: browser.username });
+                  sendPushToUser(browser.username, {
+                    title: pendingOffer.callerUsername,
+                    body: pendingOffer.isVideo ? "Video qo'ng'iroq" : "Audio qo'ng'iroq",
+                    tag: "call-" + pendingOffer.callerUsername,
+                  });
+                }
+              }, PRESENCE_OFFLINE_GRACE_MS),
+            );
+            console.log(`${browser.username} reconnect kutilmoqda (${PRESENCE_OFFLINE_GRACE_MS}ms)`);
 
             sendAllUsers();
-
-            for (const b of browsers) {
-              b.emit("USER_STATUS_CHANGED", { username: browser.username, online: false, lastActive: Date.now() });
-            }
 
             if (activeCall) {
               const peerUsername = getCallPeer(activeCall, browser.username);

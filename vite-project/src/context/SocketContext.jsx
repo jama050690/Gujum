@@ -154,6 +154,23 @@ export function SocketProvider({ children, username }) {
     };
   }, [username]);
 
+  useEffect(() => {
+    if (!socket || !username || !connected) return undefined;
+
+    const sendPresence = () => {
+      if (socket.connected) {
+        socket.emit("USER_ONLINE", username);
+      }
+    };
+
+    sendPresence();
+    const interval = window.setInterval(sendPresence, 10000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [socket, username, connected]);
+
   return (
     <SocketContext.Provider value={{ socket, connected }}>
       {children}
