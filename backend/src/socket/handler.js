@@ -25,7 +25,8 @@ const activeCallByUser = new Map(); // username -> callId
 const CALL_RESUME_GRACE_MS = Number(process.env.CALL_RESUME_GRACE_MS || 45000);
 const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 15000);
 const pendingOfflineTimeouts = new Map(); // username -> timeout
-const pendingCallOffers = new Map(); // username -> { payload, callerUsername, isVideo, createdAt }
+const pendingCallOffers = new Map(); // username -> { payload, callerUsername, isVideo, createdAt, timeout }
+const CALL_OFFER_DELIVERY_GRACE_MS = Number(process.env.CALL_OFFER_DELIVERY_GRACE_MS || 15000);
 
 function hasLiveSockets(username) {
   const sockets = onlineUsers.get(username);
@@ -47,6 +48,9 @@ function clearPendingOfflineTimeout(username) {
 function consumePendingCallOffer(username) {
   const pending = pendingCallOffers.get(username) || null;
   if (pending) {
+    if (pending.timeout) {
+      clearTimeout(pending.timeout);
+    }
     pendingCallOffers.delete(username);
   }
   return pending;
@@ -55,6 +59,9 @@ function consumePendingCallOffer(username) {
 function clearPendingCallOfferByCallId(callId) {
   for (const [username, pending] of pendingCallOffers.entries()) {
     if (pending?.payload?.callId === callId) {
+      if (pending.timeout) {
+        clearTimeout(pending.timeout);
+      }
       pendingCallOffers.delete(username);
     }
   }
@@ -686,30 +693,43 @@ function registerSocketHandlers(io) {
 
       // Target offline bo'lsa callerga xabar berish + push notification
       if (!delivered) {
-        if (isPresenceGraceActive(data.target)) {
-          pendingCallOffers.set(data.target, {
-            callerUsername: data.caller.username,
-            isVideo: Boolean(data.isVideo),
-            createdAt: Date.now(),
-            payload: {
-              callId,
-              caller: data.caller,
-              offer: data.offer,
-              isVideo: data.isVideo,
-              resume: Boolean(data.resume),
-            },
-          });
-          console.log(`Qo'ng'iroq navbatga qo'yildi: ${data.caller.username} → ${data.target}`);
-          return;
+        const previousPending = consumePendingCallOffer(data.target);
+        if (previousPending?.payload?.callId && previousPending.payload.callId !== callId) {
+          finalizeCallSession(previousPending.payload.callId);
         }
 
-        finalizeCallSession(callId);
-        emitToUser(data.caller.username, "CALL_NOT_DELIVERED", { target: data.target });
-        sendPushToUser(data.target, {
-          title: data.caller.username,
-          body: data.isVideo ? "Video qo'ng'iroq" : "Audio qo'ng'iroq",
-          tag: "call-" + data.caller.username,
-        });
+        const pendingOffer = {
+          callerUsername: data.caller.username,
+          isVideo: Boolean(data.isVideo),
+          createdAt: Date.now(),
+          payload: {
+            callId,
+            caller: data.caller,
+            offer: data.offer,
+            isVideo: data.isVideo,
+            resume: Boolean(data.resume),
+          },
+          timeout: null,
+        };
+
+        pendingOffer.timeout = setTimeout(() => {
+          const latestPending = pendingCallOffers.get(data.target);
+          if (!latestPending || latestPending.payload.callId !== callId) return;
+
+          pendingCallOffers.delete(data.target);
+          finalizeCallSession(callId);
+          emitToUser(data.caller.username, "CALL_NOT_DELIVERED", { target: data.target });
+          sendPushToUser(data.target, {
+            title: data.caller.username,
+            body: data.isVideo ? "Video qo'ng'iroq" : "Audio qo'ng'iroq",
+            tag: "call-" + data.caller.username,
+          });
+          console.log(`Qo'ng'iroq yetkazilmadi (timeout): ${data.caller.username} → ${data.target}`);
+        }, CALL_OFFER_DELIVERY_GRACE_MS);
+
+        pendingCallOffers.set(data.target, pendingOffer);
+        console.log(`Qo'ng'iroq navbatga qo'yildi: ${data.caller.username} → ${data.target}`);
+        return;
       }
     });
 
@@ -795,16 +815,7 @@ function registerSocketHandlers(io) {
                   b.emit("USER_STATUS_CHANGED", { username: browser.username, online: false, lastActive: Date.now() });
                 }
 
-                const pendingOffer = consumePendingCallOffer(browser.username);
-                if (pendingOffer?.callerUsername) {
-                  finalizeCallSession(pendingOffer.payload.callId);
-                  emitToUser(pendingOffer.callerUsername, "CALL_NOT_DELIVERED", { target: browser.username });
-                  sendPushToUser(browser.username, {
-                    title: pendingOffer.callerUsername,
-                    body: pendingOffer.isVideo ? "Video qo'ng'iroq" : "Audio qo'ng'iroq",
-                    tag: "call-" + pendingOffer.callerUsername,
-                  });
-                }
+                // Pending call offers manage their own timeout and fallback delivery.
               }, PRESENCE_OFFLINE_GRACE_MS),
             );
             console.log(`${browser.username} reconnect kutilmoqda (${PRESENCE_OFFLINE_GRACE_MS}ms)`);
