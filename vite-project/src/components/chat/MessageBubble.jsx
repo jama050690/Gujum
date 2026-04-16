@@ -4,6 +4,7 @@ import Avatar from "@/components/common/Avatar";
 import { useLanguage } from "@/context/LanguageContext";
 import { parseLocationMessage } from "@/utils/location";
 import { resolveMediaUrl } from "@/utils/media";
+import { markMediaUnavailable, useMediaAvailability } from "@/hooks/useMediaAvailability";
 
 function highlightText(text, query) {
   if (!query || !text) return text;
@@ -68,10 +69,12 @@ function InlineAudioPlayer({ src, isMine }) {
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const { isAvailable, isMissing, isChecking } = useMediaAvailability(src);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return undefined;
+    if (!audio || !isAvailable) return undefined;
 
     const handleLoaded = () => setDuration(audio.duration || 0);
     const handleTime = () => setCurrent(audio.currentTime || 0);
@@ -85,16 +88,45 @@ function InlineAudioPlayer({ src, isMine }) {
       audio.removeEventListener("timeupdate", handleTime);
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [src]);
+  }, [src, isAvailable]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !isAvailable) return;
     setPlaying(false);
     setCurrent(0);
     setDuration(0);
+    setLoadError(false);
     audio.load();
-  }, [src]);
+  }, [src, isAvailable]);
+
+  if (isChecking) {
+    return (
+      <div
+        className={`mt-1 rounded-2xl px-3 py-2 text-sm ${
+          isMine
+            ? "bg-white/90 text-gray-500 dark:bg-[#1f2b3a] dark:text-gray-300"
+            : "bg-[#f6f7fb] text-gray-500 dark:bg-[#243140] dark:text-gray-300"
+        }`}
+      >
+        Audio tekshirilmoqda...
+      </div>
+    );
+  }
+
+  if (isMissing || loadError) {
+    return (
+      <div
+        className={`mt-1 rounded-2xl px-3 py-2 text-sm ${
+          isMine
+            ? "bg-white/90 text-gray-700 dark:bg-[#1f2b3a] dark:text-gray-200"
+            : "bg-[#f6f7fb] text-gray-700 dark:bg-[#243140] dark:text-gray-200"
+        }`}
+      >
+        Audio fayli mavjud emas yoki buzilgan.
+      </div>
+    );
+  }
 
   const togglePlay = async () => {
     const audio = audioRef.current;
@@ -173,12 +205,40 @@ function InlineAudioPlayer({ src, isMine }) {
       >
         <i className="fas fa-ellipsis-v" />
       </button>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="none"
+        onError={() => {
+          setPlaying(false);
+          markMediaUnavailable(src);
+          setLoadError(true);
+        }}
+      />
     </div>
   );
 }
 
 function InlineVideoPreview({ src, onOpen }) {
+  const [loadError, setLoadError] = useState(false);
+  const { isMissing, isChecking } = useMediaAvailability(src);
+
+  if (isChecking) {
+    return (
+      <div className="mt-1 rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
+        Video tekshirilmoqda...
+      </div>
+    );
+  }
+
+  if (isMissing || loadError) {
+    return (
+      <div className="mt-1 rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
+        Video fayli mavjud emas yoki buzilgan.
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative mt-1 rounded-2xl overflow-hidden bg-black/10 dark:bg-black/40 cursor-pointer shadow-sm"
@@ -195,6 +255,10 @@ function InlineVideoPreview({ src, onOpen }) {
         playsInline
         preload="metadata"
         className="w-full max-h-80 object-cover"
+        onError={() => {
+          markMediaUnavailable(src);
+          setLoadError(true);
+        }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/30" />
       <div className="absolute left-3 bottom-3 flex items-center gap-2">
@@ -209,6 +273,40 @@ function InlineVideoPreview({ src, onOpen }) {
         <i className="fas fa-ellipsis-v text-white text-xs" />
       </div>
     </div>
+  );
+}
+
+function InlineImagePreview({ src, onOpen }) {
+  const [loadError, setLoadError] = useState(false);
+  const { isAvailable, isMissing, isChecking } = useMediaAvailability(src);
+
+  if (isChecking) {
+    return (
+      <div className="rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
+        Rasm tekshirilmoqda...
+      </div>
+    );
+  }
+
+  if (isMissing || loadError) {
+    return (
+      <div className="rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
+        Rasm fayli mavjud emas yoki buzilgan.
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Rasm"
+      className="max-w-full rounded-2xl cursor-pointer max-h-96 object-cover shadow-sm"
+      onClick={onOpen}
+      onError={() => {
+        markMediaUnavailable(src);
+        setLoadError(true);
+      }}
+    />
   );
 }
 
@@ -408,11 +506,9 @@ export default function MessageBubble({
 
           {mediaSrc && !isVideo && (
             <div className="relative mt-1">
-              <img
+              <InlineImagePreview
                 src={mediaSrc}
-                alt="Rasm"
-                className="max-w-full rounded-2xl cursor-pointer max-h-96 object-cover shadow-sm"
-                onClick={() => setViewer({ type: "image", src: mediaSrc })}
+                onOpen={() => setViewer({ type: "image", src: mediaSrc })}
               />
               {showMediaOverlay && (
                 <MediaTimeBadge

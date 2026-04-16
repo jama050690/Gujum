@@ -4,7 +4,7 @@ class AppConfig {
   static const defaultSocketPath = '/socket.io';
   static const defaultLocale = 'uz';
   static const defaultPort = 4000;
-  static const productionBaseUrl = 'https://www.jamshiddin.uz/api/bootchat';
+  static const productionBaseUrl = 'https://jamshiddin.uz';
   static const androidUsbBaseUrl = 'http://127.0.0.1:4000';
   static const androidLanBaseUrl = 'http://10.10.3.180:4000';
   static const desktopLoopbackBaseUrl = 'http://127.0.0.1:4000';
@@ -28,33 +28,27 @@ class AppConfig {
         return webLoopbackBaseUrl;
       }
 
-      return Uri(
-        scheme: uri.scheme,
-        host: uri.host,
-        port: uri.hasPort ? uri.port : null,
-        path: '/api/bootchat',
-      ).toString().replaceFirst(RegExp(r'/$'), '');
+      return _originFromUri(uri) ?? productionBaseUrl;
     }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return productionBaseUrl;
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        return desktopLoopbackBaseUrl;
+        return productionBaseUrl;
     }
   }
 
   static bool shouldUpgradeStoredBaseUrl(String value) {
     final normalized = _normalizeBaseUrl(value);
     return normalized == 'http://10.0.2.2:3003' ||
+        normalized == 'http://10.0.2.2:4000' ||
         normalized == 'http://127.0.0.1:3003' ||
         normalized == 'http://localhost:3003' ||
         normalized == androidLanBaseUrl ||
-        normalized == '$androidLanBaseUrl/api' ||
         normalized == 'http://127.0.0.1:4000' ||
         normalized == 'http://localhost:4000';
   }
@@ -68,22 +62,21 @@ class AppConfig {
       return normalized;
     }
 
-    return Uri(
-      scheme: uri.scheme,
-      host: uri.host,
-      port: uri.hasPort ? uri.port : null,
-    ).toString().replaceFirst(RegExp(r'/$'), '');
+    return _originFromUri(uri) ?? normalized;
   }
 
   static String socketPath(String value) {
-    final normalized = _normalizeBaseUrl(value);
-    final uri = Uri.tryParse(normalized);
+    final rawValue = value.trim();
+    final uri = Uri.tryParse(rawValue);
     if (uri == null) {
       return defaultSocketPath;
     }
 
-    final normalizedPath = _normalizeBaseUrl(uri.path);
-    if (normalizedPath.isEmpty || normalizedPath == '/api') {
+    final normalizedPath = _normalizePath(uri.path);
+    if (normalizedPath.isEmpty ||
+        normalizedPath == '/api' ||
+        normalizedPath == '/api/bootchat' ||
+        normalizedPath == '/bootchat') {
       return defaultSocketPath;
     }
 
@@ -125,16 +118,51 @@ class AppConfig {
   }
 
   static String _normalizeBaseUrl(String value) {
-    var normalized = value.trim();
-    if (normalized.endsWith('/')) {
-      normalized = normalized.substring(0, normalized.length - 1);
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      return normalized;
     }
-    return normalized;
+
+    final uri = Uri.tryParse(normalized);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return normalized.replaceFirst(RegExp(r'/$'), '');
+    }
+
+    return _originFromUri(uri) ?? normalized.replaceFirst(RegExp(r'/$'), '');
   }
 
   static String _joinUrl(String base, String path) {
     final normalizedBase = _normalizeBaseUrl(base);
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.encodeFull('$normalizedBase$normalizedPath');
+  }
+
+  static String _normalizePath(String value) {
+    var normalized = value.trim();
+    if (normalized.isEmpty || normalized == '/') {
+      return '';
+    }
+
+    if (!normalized.startsWith('/')) {
+      normalized = '/$normalized';
+    }
+
+    if (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+
+    return normalized;
+  }
+
+  static String? _originFromUri(Uri uri) {
+    if (!uri.hasScheme || uri.host.isEmpty) {
+      return null;
+    }
+
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+    ).toString().replaceFirst(RegExp(r'/$'), '');
   }
 }

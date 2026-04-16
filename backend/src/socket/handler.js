@@ -20,6 +20,117 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 const browsers = [];
 const onlineUsers = new Map(); // username -> Set of sockets
 const lastActiveTime = new Map();
+const activeCalls = new Map(); // callId -> session
+const activeCallByUser = new Map(); // username -> callId
+const CALL_RESUME_GRACE_MS = Number(process.env.CALL_RESUME_GRACE_MS || 45000);
+
+function getCallPeer(call, username) {
+  if (!call || !username) return null;
+  if (call.caller === username) return call.callee;
+  if (call.callee === username) return call.caller;
+  return null;
+}
+
+function clearUserActiveCall(username, callId) {
+  if (activeCallByUser.get(username) === callId) {
+    activeCallByUser.delete(username);
+  }
+}
+
+function clearReconnectTimer(call, username) {
+  const timer = call?.disconnectTimers?.get(username);
+  if (timer) {
+    clearTimeout(timer);
+    call.disconnectTimers.delete(username);
+  }
+  call?.reconnectingUsers?.delete(username);
+}
+
+function finalizeCallSession(callId) {
+  const call = activeCalls.get(callId);
+  if (!call) return null;
+
+  for (const timer of call.disconnectTimers.values()) {
+    clearTimeout(timer);
+  }
+
+  clearUserActiveCall(call.caller, callId);
+  clearUserActiveCall(call.callee, callId);
+  activeCalls.delete(callId);
+  return call;
+}
+
+function upsertCallSession({ callId, caller, callee, isVideo, callerInfo = null }) {
+  const existing = activeCalls.get(callId);
+  const session = existing || {
+    id: callId,
+    caller,
+    callee,
+    isVideo: Boolean(isVideo),
+    status: "ringing",
+    createdAt: Date.now(),
+    participants: {},
+    disconnectTimers: new Map(),
+    reconnectingUsers: new Set(),
+  };
+
+  session.caller = caller;
+  session.callee = callee;
+  session.isVideo = Boolean(isVideo);
+  session.status = session.status || "ringing";
+  session.participants = session.participants || {};
+  session.disconnectTimers = session.disconnectTimers || new Map();
+  session.reconnectingUsers = session.reconnectingUsers || new Set();
+
+  if (callerInfo) {
+    session.participants[caller] = {
+      username: caller,
+      avatar: callerInfo.avatar || null,
+      full_name: callerInfo.full_name || null,
+    };
+  } else if (!session.participants[caller]) {
+    session.participants[caller] = { username: caller, avatar: null, full_name: null };
+  }
+
+  if (!session.participants[callee]) {
+    session.participants[callee] = { username: callee, avatar: null, full_name: null };
+  }
+
+  activeCalls.set(callId, session);
+  activeCallByUser.set(caller, callId);
+  activeCallByUser.set(callee, callId);
+  return session;
+}
+
+function getUserActiveCall(username) {
+  const callId = activeCallByUser.get(username);
+  if (!callId) return null;
+
+  const call = activeCalls.get(callId);
+  if (!call) {
+    activeCallByUser.delete(username);
+    return null;
+  }
+
+  return call;
+}
+
+function buildCallSessionPayload(call, username) {
+  const peerUsername = getCallPeer(call, username);
+  const peerInfo = call?.participants?.[peerUsername] || { username: peerUsername };
+
+  return {
+    callId: call.id,
+    isVideo: Boolean(call.isVideo),
+    status: call.status || "ringing",
+    direction: call.caller === username ? "outgoing" : "incoming",
+    peer: {
+      username: peerUsername,
+      avatar: peerInfo.avatar || null,
+      full_name: peerInfo.full_name || null,
+    },
+  };
+}
 
 // Username ga tegishli barcha socketlarga emit qilish
 function emitToUser(username, event, data) {
@@ -109,6 +220,15 @@ function registerSocketHandlers(io) {
     browsers.push(browser);
     console.log("foydalanuvchi ulandi");
 
+    const sendActiveCallSync = (targetSocket, username) => {
+      const call = getUserActiveCall(username);
+      if (!call) return false;
+
+      clearReconnectTimer(call, username);
+      targetSocket.emit("CALL_SESSION_SYNC", buildCallSessionPayload(call, username));
+      return true;
+    };
+
     sendAllUsers(browser);
 
     browser.on("USER_ONLINE", (username) => {
@@ -125,6 +245,28 @@ function registerSocketHandlers(io) {
       sendAllUsers();
 
       browser.broadcast.emit("USER_STATUS_CHANGED", { username, online: true });
+
+      const activeCall = getUserActiveCall(username);
+      if (activeCall) {
+        clearReconnectTimer(activeCall, username);
+        browser.emit("CALL_SESSION_SYNC", buildCallSessionPayload(activeCall, username));
+
+        const peerUsername = getCallPeer(activeCall, username);
+        if (peerUsername && onlineUsers.has(peerUsername)) {
+          emitToUser(peerUsername, "CALL_PARTICIPANT_REJOINED", {
+            callId: activeCall.id,
+            username,
+          });
+        }
+      }
+    });
+
+    browser.on("CALL_SESSION_SYNC_REQUEST", ({ username, callId } = {}) => {
+      if (!username) return;
+      const activeCall = getUserActiveCall(username);
+      if (!activeCall) return;
+      if (callId && activeCall.id !== callId) return;
+      sendActiveCallSync(browser, username);
     });
 
     browser.on("NEW_MESSAGE", async (data) => {
@@ -428,7 +570,39 @@ function registerSocketHandlers(io) {
       }
     }
 
+    function scheduleCallReconnectTimeout(callId, disconnectedUsername) {
+      const activeCall = activeCalls.get(callId);
+      if (!activeCall) return;
+
+      clearReconnectTimer(activeCall, disconnectedUsername);
+      activeCall.reconnectingUsers.add(disconnectedUsername);
+
+      const timer = setTimeout(async () => {
+        const currentCall = activeCalls.get(callId);
+        if (!currentCall) return;
+
+        const peerUsername = getCallPeer(currentCall, disconnectedUsername);
+        const duration = currentCall.connectedAt
+          ? Math.max(0, Math.round((Date.now() - currentCall.connectedAt) / 1000))
+          : 0;
+
+        if (peerUsername) {
+          emitToUser(peerUsername, "CALL_END", {
+            callId,
+            reason: "disconnect_timeout",
+          });
+        }
+
+        finalizeCallSession(callId);
+        await saveCallMessage(currentCall.caller, currentCall.callee, currentCall.isVideo || false, duration);
+      }, CALL_RESUME_GRACE_MS);
+
+      activeCall.disconnectTimers.set(disconnectedUsername, timer);
+    }
+
     browser.on("CALL_OFFER", async (data) => {
+      const callId = data.callId || `${data.caller?.username || "call"}:${data.target}:${Date.now()}`;
+
       console.log(`CALL_OFFER keldi: ${data.caller?.username} → ${data.target}`);
       console.log(`Target online mi: ${onlineUsers.has(data.target)}, socketlar: ${onlineUsers.get(data.target)?.size || 0}`);
 
@@ -444,15 +618,29 @@ function registerSocketHandlers(io) {
         console.error("isBlocked tekshiruvida xato:", err);
       }
 
+      const session = upsertCallSession({
+        callId,
+        caller: data.caller.username,
+        callee: data.target,
+        isVideo: data.isVideo,
+        callerInfo: data.caller,
+      });
+
+      clearReconnectTimer(session, data.caller.username);
+      clearReconnectTimer(session, data.target);
+
       const delivered = emitToUser(data.target, "CALL_OFFER", {
+        callId,
         caller: data.caller,
         offer: data.offer,
         isVideo: data.isVideo,
+        resume: Boolean(data.resume),
       });
       console.log(`Qo'ng'iroq: ${data.caller.username} → ${data.target}, yetkazildi: ${delivered}`);
 
       // Target offline bo'lsa callerga xabar berish + push notification
       if (!delivered) {
+        finalizeCallSession(callId);
         emitToUser(data.caller.username, "CALL_NOT_DELIVERED", { target: data.target });
         sendPushToUser(data.target, {
           title: data.caller.username,
@@ -463,26 +651,46 @@ function registerSocketHandlers(io) {
     });
 
     browser.on("CALL_ANSWER", (data) => {
-      emitToUser(data.target, "CALL_ANSWER", { answer: data.answer });
+      const activeCall = activeCalls.get(data.callId);
+      if (activeCall) {
+        activeCall.status = "connected";
+        activeCall.connectedAt = activeCall.connectedAt || Date.now();
+        if (data.user?.username) {
+          activeCall.participants[data.user.username] = {
+            username: data.user.username,
+            avatar: data.user.avatar || null,
+            full_name: data.user.full_name || null,
+          };
+        }
+        clearReconnectTimer(activeCall, data.target);
+        clearReconnectTimer(activeCall, browser.username);
+      }
+
+      emitToUser(data.target, "CALL_ANSWER", { answer: data.answer, callId: data.callId });
     });
 
     browser.on("ICE_CANDIDATE", (data) => {
-      emitToUser(data.target, "ICE_CANDIDATE", { candidate: data.candidate });
+      emitToUser(data.target, "ICE_CANDIDATE", { candidate: data.candidate, callId: data.callId });
     });
 
     browser.on("CALL_REJECT", async (data) => {
-      emitToUser(data.target, "CALL_REJECT", {});
+      emitToUser(data.target, "CALL_REJECT", { callId: data.callId });
+      finalizeCallSession(data.callId);
       // Save missed call message — caller is target (the one who originally called)
       await saveCallMessage(data.target, browser.username, data.isVideo || false, 0);
       console.log(`Qo'ng'iroq rad etildi: ${data.target}`);
     });
 
     browser.on("CALL_END", async (data) => {
-      emitToUser(data.target, "CALL_END", {});
+      emitToUser(data.target, "CALL_END", { callId: data.callId, reason: data.reason || "hangup" });
+      const currentCall = finalizeCallSession(data.callId);
       // Save call message
       const callerUsername = data.callerUsername || browser.username;
       const otherUsername = data.target;
-      await saveCallMessage(callerUsername, otherUsername, data.isVideo || false, data.duration || 0);
+      const fallbackDuration = currentCall?.connectedAt
+        ? Math.max(0, Math.round((Date.now() - currentCall.connectedAt) / 1000))
+        : 0;
+      await saveCallMessage(callerUsername, otherUsername, data.isVideo || false, data.duration || fallbackDuration);
       console.log(`Qo'ng'iroq tugatildi: ${data.target} (${data.duration || 0}s)`);
     });
 
@@ -497,6 +705,8 @@ function registerSocketHandlers(io) {
         if (sockets) {
           sockets.delete(browser);
           if (sockets.size === 0) {
+            const activeCall = getUserActiveCall(browser.username);
+
             onlineUsers.delete(browser.username);
             const now = Date.now();
             lastActiveTime.set(browser.username, now);
@@ -511,6 +721,18 @@ function registerSocketHandlers(io) {
 
             for (const b of browsers) {
               b.emit("USER_STATUS_CHANGED", { username: browser.username, online: false, lastActive: Date.now() });
+            }
+
+            if (activeCall) {
+              const peerUsername = getCallPeer(activeCall, browser.username);
+              if (peerUsername) {
+                emitToUser(peerUsername, "CALL_PARTICIPANT_RECONNECTING", {
+                  callId: activeCall.id,
+                  username: browser.username,
+                  graceMs: CALL_RESUME_GRACE_MS,
+                });
+              }
+              scheduleCallReconnectTimeout(activeCall.id, browser.username);
             }
           } else {
             console.log(`${browser.username} ning 1 ta tabi yopildi (hali ${sockets.size} ta tab ochiq)`);

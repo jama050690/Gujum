@@ -3,7 +3,7 @@ import { formatCallDuration } from "@/utils/formatters";
 import Avatar from "@/components/common/Avatar";
 
 export default function CallScreen({
-  callState, // "calling" | "ringing" | "connecting" | "connected" | null
+  callState, // "calling" | "ringing" | "connecting" | "reconnecting" | "connected" | null
   callError,
   remoteUser,
   isVideo,
@@ -58,10 +58,12 @@ export default function CallScreen({
 
   // Call duration timer
   useEffect(() => {
-    if (callState !== "connected") {
+    if (!callState) {
       setDuration(0);
       return;
     }
+    if (callState !== "connected") return;
+
     const interval = setInterval(() => setDuration((d) => d + 1), 1000);
     return () => clearInterval(interval);
   }, [callState]);
@@ -96,6 +98,7 @@ export default function CallScreen({
           {callState === "calling" && "Qo'ng'iroq qilinmoqda..."}
           {callState === "ringing" && "Javob kutilmoqda..."}
           {callState === "connecting" && "Ulanmoqda..."}
+          {callState === "reconnecting" && "Aloqa qayta tiklanmoqda..."}
           {callState === "connected" && formatCallDuration(duration)}
         </p>
         {callError && (

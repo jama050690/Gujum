@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useChat } from "@/context/ChatContext";
 import { resolveMediaUrl } from "@/utils/media";
+import { markMediaUnavailable, useMediaAvailability } from "@/hooks/useMediaAvailability";
 
 function countMedia(messages) {
   let images = 0, files = 0, links = 0, audio = 0;
@@ -32,6 +33,87 @@ function extractLinks(messages) {
     }
   });
   return results;
+}
+
+function SharedImageItem({ src }) {
+  const { isMissing, isChecking } = useMediaAvailability(src);
+  const [loadError, setLoadError] = useState(false);
+
+  if (isChecking) {
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-md bg-gray-100 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+        Tekshirilmoqda
+      </div>
+    );
+  }
+
+  if (isMissing || loadError) {
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-md bg-gray-100 px-2 text-center text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+        Rasm yo'q
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-full aspect-square object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
+      onClick={() => window.open(src, "_blank")}
+      onError={() => {
+        markMediaUnavailable(src);
+        setLoadError(true);
+      }}
+    />
+  );
+}
+
+function SharedAudioItem({ src }) {
+  const { isMissing, isChecking } = useMediaAvailability(src);
+  const [loadError, setLoadError] = useState(false);
+
+  if (isChecking) {
+    return (
+      <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+        <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+          <i className="fas fa-music text-blue-500 text-xs" />
+        </div>
+        <div className="text-sm text-gray-400">Audio tekshirilmoqda...</div>
+      </div>
+    );
+  }
+
+  if (isMissing || loadError) {
+    return (
+      <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+        <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+          <i className="fas fa-exclamation-triangle text-blue-500 text-xs" />
+        </div>
+        <div className="text-sm text-gray-400">Audio mavjud emas yoki buzilgan</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+      <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+        <i className="fas fa-play text-blue-500 text-xs" />
+      </div>
+      <audio
+        controls
+        preload="none"
+        className="flex-1 h-8"
+        style={{ minWidth: 0 }}
+        onError={() => {
+          markMediaUnavailable(src);
+          setLoadError(true);
+        }}
+      >
+        <source src={src} />
+      </audio>
+    </div>
+  );
 }
 
 export default function SharedMedia() {
@@ -77,13 +159,7 @@ export default function SharedMedia() {
           {messages.filter(m => m.image).map((m, i) => {
             const src = resolveMediaUrl(m.image);
             return (
-              <img
-                key={i}
-                src={src}
-                alt=""
-                className="w-full aspect-square object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => window.open(src, "_blank")}
-              />
+              <SharedImageItem key={i} src={src} />
             );
           })}
         </div>
@@ -115,16 +191,7 @@ export default function SharedMedia() {
         <div className="space-y-2 px-2 pb-2">
           {messages.filter(m => m.audio).map((m, i) => {
             const src = resolveMediaUrl(m.audio);
-            return (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                  <i className="fas fa-play text-blue-500 text-xs" />
-                </div>
-                <audio controls className="flex-1 h-8" style={{ minWidth: 0 }}>
-                  <source src={src} />
-                </audio>
-              </div>
-            );
+            return <SharedAudioItem key={i} src={src} />;
           })}
         </div>
       )}
