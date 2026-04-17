@@ -8,6 +8,7 @@ import 'features/app/app.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/google_auth_service.dart';
 import 'features/auth/auth_repository.dart';
+import 'features/call/call_controller.dart';
 import 'features/chat/chat_controller.dart';
 import 'features/chat/chat_repository.dart';
 import 'features/settings/settings_controller.dart';
@@ -32,6 +33,10 @@ Future<void> main() async {
     sessionStore: sessionStore,
   );
   await authController.bootstrap();
+  final callController = CallController(
+    socketService: socketService,
+    authController: authController,
+  );
 
   final chatController = ChatController(
     chatRepository: chatRepository,
@@ -52,6 +57,7 @@ Future<void> main() async {
         Provider.value(value: googleAuthService),
         ChangeNotifierProvider.value(value: settingsController),
         ChangeNotifierProvider.value(value: authController),
+        ChangeNotifierProvider.value(value: callController),
         ChangeNotifierProvider.value(value: chatController),
       ],
       child: const BootchatApp(),

@@ -44,6 +44,22 @@ class ApiClient {
     return _decode(response);
   }
 
+  Future<dynamic> putJson(
+    String path, {
+    Map<String, dynamic>? body,
+    bool authenticated = false,
+  }) async {
+    final request = http.Request('PUT', _buildUri(path));
+    _applyHeaders(
+      request.headers,
+      authenticated: authenticated,
+      json: true,
+    );
+    request.body = jsonEncode(body ?? <String, dynamic>{});
+    final response = await request.send();
+    return _decode(response);
+  }
+
   Future<dynamic> deleteJson(
     String path, {
     bool authenticated = false,
@@ -57,11 +73,13 @@ class ApiClient {
   Future<dynamic> multipartPost(
     String path, {
     Map<String, String>? fields,
+    List<http.MultipartFile>? files,
     bool authenticated = false,
   }) async {
     final request = http.MultipartRequest('POST', _buildUri(path));
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
+    request.files.addAll(files ?? const <http.MultipartFile>[]);
     final response = await request.send();
     return _decode(response);
   }
@@ -69,11 +87,13 @@ class ApiClient {
   Future<dynamic> multipartPut(
     String path, {
     Map<String, String>? fields,
+    List<http.MultipartFile>? files,
     bool authenticated = false,
   }) async {
     final request = http.MultipartRequest('PUT', _buildUri(path));
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
+    request.files.addAll(files ?? const <http.MultipartFile>[]);
     final response = await request.send();
     return _decode(response);
   }

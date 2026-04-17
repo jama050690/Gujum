@@ -12,7 +12,14 @@ import '../settings/settings_controller.dart';
 import 'social_repository.dart';
 
 class FriendsPage extends StatefulWidget {
-  const FriendsPage({super.key});
+  const FriendsPage({
+    super.key,
+    this.initialTab = 0,
+    this.titleKey,
+  }) : assert(initialTab >= 0 && initialTab < 3);
+
+  final int initialTab;
+  final String? titleKey;
 
   @override
   State<FriendsPage> createState() => _FriendsPageState();
@@ -182,10 +189,11 @@ class _FriendsPageState extends State<FriendsPage> {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
 
     return DefaultTabController(
+      initialIndex: widget.initialTab,
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(t('friends')),
+          title: Text(t(widget.titleKey ?? 'friends')),
           bottom: TabBar(
             tabs: [
               Tab(text: t('friends')),

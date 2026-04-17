@@ -1,49 +1,6 @@
 part of '../chat_page.dart';
 
 extension _ConversationPaneRecentMedia on _ConversationPaneState {
-Future<List<AssetEntity>> _loadRecentMedia() async {
-  final permission = await PhotoManager.requestPermissionExtend();
-  if (!permission.isAuth) {
-    return const <AssetEntity>[];
-  }
-
-  final paths = await PhotoManager.getAssetPathList(
-    type: RequestType.common,
-    onlyAll: true,
-  );
-  if (paths.isEmpty) {
-    return const <AssetEntity>[];
-  }
-
-  return paths.first.getAssetListPaged(page: 0, size: 12);
-}
-
-Future<void> _sendRecentAsset(
-  ChatController chat,
-  String Function(String) t,
-  AssetEntity asset,
-) async {
-  if (_uploadingAttachment) {
-    return;
-  }
-
-  final file = await asset.originFile ?? await asset.file;
-  if (file == null) {
-    _showInfoSnackBar(t('chat_open_file_failed'));
-    return;
-  }
-
-  final type = asset.type == AssetType.video
-      ? _AttachmentType.video
-      : _AttachmentType.image;
-  await _uploadAndSendAttachment(
-    chat,
-    t,
-    type,
-    xFile: XFile(file.path),
-  );
-}
-
 Future<void> _pickAndSendAttachment(
   ChatController chat,
   String Function(String) t,

@@ -19,7 +19,6 @@ dependencies:
   geolocator: any
   http: any
   image_picker: any
-  photo_manager: ^3.6.4
   provider: any
   record: ^6.2.0
   shared_preferences: any

@@ -1,5 +1,7 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../models/chat_models.dart';
@@ -167,6 +169,25 @@ class ChatRepository {
     return path;
   }
 
+  Future<String> uploadXFileMedia(XFile file) async {
+    final response = await _apiClient.multipartPost(
+      '/api/upload',
+      files: [
+        await _multipartFileFromXFile('image', file),
+      ],
+      authenticated: true,
+    );
+    final path = (response as Map<String, dynamic>)['path']?.toString();
+    if (path == null || path.isEmpty) {
+      throw ApiException(
+        message: 'Upload failed',
+        statusCode: 0,
+        payload: response,
+      );
+    }
+    return path;
+  }
+
   Future<String> uploadAudio(String filePath) async {
     final response = await _apiClient.multipartPost(
       '/api/upload-audio',
@@ -191,6 +212,25 @@ class ChatRepository {
       '/api/upload-audio',
       files: [
         await _multipartFileFromPlatformFile('audio', file),
+      ],
+      authenticated: true,
+    );
+    final path = (response as Map<String, dynamic>)['path']?.toString();
+    if (path == null || path.isEmpty) {
+      throw ApiException(
+        message: 'Upload failed',
+        statusCode: 0,
+        payload: response,
+      );
+    }
+    return path;
+  }
+
+  Future<String> uploadXFileAudio(XFile file) async {
+    final response = await _apiClient.multipartPost(
+      '/api/upload-audio',
+      files: [
+        await _multipartFileFromXFile('audio', file),
       ],
       authenticated: true,
     );
@@ -243,14 +283,61 @@ class ChatRepository {
     return path;
   }
 
+  Future<String> uploadXFileVideo(XFile file) async {
+    final response = await _apiClient.multipartPost(
+      '/api/upload-video',
+      files: [
+        await _multipartFileFromXFile('video', file),
+      ],
+      authenticated: true,
+    );
+    final path = (response as Map<String, dynamic>)['path']?.toString();
+    if (path == null || path.isEmpty) {
+      throw ApiException(
+        message: 'Upload failed',
+        statusCode: 0,
+        payload: response,
+      );
+    }
+    return path;
+  }
+
+  Future<http.MultipartFile> _multipartFileFromXFile(
+    String field,
+    XFile file,
+  ) async {
+    final name = file.name.trim().isNotEmpty ? file.name : 'upload.bin';
+    final path = file.path.trim();
+    final shouldUseBytes = kIsWeb ||
+        path.isEmpty ||
+        path.toLowerCase().startsWith('blob:') ||
+        path.toLowerCase().startsWith('content://');
+    if (shouldUseBytes) {
+      final bytes = await file.readAsBytes();
+      return http.MultipartFile.fromBytes(
+        field,
+        bytes,
+        filename: name,
+      );
+    }
+
+    return http.MultipartFile.fromPath(
+      field,
+      path,
+      filename: name,
+    );
+  }
+
   Future<http.MultipartFile> _multipartFileFromPlatformFile(
     String field,
     PlatformFile file,
   ) async {
     final path = file.path;
-    if (path != null &&
+    if (!kIsWeb &&
+        path != null &&
         path.isNotEmpty &&
-        !path.toLowerCase().startsWith('content://')) {
+        !path.toLowerCase().startsWith('content://') &&
+        !path.toLowerCase().startsWith('blob:')) {
       return http.MultipartFile.fromPath(
         field,
         path,

@@ -10,7 +10,14 @@ import 'community_room_page.dart';
 import 'social_repository.dart';
 
 class CommunityPage extends StatefulWidget {
-  const CommunityPage({super.key});
+  const CommunityPage({
+    super.key,
+    this.initialTab = 0,
+    this.openComposer = false,
+  }) : assert(initialTab >= 0 && initialTab < 2);
+
+  final int initialTab;
+  final bool openComposer;
 
   @override
   State<CommunityPage> createState() => _CommunityPageState();
@@ -20,11 +27,23 @@ class _CommunityPageState extends State<CommunityPage> {
   List<CommunityItem> _groups = const [];
   List<CommunityItem> _channels = const [];
   bool _loading = true;
+  bool _composerOpened = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    if (widget.openComposer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _composerOpened) {
+          return;
+        }
+        _composerOpened = true;
+        _createCommunity(
+          widget.initialTab == 0 ? CommunityType.group : CommunityType.channel,
+        );
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -68,90 +87,102 @@ class _CommunityPageState extends State<CommunityPage> {
 
     try {
       await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> submit() async {
-              if (nameController.text.trim().isEmpty || auth.user == null) {
-                return;
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              Future<void> submit() async {
+                if (nameController.text.trim().isEmpty || auth.user == null) {
+                  return;
+                }
+                setState(() => saving = true);
+                try {
+                  if (type == CommunityType.group) {
+                    await repository.createGroup(
+                      username: auth.user!.username,
+                      name: nameController.text.trim(),
+                      allowDownload: allowDownload,
+                    );
+                  } else {
+                    await repository.createChannel(
+                      username: auth.user!.username,
+                      name: nameController.text.trim(),
+                      description: descriptionController.text.trim(),
+                      allowDownload: allowDownload,
+                    );
+                  }
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                } finally {
+                  if (context.mounted) {
+                    setState(() => saving = false);
+                  }
+                }
               }
-              setState(() => saving = true);
-              try {
-                if (type == CommunityType.group) {
-                  await repository.createGroup(
-                    username: auth.user!.username,
-                    name: nameController.text.trim(),
-                    allowDownload: allowDownload,
-                  );
-                } else {
-                  await repository.createChannel(
-                    username: auth.user!.username,
-                    name: nameController.text.trim(),
-                    description: descriptionController.text.trim(),
-                    allowDownload: allowDownload,
-                  );
-                }
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              } finally {
-                if (context.mounted) {
-                  setState(() => saving = false);
-                }
-              }
-            }
 
-            return AlertDialog(
-              title: Text(t(type == CommunityType.group ? 'create_group' : 'create_channel')),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(labelText: t('community_name')),
-                    ),
-                    if (type == CommunityType.channel) ...[
-                      const SizedBox(height: 12),
+              return AlertDialog(
+                title: Text(
+                  t(
+                    type == CommunityType.group
+                        ? 'create_group'
+                        : 'create_channel',
+                  ),
+                ),
+                content: SizedBox(
+                  width: 420,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       TextField(
-                        controller: descriptionController,
-                        maxLines: 3,
-                        decoration: InputDecoration(labelText: t('community_description')),
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: t('community_name'),
+                        ),
+                      ),
+                      if (type == CommunityType.channel) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: descriptionController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: t('community_description'),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: allowDownload,
+                        onChanged: (value) => setState(
+                          () => allowDownload = value,
+                        ),
+                        title: Text(t('allow_download')),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: allowDownload,
-                      onChanged: (value) => setState(() => allowDownload = value),
-                      title: Text(t('allow_download')),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.of(context).pop(),
-                  child: Text(t('cancel')),
-                ),
-                FilledButton(
-                  onPressed: saving ? null : submit,
-                  child: saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(t('create')),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+                actions: [
+                  TextButton(
+                    onPressed: saving ? null : () => Navigator.of(context).pop(),
+                    child: Text(t('cancel')),
+                  ),
+                  FilledButton(
+                    onPressed: saving ? null : submit,
+                    child: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(t('create')),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
     } catch (error) {
       _showError(error);
     }
@@ -175,6 +206,7 @@ class _CommunityPageState extends State<CommunityPage> {
     final settings = context.watch<SettingsController>();
     final t = (String key) => AppStrings.text(settings.localeCode, key);
     return DefaultTabController(
+      initialIndex: widget.initialTab,
       length: 2,
       child: Scaffold(
         appBar: AppBar(

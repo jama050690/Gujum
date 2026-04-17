@@ -15,6 +15,11 @@ bool _matchesAllowedPath(String filePath, Set<String> allowedExtensions) {
   return extension != null && allowedExtensions.contains(extension);
 }
 
+bool _matchesAllowedXFile(XFile file, Set<String> allowedExtensions) {
+  final primary = file.name.trim().isNotEmpty ? file.name : file.path;
+  return _matchesAllowedPath(primary, allowedExtensions);
+}
+
 String? _fileExtension(String value) {
   final dotIndex = value.lastIndexOf('.');
   if (dotIndex < 0 || dotIndex == value.length - 1) {
@@ -47,11 +52,10 @@ Future<void> _toggleVoiceRecording(
       return;
     }
 
-    final tempFile =
-        '${Directory.systemTemp.path}\\bootchat_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final tempFile = await createRecordingPath(kIsWeb ? 'wav' : 'm4a');
     await _audioRecorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
+      RecordConfig(
+        encoder: kIsWeb ? AudioEncoder.wav : AudioEncoder.aacLc,
         bitRate: 128000,
         sampleRate: 44100,
       ),
@@ -97,7 +101,7 @@ Future<void> _stopAndSendVoiceRecording(
   try {
     filePath = await _audioRecorder.stop();
     if (filePath == null || filePath.isEmpty) {
-      throw const FileSystemException('Recorded file path is empty');
+      throw StateError('Recorded file path is empty');
     }
 
     if (mounted) {
@@ -108,7 +112,15 @@ Future<void> _stopAndSendVoiceRecording(
       });
     }
 
-    final uploadedPath = await chat.uploadAudio(filePath);
+    final uploadedPath = kIsWeb
+        ? await chat.uploadXFileAudio(
+            XFile(
+              filePath,
+              name:
+                  'bootchat_voice_${DateTime.now().millisecondsSinceEpoch}.wav',
+            ),
+          )
+        : await chat.uploadAudio(filePath);
     final sent = await chat.sendMessage(
       audio: uploadedPath,
       replyTo: _replyPayloadForMessage(_replyingTo, t),
@@ -131,10 +143,7 @@ Future<void> _stopAndSendVoiceRecording(
     }
   } finally {
     if (filePath != null) {
-      final localFile = File(filePath);
-      if (await localFile.exists()) {
-        await localFile.delete();
-      }
+      await deleteRecordingFile(filePath);
     }
     if (mounted) {
       setState(() {

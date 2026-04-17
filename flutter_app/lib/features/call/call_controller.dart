@@ -41,11 +41,13 @@ class CallPeer {
 
 class IncomingCallData {
   const IncomingCallData({
+    required this.callId,
     required this.caller,
     required this.offer,
     required this.isVideo,
   });
 
+  final String callId;
   final CallPeer caller;
   final Map<String, dynamic> offer;
   final bool isVideo;
@@ -113,6 +115,7 @@ class CallController extends ChangeNotifier {
   bool _isCameraOff = false;
   bool _disposed = false;
 
+  String? _callId;
   String? _targetUsername;
   String? _initiatorUsername;
   DateTime? _connectedAt;
@@ -156,6 +159,7 @@ class CallController extends ChangeNotifier {
 
     _clearError();
     _remotePeer = peer;
+    _callId = _buildCallId(currentUser.username, peer.username);
     _targetUsername = peer.username;
     _initiatorUsername = currentUser.username;
     _state = CallSessionState.calling;
@@ -183,6 +187,7 @@ class CallController extends ChangeNotifier {
       debugPrint('Call offer created and set locally.');
 
       _socketService.emit('CALL_OFFER', <String, dynamic>{
+        'callId': _callId,
         'target': peer.username,
         'caller': <String, dynamic>{
           'username': currentUser.username,
@@ -215,6 +220,7 @@ class CallController extends ChangeNotifier {
 
     _clearError();
     _remotePeer = incoming.caller;
+    _callId = incoming.callId;
     _targetUsername = incoming.caller.username;
     _initiatorUsername = incoming.caller.username;
     _state = CallSessionState.connecting;
@@ -244,13 +250,20 @@ class CallController extends ChangeNotifier {
       debugPrint('Call answer created and set locally.');
 
       _socketService.emit('CALL_ANSWER', <String, dynamic>{
+        'callId': incoming.callId,
         'target': incoming.caller.username,
         'answer': _sessionToMap(answer),
+        'user': <String, dynamic>{
+          'username': _authController.user?.username,
+          'full_name': _authController.user?.displayName,
+          'avatar': _authController.user?.avatar,
+        },
       });
 
       _notify();
     } catch (error) {
       _socketService.emit('CALL_REJECT', <String, dynamic>{
+        'callId': incoming.callId,
         'target': incoming.caller.username,
         'isVideo': incoming.isVideo,
       });
@@ -266,6 +279,7 @@ class CallController extends ChangeNotifier {
     }
 
     _socketService.emit('CALL_REJECT', <String, dynamic>{
+      'callId': incoming.callId,
       'target': incoming.caller.username,
       'isVideo': incoming.isVideo,
     });
@@ -281,6 +295,7 @@ class CallController extends ChangeNotifier {
           ? 0
           : DateTime.now().difference(_connectedAt!).inSeconds;
       _socketService.emit('CALL_END', <String, dynamic>{
+        'callId': _callId,
         'target': target,
         'duration': duration,
         'isVideo': _isVideo,
@@ -337,10 +352,14 @@ class CallController extends ChangeNotifier {
         unawaited(_handleIceCandidate(packet.payload));
         break;
       case 'CALL_REJECT':
-        unawaited(_handleRemoteEnded('call_rejected'));
+        if (_matchesActiveCall(_asMap(packet.payload)['callId'])) {
+          unawaited(_handleRemoteEnded('call_rejected'));
+        }
         break;
       case 'CALL_END':
-        unawaited(_handleRemoteEnded());
+        if (_matchesActiveCall(_asMap(packet.payload)['callId'])) {
+          unawaited(_handleRemoteEnded());
+        }
         break;
       case 'CALL_BLOCKED':
         unawaited(_handleRemoteEnded('call_blocked'));
@@ -367,13 +386,18 @@ class CallController extends ChangeNotifier {
 
     if (hasSession || hasIncomingCall) {
       _socketService.emit('CALL_REJECT', <String, dynamic>{
+        'callId': data['callId']?.toString(),
         'target': caller.username,
         'isVideo': data['isVideo'] == true,
       });
       return;
     }
 
+    final callId = (data['callId'] ?? '').toString().trim();
     _incomingCall = IncomingCallData(
+      callId: callId.isEmpty
+          ? _buildCallId(caller.username, _authController.user?.username ?? 'call')
+          : callId,
       caller: caller,
       offer: _asMap(data['offer']),
       isVideo: data['isVideo'] == true,
@@ -388,6 +412,9 @@ class CallController extends ChangeNotifier {
     }
 
     final data = _asMap(payload);
+    if (!_matchesActiveCall(data['callId'])) {
+      return;
+    }
     final answer = _asMap(data['answer']);
     if (answer.isEmpty) {
       return;
@@ -400,6 +427,9 @@ class CallController extends ChangeNotifier {
 
   Future<void> _handleIceCandidate(dynamic payload) async {
     final data = _asMap(payload);
+    if (!_matchesActiveCall(data['callId'])) {
+      return;
+    }
     final candidateData = _asMap(data['candidate']);
     final candidate = _candidateFromMap(candidateData);
     if (candidate == null) {
@@ -422,6 +452,7 @@ class CallController extends ChangeNotifier {
     final target = _targetUsername;
     if (target != null) {
       _socketService.emit('CALL_END', <String, dynamic>{
+        'callId': _callId,
         'target': target,
         'duration': 0,
         'isVideo': _isVideo,
@@ -471,6 +502,7 @@ class CallController extends ChangeNotifier {
         return;
       }
       _socketService.emit('ICE_CANDIDATE', <String, dynamic>{
+        'callId': _callId,
         'target': targetUsername,
         'candidate': _candidateToMap(candidate),
       });
@@ -534,6 +566,7 @@ class CallController extends ChangeNotifier {
       final target = _targetUsername;
       if (target != null) {
         _socketService.emit('CALL_END', <String, dynamic>{
+          'callId': _callId,
           'target': target,
           'duration': 0,
           'isVideo': _isVideo,
@@ -572,6 +605,7 @@ class CallController extends ChangeNotifier {
     _state = null;
     _remotePeer = null;
     _incomingCall = null;
+    _callId = null;
     _targetUsername = null;
     _initiatorUsername = null;
     _connectedAt = null;
@@ -646,6 +680,19 @@ class CallController extends ChangeNotifier {
       return Map<String, dynamic>.from(value);
     }
     return const <String, dynamic>{};
+  }
+
+  String _buildCallId(String caller, String callee) {
+    return '$caller:$callee:${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  bool _matchesActiveCall(dynamic value) {
+    final current = _callId ?? _incomingCall?.callId;
+    final incoming = value?.toString().trim();
+    if (current == null || current.isEmpty) {
+      return incoming == null || incoming.isEmpty;
+    }
+    return incoming == null || incoming.isEmpty || incoming == current;
   }
 
   String _errorKeyFor(Object error) {

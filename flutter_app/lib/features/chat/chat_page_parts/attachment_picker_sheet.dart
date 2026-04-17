@@ -4,15 +4,11 @@ class _AttachmentPickerSheet extends StatelessWidget {
   const _AttachmentPickerSheet({
     required this.settings,
     required this.t,
-    required this.loadRecentMedia,
-    required this.onSelectAsset,
     required this.onSelectAction,
   });
 
   final SettingsController settings;
   final String Function(String) t;
-  final Future<List<AssetEntity>> Function() loadRecentMedia;
-  final ValueChanged<AssetEntity> onSelectAsset;
   final ValueChanged<_AttachmentType> onSelectAction;
 
   @override
@@ -27,7 +23,7 @@ class _AttachmentPickerSheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.44,
+        height: MediaQuery.of(context).size.height * 0.28,
         decoration: BoxDecoration(
           color: background,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -40,6 +36,7 @@ class _AttachmentPickerSheet extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 10),
             Container(
@@ -51,50 +48,9 @@ class _AttachmentPickerSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(
-              child: FutureBuilder<List<AssetEntity>>(
-                future: loadRecentMedia(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final assets = snapshot.data ?? const <AssetEntity>[];
-                  if (assets.isEmpty) {
-                    return Center(
-                      child: Text(
-                        t('chat_recent_media_empty'),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white70,
-                            ),
-                      ),
-                    );
-                  }
-
-                  return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 6,
-                      crossAxisSpacing: 6,
-                      childAspectRatio: 0.82,
-                    ),
-                    itemCount: assets.length,
-                    itemBuilder: (context, index) {
-                      final asset = assets[index];
-                      return _RecentMediaTile(
-                        asset: asset,
-                        onTap: () => onSelectAsset(asset),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
             Container(
               color: card,
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 14),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 14),
               child: GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -134,80 +90,6 @@ class _AttachmentPickerSheet extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _RecentMediaTile extends StatelessWidget {
-  const _RecentMediaTile({
-    required this.asset,
-    required this.onTap,
-  });
-
-  final AssetEntity asset;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: asset.thumbnailDataWithSize(
-        const ThumbnailSize(320, 320),
-        quality: 85,
-      ),
-      builder: (context, snapshot) {
-        final bytes = snapshot.data;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: bytes == null ? null : onTap,
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: const Color(0xFF30485F),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (bytes != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.memory(bytes, fit: BoxFit.cover),
-                    )
-                  else
-                    const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  if (asset.type == AssetType.video)
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(145),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Icon(
-                          Icons.videocam_rounded,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

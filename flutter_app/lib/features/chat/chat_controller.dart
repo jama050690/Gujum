@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/network/session_store.dart';
@@ -295,6 +296,10 @@ class ChatController extends ChangeNotifier {
     return _chatRepository.uploadPickedMedia(file);
   }
 
+  Future<String> uploadXFileMedia(XFile file) {
+    return _chatRepository.uploadXFileMedia(file);
+  }
+
   Future<String> uploadAudio(String filePath) {
     return _chatRepository.uploadAudio(filePath);
   }
@@ -303,12 +308,20 @@ class ChatController extends ChangeNotifier {
     return _chatRepository.uploadPickedAudio(file);
   }
 
+  Future<String> uploadXFileAudio(XFile file) {
+    return _chatRepository.uploadXFileAudio(file);
+  }
+
   Future<String> uploadVideo(String filePath) {
     return _chatRepository.uploadVideo(filePath);
   }
 
   Future<String> uploadPickedVideo(PlatformFile file) {
     return _chatRepository.uploadPickedVideo(file);
+  }
+
+  Future<String> uploadXFileVideo(XFile file) {
+    return _chatRepository.uploadXFileVideo(file);
   }
 
   @override

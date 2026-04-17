@@ -76,11 +76,6 @@ Future<void> _showAttachmentPicker(
       return _AttachmentPickerSheet(
         settings: widget.settings,
         t: t,
-        loadRecentMedia: _loadRecentMedia,
-        onSelectAsset: (asset) {
-          Navigator.of(sheetContext).pop();
-          _sendRecentAsset(chat, t, asset);
-        },
         onSelectAction: (type) {
           Navigator.of(sheetContext).pop();
           _pickAndSendAttachment(chat, t, type);

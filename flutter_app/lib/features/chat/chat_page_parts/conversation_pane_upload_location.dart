@@ -33,7 +33,11 @@ Future<void> _uploadAndSendAttachment(
           uploadedPath = await chat.uploadPickedVideo(platformFile);
         } else {
           final file = xFile;
-          if (file == null || !_matchesAllowedPath(file.path, _ConversationPaneState._videoExtensions)) {
+          if (file == null ||
+              !_matchesAllowedXFile(
+                file,
+                _ConversationPaneState._videoExtensions,
+              )) {
             _showInfoSnackBar(t('chat_invalid_file_type'));
             return;
           }
@@ -49,7 +53,11 @@ Future<void> _uploadAndSendAttachment(
           uploadedPath = await chat.uploadPickedMedia(platformFile);
         } else {
           final file = xFile;
-          if (file == null || !_matchesAllowedPath(file.path, _ConversationPaneState._imageExtensions)) {
+          if (file == null ||
+              !_matchesAllowedXFile(
+                file,
+                _ConversationPaneState._imageExtensions,
+              )) {
             _showInfoSnackBar(t('chat_invalid_file_type'));
             return;
           }
@@ -171,8 +179,8 @@ Future<PlatformFile?> _pickGenericAttachment() async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.any,
     allowMultiple: false,
-    withData: false,
-    withReadStream: true,
+    withData: kIsWeb,
+    withReadStream: !kIsWeb,
   );
 
   final file = result?.files.single;
@@ -188,10 +196,10 @@ Future<PlatformFile?> _pickGenericAttachment() async {
 
 Future<PlatformFile?> _pickAudioAttachment() async {
   final result = await FilePicker.platform.pickFiles(
-    type: FileType.any,
+    type: FileType.audio,
     allowMultiple: false,
-    withData: false,
-    withReadStream: true,
+    withData: kIsWeb,
+    withReadStream: !kIsWeb,
   );
 
   final file = result?.files.single;

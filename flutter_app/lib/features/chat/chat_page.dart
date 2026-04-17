@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +28,7 @@ import '../social/settings_page.dart';
 import '../social/social_repository.dart';
 import 'chat_controller.dart';
 import 'media_viewer_page.dart';
+import 'recording_file_support.dart';
 
 part 'chat_page_parts/chat_page_enums.dart';
 part 'chat_page_parts/chat_page_state_storage.dart';
