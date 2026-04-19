@@ -573,6 +573,21 @@ export function useWebRTC(socket, currentUser) {
         ringtoneRef.current = null;
 
         if (pcRef.current) {
+          const { signalingState, currentRemoteDescription } = pcRef.current;
+          const alreadyAppliedAnswer =
+            currentRemoteDescription?.type === "answer" ||
+            signalingState === "stable";
+
+          if (alreadyAppliedAnswer) {
+            debugLog("Duplicate CALL_ANSWER ignored:", signalingState);
+            return;
+          }
+
+          if (signalingState !== "have-local-offer") {
+            console.warn("CALL_ANSWER skipped due to unexpected signaling state:", signalingState);
+            return;
+          }
+
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
           remoteDescriptionSet.current = true;
           await flushQueuedCandidates(pcRef.current);
