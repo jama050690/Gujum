@@ -114,6 +114,7 @@ function upsertCallSession({ callId, caller, callee, isVideo, callerInfo = null 
     status: "ringing",
     createdAt: Date.now(),
     participants: {},
+    latestOffer: null,
     disconnectTimers: new Map(),
     reconnectingUsers: new Set(),
   };
@@ -123,6 +124,7 @@ function upsertCallSession({ callId, caller, callee, isVideo, callerInfo = null 
   session.isVideo = Boolean(isVideo);
   session.status = session.status || "ringing";
   session.participants = session.participants || {};
+  session.latestOffer = session.latestOffer || null;
   session.disconnectTimers = session.disconnectTimers || new Map();
   session.reconnectingUsers = session.reconnectingUsers || new Set();
 
@@ -294,7 +296,22 @@ function registerSocketHandlers(io) {
       const activeCall = getUserActiveCall(username);
       if (activeCall) {
         clearReconnectTimer(activeCall, username);
-        browser.emit("CALL_SESSION_SYNC", buildCallSessionPayload(activeCall, username));
+        const isIncomingRinging =
+          activeCall.status !== "connected" &&
+          activeCall.callee === username &&
+          activeCall.latestOffer;
+
+        if (isIncomingRinging) {
+          browser.emit("CALL_OFFER", {
+            callId: activeCall.id,
+            caller: activeCall.participants[activeCall.caller] || { username: activeCall.caller },
+            offer: activeCall.latestOffer,
+            isVideo: Boolean(activeCall.isVideo),
+            resume: false,
+          });
+        } else {
+          browser.emit("CALL_SESSION_SYNC", buildCallSessionPayload(activeCall, username));
+        }
 
         const peerUsername = getCallPeer(activeCall, username);
         if (activeCall.status === "connected" && peerUsername && onlineUsers.has(peerUsername)) {
@@ -678,6 +695,7 @@ function registerSocketHandlers(io) {
         isVideo: data.isVideo,
         callerInfo: data.caller,
       });
+      session.latestOffer = data.offer;
 
       clearReconnectTimer(session, data.caller.username);
       clearReconnectTimer(session, data.target);
@@ -822,7 +840,7 @@ function registerSocketHandlers(io) {
 
             sendAllUsers();
 
-            if (activeCall) {
+            if (activeCall?.status === "connected") {
               const peerUsername = getCallPeer(activeCall, browser.username);
               if (peerUsername) {
                 emitToUser(peerUsername, "CALL_PARTICIPANT_RECONNECTING", {
