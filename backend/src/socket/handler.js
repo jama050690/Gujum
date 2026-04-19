@@ -297,7 +297,7 @@ function registerSocketHandlers(io) {
         browser.emit("CALL_SESSION_SYNC", buildCallSessionPayload(activeCall, username));
 
         const peerUsername = getCallPeer(activeCall, username);
-        if (peerUsername && onlineUsers.has(peerUsername)) {
+        if (activeCall.status === "connected" && peerUsername && onlineUsers.has(peerUsername)) {
           emitToUser(peerUsername, "CALL_PARTICIPANT_REJOINED", {
             callId: activeCall.id,
             username,

@@ -518,9 +518,15 @@ export function useWebRTC(socket, currentUser) {
         const nextCallId = data.callId || generateCallId();
         const caller = data.caller || { username: targetUsernameRef.current };
         const sameActiveCall = callIdRef.current && nextCallId === callIdRef.current;
+        const canAutoResumeEstablishedCall =
+          sameActiveCall &&
+          !incomingCall &&
+          (callStateRef.current === "connecting" ||
+            callStateRef.current === "connected" ||
+            callStateRef.current === "reconnecting");
         const shouldAutoResume =
           Boolean(data.resume) ||
-          sameActiveCall ||
+          canAutoResumeEstablishedCall ||
           callStateRef.current === "reconnecting";
 
         if (shouldAutoResume) {
@@ -685,9 +691,25 @@ export function useWebRTC(socket, currentUser) {
         ringtoneRef.current = null;
         clearRingingTimeout();
 
-        setIncomingCall(null);
+        const isIncomingRinging = data.direction === "incoming" && data.status !== "connected";
         setCallError(data.status === "connected" ? "Aloqa tiklanmoqda..." : null);
-        setCallState(data.status === "connected" ? "reconnecting" : data.direction === "outgoing" ? "ringing" : "connecting");
+
+        if (isIncomingRinging) {
+          setCallState(null);
+          setIncomingCall((prev) => ({
+            caller: data.peer,
+            isVideo: Boolean(data.isVideo),
+            offer: prev?.callId === data.callId ? prev.offer : null,
+            callId: data.callId,
+          }));
+          if (peer) {
+            setRemoteUser(peer);
+          }
+          return;
+        }
+
+        setIncomingCall(null);
+        setCallState(data.status === "connected" ? "reconnecting" : "ringing");
 
         await prepareLocalStream(Boolean(data.isVideo));
         if (peer) {
@@ -728,6 +750,7 @@ export function useWebRTC(socket, currentUser) {
     clearRingingTimeout,
     currentUser,
     flushQueuedCandidates,
+    incomingCall,
     prepareLocalStream,
     resetPeerConnection,
     restoreCallSession,
@@ -763,6 +786,10 @@ export function useWebRTC(socket, currentUser) {
 
   const acceptCall = useCallback(async () => {
     if (!incomingCall || !socket) return;
+    if (!incomingCall.offer) {
+      setCallError("Qo'ng'iroq signali hali tayyor emas. Bir ozdan keyin yana urinib ko'ring.");
+      return;
+    }
 
     ringtoneRef.current?.stop();
     ringtoneRef.current = null;
