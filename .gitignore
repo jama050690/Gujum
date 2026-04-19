@@ -6,9 +6,16 @@
 **/node_modules/
 **/dist/
 **/build/
+**/.vite/
 **/coverage/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
 
 **/uploads/
+backend/src/.env
+vite-project/.env.local
 
 .DS_Store
 *.log
