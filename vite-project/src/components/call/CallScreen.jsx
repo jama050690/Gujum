@@ -6,6 +6,7 @@ export default function CallScreen({
   callState, // "calling" | "ringing" | "connecting" | "reconnecting" | "connected" | null
   callError,
   remoteUser,
+  localUser,
   isVideo,
   localStream,
   remoteStream,
@@ -120,8 +121,13 @@ export default function CallScreen({
             className={`w-full h-full object-cover ${isCameraOff ? "hidden" : ""}`}
           />
           {isCameraOff && (
-            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-              <i className="fas fa-video-slash text-gray-500 text-xl" />
+            <div className="w-full h-full bg-gradient-to-b from-gray-800 to-gray-900 flex flex-col items-center justify-center gap-3">
+              <Avatar
+                src={localUser?.avatar}
+                name={localUser?.username}
+                size={56}
+              />
+              <i className="fas fa-video-slash text-gray-400 text-lg" />
             </div>
           )}
         </div>

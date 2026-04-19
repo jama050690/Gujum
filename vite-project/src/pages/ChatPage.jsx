@@ -241,6 +241,7 @@ export default function ChatPage() {
         callState={webrtc.callState}
         callError={webrtc.callError}
         remoteUser={webrtc.remoteUser}
+        localUser={user}
         isVideo={webrtc.isVideo}
         localStream={webrtc.localStream}
         remoteStream={webrtc.remoteStream}
