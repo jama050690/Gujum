@@ -16,6 +16,7 @@
 **/uploads/
 backend/src/.env
 vite-project/.env.local
+vite-project/.env.production
 
 .DS_Store
 *.log
