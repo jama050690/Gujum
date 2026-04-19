@@ -7,6 +7,7 @@ export default function CallScreen({
   callError,
   remoteUser,
   localUser,
+  callStartedAt,
   isVideo,
   localStream,
   remoteStream,
@@ -20,6 +21,7 @@ export default function CallScreen({
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [duration, setDuration] = useState(0);
+  const [hasRemoteVideoTrack, setHasRemoteVideoTrack] = useState(false);
 
   // Local video
   useEffect(() => {
@@ -57,19 +59,64 @@ export default function CallScreen({
     }
   }, [remoteStream, isVideo]);
 
+  useEffect(() => {
+    if (!remoteStream || !isVideo) {
+      setHasRemoteVideoTrack(false);
+      return undefined;
+    }
+
+    const videoTracks = remoteStream.getVideoTracks();
+    if (videoTracks.length === 0) {
+      setHasRemoteVideoTrack(false);
+      return undefined;
+    }
+
+    const syncVideoState = () => {
+      setHasRemoteVideoTrack(
+        videoTracks.some((track) => track.readyState === "live" && !track.muted),
+      );
+    };
+
+    syncVideoState();
+    videoTracks.forEach((track) => {
+      track.addEventListener("mute", syncVideoState);
+      track.addEventListener("unmute", syncVideoState);
+      track.addEventListener("ended", syncVideoState);
+    });
+
+    return () => {
+      videoTracks.forEach((track) => {
+        track.removeEventListener("mute", syncVideoState);
+        track.removeEventListener("unmute", syncVideoState);
+        track.removeEventListener("ended", syncVideoState);
+      });
+    };
+  }, [remoteStream, isVideo]);
+
   // Call duration timer
   useEffect(() => {
     if (!callState) {
       setDuration(0);
       return;
     }
-    if (callState !== "connected") return;
+    if (callState !== "connected") return undefined;
 
-    const interval = setInterval(() => setDuration((d) => d + 1), 1000);
+    const syncDuration = () => {
+      if (!callStartedAt) {
+        setDuration(0);
+        return;
+      }
+      setDuration(Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)));
+    };
+
+    syncDuration();
+    const interval = setInterval(syncDuration, 1000);
     return () => clearInterval(interval);
-  }, [callState]);
+  }, [callStartedAt, callState]);
 
   if (!callState) return null;
+
+  const showRemoteVideo = isVideo && hasRemoteVideoTrack;
 
   return (
     <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col">
@@ -77,7 +124,7 @@ export default function CallScreen({
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Video background */}
-      {isVideo && remoteStream ? (
+      {showRemoteVideo ? (
         <video
           ref={remoteVideoRef}
           autoPlay
@@ -105,7 +152,7 @@ export default function CallScreen({
 
       {/* Top info */}
       <div className="relative z-10 flex flex-col items-center pt-16 pb-8">
-        {(!isVideo || (!remoteStream && !isVideo)) && (
+        {!showRemoteVideo && (
           <Avatar src={remoteUser?.avatar} name={remoteUser?.username} size={100} className="mb-4" />
         )}
         <h2 className="text-2xl font-bold text-white">{remoteUser?.username || "Noma'lum"}</h2>

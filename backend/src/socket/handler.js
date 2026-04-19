@@ -169,6 +169,7 @@ function buildCallSessionPayload(call, username) {
     callId: call.id,
     isVideo: Boolean(call.isVideo),
     status: call.status || "ringing",
+    startedAt: call.connectedAt || null,
     direction: call.caller === username ? "outgoing" : "incoming",
     peer: {
       username: peerUsername,

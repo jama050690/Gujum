@@ -108,6 +108,7 @@ function getMediaAccessErrorMessage(error, isVideo) {
 export function useWebRTC(socket, currentUser) {
   const [callState, setCallState] = useState(null);
   const [remoteUser, setRemoteUser] = useState(null);
+  const [callStartedAt, setCallStartedAt] = useState(null);
   const [isVideo, setIsVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -167,6 +168,7 @@ export function useWebRTC(socket, currentUser) {
         avatar: peerInfo.avatar || null,
         full_name: peerInfo.full_name || null,
       },
+      startedAt: overrides.startedAt ?? callStartTimeRef.current ?? null,
       isVideo: overrides.isVideo ?? isVideoRef.current,
       direction: overrides.direction || (isCallerRef.current ? "outgoing" : "incoming"),
     });
@@ -179,12 +181,14 @@ export function useWebRTC(socket, currentUser) {
     targetUsernameRef.current = session.peer.username;
     isVideoRef.current = Boolean(session.isVideo);
     isCallerRef.current = session.direction === "outgoing";
+    callStartTimeRef.current = session.startedAt || null;
 
     setRemoteUser((prev) => ({
       username: session.peer.username,
       avatar: session.peer.avatar || prev?.avatar || null,
       full_name: session.peer.full_name || prev?.full_name || null,
     }));
+    setCallStartedAt(session.startedAt || null);
     setIsVideo(Boolean(session.isVideo));
     persistCallSession(session.peer, session);
 
@@ -228,6 +232,7 @@ export function useWebRTC(socket, currentUser) {
     isVideoRef.current = false;
     callStartTimeRef.current = null;
     callIdRef.current = null;
+    setCallStartedAt(null);
     setLocalStream(null);
     setRemoteStream(null);
     setCallState(null);
@@ -331,6 +336,7 @@ export function useWebRTC(socket, currentUser) {
         setCallError(null);
         setCallState("connected");
         callStartTimeRef.current = callStartTimeRef.current || Date.now();
+        setCallStartedAt(callStartTimeRef.current);
       } else if (pc.iceConnectionState === "failed") {
         setCallState("reconnecting");
         setCallError("Ulanish xatosi — qayta ulanmoqda...");
@@ -698,6 +704,7 @@ export function useWebRTC(socket, currentUser) {
         const peer = restoreCallSession({
           callId: data.callId,
           peer: data.peer,
+          startedAt: data.startedAt,
           isVideo: data.isVideo,
           direction: data.direction,
         });
@@ -779,6 +786,7 @@ export function useWebRTC(socket, currentUser) {
       callId: callIdRef.current,
       peer: remoteUser,
       isVideo: isVideoRef.current,
+      startedAt: callStartTimeRef.current,
       direction: isCallerRef.current ? "outgoing" : "incoming",
     });
   }, [callState, persistCallSession, remoteUser]);
@@ -883,6 +891,7 @@ export function useWebRTC(socket, currentUser) {
     callState,
     callError,
     remoteUser,
+    callStartedAt,
     isVideo,
     isMuted,
     isCameraOff,
