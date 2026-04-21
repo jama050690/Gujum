@@ -16,36 +16,75 @@ const STAT_CARDS = [
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const { role, logout } = useAuth();
+  const { role, user, logout } = useAuth();
   const { lang } = useLanguage();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState("");
+  const [deletingUsername, setDeletingUsername] = useState("");
+
+  const loadDashboard = () => {
+    setLoading(true);
+    setError("");
+    fetchJSON("/api/admin/dashboard")
+      .then((response) => {
+        setData(response);
+      })
+      .catch((err) => {
+        setError(err.message || "Dashboard yuklanmadi");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
     if (role !== "admin") return;
 
-    let active = true;
-    setLoading(true);
-    fetchJSON("/api/admin/dashboard")
-      .then((response) => {
-        if (active) setData(response);
-      })
-      .catch((err) => {
-        if (active) setError(err.message || "Dashboard yuklanmadi");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+    loadDashboard();
   }, [role]);
 
   const handleLogout = async () => {
     await logout();
     navigate(`/${lang}/login`);
+  };
+
+  const handleDeleteUser = async (username) => {
+    const confirmed = window.confirm(`"${username}" foydalanuvchisini o'chirmoqchimisiz? Bu amal qaytmaydi.`);
+    if (!confirmed) return;
+
+    setDeletingUsername(username);
+    setActionMessage("");
+    setError("");
+
+    try {
+      const response = await fetchJSON(`/api/admin/users/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+      });
+
+      setData((prev) => {
+        if (!prev) return prev;
+        const nextUsers = (prev.usersList || []).filter((entry) => entry.username !== username);
+        const nextRecent = (prev.recentUsers || []).filter((entry) => entry.username !== username);
+
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            users: Math.max((prev.stats?.users || 1) - 1, 0),
+          },
+          usersList: nextUsers,
+          recentUsers: nextRecent,
+        };
+      });
+
+      setActionMessage(`${response.username} o'chirildi`);
+    } catch (err) {
+      setError(err.message || "Userni o'chirib bo'lmadi");
+    } finally {
+      setDeletingUsername("");
+    }
   };
 
   if (role !== "admin") return null;
@@ -87,6 +126,11 @@ export default function AdminDashboardPage() {
             {error && !loading && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
+              </div>
+            )}
+            {actionMessage && !loading && (
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {actionMessage}
               </div>
             )}
 
@@ -162,6 +206,77 @@ export default function AdminDashboardPage() {
                     </div>
                   </section>
                 </div>
+
+                <section className="mt-6 rounded-[28px] border border-black/8 bg-white/90 p-6 shadow-[0_12px_40px_rgba(41,30,15,0.08)]">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-xl font-black">Barcha foydalanuvchilar</h2>
+                      <p className="mt-1 text-sm text-black/55">
+                        Dashboardda userlar chiqmayotganining sababi oldin faqat so'nggi 8 ta user ko'rsatilgan edi. Endi to'liq ro'yxat shu yerda.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadDashboard}
+                      className="rounded-full border border-black/10 bg-[#f4ede1] px-4 py-2 text-sm font-semibold text-[#3c2f1f] transition hover:bg-[#eadfca]"
+                    >
+                      Yangilash
+                    </button>
+                  </div>
+
+                  <div className="mt-5 overflow-x-auto">
+                    <table className="min-w-full text-left">
+                      <thead>
+                        <tr className="border-b border-black/8 text-xs uppercase tracking-[0.2em] text-black/45">
+                          <th className="px-3 py-3">User</th>
+                          <th className="px-3 py-3">Email</th>
+                          <th className="px-3 py-3">Role</th>
+                          <th className="px-3 py-3">Last seen</th>
+                          <th className="px-3 py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(data.usersList || []).map((entry) => {
+                          const isCurrentUser = entry.username === user;
+                          const isAdminUser = entry.role === "admin";
+                          const isDeleting = deletingUsername === entry.username;
+
+                          return (
+                            <tr key={entry.id || entry.username} className="border-b border-black/6 last:border-b-0">
+                              <td className="px-3 py-4">
+                                <p className="font-semibold text-[#231f19]">{entry.full_name || entry.username}</p>
+                                <p className="text-xs text-black/50">@{entry.username}</p>
+                              </td>
+                              <td className="px-3 py-4 text-sm text-black/65">{entry.email}</td>
+                              <td className="px-3 py-4">
+                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isAdminUser ? "bg-[#1c3b36] text-white" : "bg-[#eadfca] text-[#5c4322]"}`}>
+                                  {entry.role}
+                                </span>
+                              </td>
+                              <td className="px-3 py-4 text-sm text-black/55">
+                                {entry.last_seen ? new Date(entry.last_seen).toLocaleString() : "last seen yo'q"}
+                              </td>
+                              <td className="px-3 py-4 text-right">
+                                <button
+                                  type="button"
+                                  disabled={isCurrentUser || isAdminUser || isDeleting}
+                                  onClick={() => handleDeleteUser(entry.username)}
+                                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                    isCurrentUser || isAdminUser
+                                      ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                                      : "bg-red-50 text-red-600 hover:bg-red-100"
+                                  }`}
+                                >
+                                  {isDeleting ? "O'chirilmoqda..." : isCurrentUser ? "Siz" : isAdminUser ? "Admin" : "Delete"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               </>
             )}
           </div>
