@@ -87,8 +87,8 @@ export default function LoginPage() {
         localStorage.setItem("app_birthday", userData.birthday);
       }
       if (userData.bio) localStorage.setItem("app_bio", userData.bio);
-      login(userData.username, userData.avatar, userData.fullName);
-      navigate(`/${lang}`);
+      login(userData.username, userData.avatar, userData.fullName, userData.role);
+      navigate(userData.role === "admin" ? `/${lang}/admin` : `/${lang}`);
     },
     [lang, login, navigate],
   );

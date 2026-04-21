@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useChat } from "@/context/ChatContext";
 import { useSocket } from "@/context/SocketContext";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -26,8 +28,10 @@ import CommunitiesModal from "@/components/modals/CommunitiesModal";
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const { lang } = useLanguage();
   const { activeChat, showInfoPanel, mobileView, dispatch } = useChat();
   const { socket } = useSocket();
+  const navigate = useNavigate();
 
   // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -195,6 +199,7 @@ export default function ChatPage() {
         onCalls={() => setShowCalls(true)}
         onSettings={() => setShowSettings(true)}
         onSavedMessages={handleOpenSavedMessages}
+        onAdminDashboard={() => navigate(`/${lang}/admin`)}
         onAddFriend={() => setShowAddFriend(true)}
         onFriendRequests={() => setShowFriendRequests(true)}
         friendRequestCount={friendRequestCount}

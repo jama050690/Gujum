@@ -13,6 +13,7 @@ import {
   SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
 } from "../config/database.js";
+import argon2 from "argon2";
 
 async function initUsersTable() {
   await pool.query(`
@@ -44,7 +45,48 @@ async function initUsersTable() {
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
   `);
+  await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
+  `);
   console.log("Users table tayyor");
+}
+
+async function ensureAdminUser() {
+  const username = String(process.env.ADMIN_USERNAME || "").trim();
+  const email = String(process.env.ADMIN_EMAIL || "").trim();
+  const password = String(process.env.ADMIN_PASSWORD || "").trim();
+  const fullName = String(process.env.ADMIN_FULL_NAME || "Administrator").trim();
+
+  if (!username || !email || !password) {
+    console.log("Admin seed o'tkazib yuborildi: ADMIN_* env topilmadi");
+    return;
+  }
+
+  const existing = await pool.query(
+    `SELECT id, role FROM ${USERS_TABLE} WHERE LOWER(username) = LOWER($1) LIMIT 1`,
+    [username]
+  );
+
+  if (existing.rowCount > 0) {
+    await pool.query(
+      `UPDATE ${USERS_TABLE}
+       SET role = 'admin',
+           email = $1,
+           full_name = COALESCE(NULLIF(full_name, ''), $2)
+       WHERE id = $3`,
+      [email, fullName, existing.rows[0].id]
+    );
+    console.log(`Admin user yangilandi: ${username}`);
+    return;
+  }
+
+  const passwordHash = await argon2.hash(password);
+  await pool.query(
+    `INSERT INTO ${USERS_TABLE} (username, email, password_hash, age, gender, full_name, role)
+     VALUES ($1, $2, $3, $4, $5, $6, 'admin')`,
+    [username, email, passwordHash, 18, true, fullName || username]
+  );
+  console.log(`Admin user yaratildi: ${username}`);
 }
 
 async function initChatsTable() {
@@ -242,6 +284,7 @@ async function initPushSubscriptionsTable() {
 
 async function initDb() {
   await initUsersTable();
+  await ensureAdminUser();
   await initChatsTable();
   await initMessagesTable();
   await initGroupsTable();

@@ -50,6 +50,7 @@ function setSessionCookie(res, user) {
       id: user.id,
       username: user.username,
       is_premium: user.is_premium,
+      role: user.role || "user",
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
@@ -72,6 +73,7 @@ function formatUser(user, avatarOverride = user.avatar) {
     birthday: user.birthday,
     bio: user.bio,
     avatar: avatarOverride,
+    role: user.role || "user",
   };
 }
 
@@ -136,10 +138,18 @@ router.post("/signup", async (req, res) => {
   const hashed = await argon2.hash(password);
   try {
     const result = await pool.query(
-      `INSERT INTO ${USERS_TABLE} (full_name, username, email, password_hash, age, gender) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username`,
+      `INSERT INTO ${USERS_TABLE} (full_name, username, email, password_hash, age, gender, role)
+       VALUES ($1, $2, $3, $4, $5, $6, 'user')
+       RETURNING id, username, role`,
       [normalizedFullName, normalizedUsername, normalizedEmail, hashed, age, gender],
     );
-    res.json({ message: "User registered", user: result.rows[0] });
+    res.json({
+      message: "User registered",
+      user: {
+        username: result.rows[0].username,
+        role: result.rows[0].role,
+      },
+    });
   } catch (err) {
     console.error(err.message || err);
     res.status(400).json({

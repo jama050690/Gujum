@@ -51,8 +51,8 @@ export default function SignupPage() {
       if (userData.phone) localStorage.setItem("app_phone", userData.phone);
       if (userData.birthday) localStorage.setItem("app_birthday", userData.birthday);
       if (userData.bio) localStorage.setItem("app_bio", userData.bio);
-      login(userData.username, userData.avatar || null, userData.fullName);
-      navigate(`/${lang}`);
+      login(userData.username, userData.avatar || null, userData.fullName, userData.role);
+      navigate(userData.role === "admin" ? `/${lang}/admin` : `/${lang}`);
     },
     [LAST_LOGIN_USERNAME_KEY, login, navigate, lang]
   );

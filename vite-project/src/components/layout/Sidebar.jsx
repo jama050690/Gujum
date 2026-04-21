@@ -15,8 +15,9 @@ export default function Sidebar({
   onCalls,
   onSettings,
   onSavedMessages,
+  onAdminDashboard,
 }) {
-  const { user, avatar, fullName, logout } = useAuth();
+  const { user, avatar, fullName, logout, isAdmin } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const { t, lang } = useLanguage();
   const [showAccountActions, setShowAccountActions] = useState(false);
@@ -177,6 +178,18 @@ export default function Sidebar({
               onClose?.();
             }}
           />
+          {isAdmin && (
+            <SidebarItem
+              icon="fa-chart-line"
+              label="Admin Dashboard"
+              iconClass={iconClass}
+              rowClass={rowClass}
+              onClick={() => {
+                onAdminDashboard?.();
+                onClose?.();
+              }}
+            />
+          )}
 
           <button
             type="button"

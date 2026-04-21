@@ -14,6 +14,7 @@ import blockRoutes from "./routes/block.routes.js";
 import spamRoutes from "./routes/spam.routes.js";
 import friendRoutes from "./routes/friend.routes.js";
 import pushRoutes from "./routes/push.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 const app = express();
 
@@ -41,5 +42,6 @@ app.use("/api/block", blockRoutes);
 app.use("/api/spam", spamRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api", pushRoutes);
+app.use("/api/admin", adminRoutes);
 
 export default app;

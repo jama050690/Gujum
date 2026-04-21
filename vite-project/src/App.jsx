@@ -10,6 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ChatPage from "@/pages/ChatPage";
+import AdminDashboardPage from "@/pages/AdminDashboardPage";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, user } = useAuth();
@@ -25,10 +26,18 @@ function ProtectedRoute({ children }) {
   );
 }
 
-function PublicRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+function AdminRoute({ children }) {
+  const { isAuthenticated, isAdmin } = useAuth();
   const { lang } = useLanguage();
-  if (isAuthenticated) return <Navigate to={`/${lang}`} replace />;
+  if (!isAuthenticated) return <Navigate to={`/${lang}/login`} replace />;
+  if (!isAdmin) return <Navigate to={`/${lang}`} replace />;
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const { isAuthenticated, isAdmin } = useAuth();
+  const { lang } = useLanguage();
+  if (isAuthenticated) return <Navigate to={isAdmin ? `/${lang}/admin` : `/${lang}`} replace />;
   return children;
 }
 
@@ -88,6 +97,7 @@ export default function App() {
                 <Route path="login" element={<PublicRoute><LoginPage /></PublicRoute>} />
                 <Route path="signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
                 <Route path="forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+                <Route path="admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
                 <Route index element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               </Route>
 

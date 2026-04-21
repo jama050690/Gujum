@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/utils/storage";
+import { clearAuth, getApiBaseUrl } from "@/utils/storage";
 
 const BASE_URL = getApiBaseUrl();
 
@@ -13,8 +13,7 @@ export async function fetchJSON(url, options = {}) {
     ...options,
   });
   if (res.status === 401) {
-    localStorage.removeItem("app_user");
-    localStorage.removeItem("app_avatar");
+    clearAuth();
     window.location.href = import.meta.env.VITE_BASE_PATH || "/";
     throw new Error("Sessiya tugadi, qayta kiring");
   }

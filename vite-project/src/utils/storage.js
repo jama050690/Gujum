@@ -1,6 +1,7 @@
 const KEYS = {
   USER: "app_user",
   AVATAR: "app_avatar",
+  ROLE: "app_role",
   MODE: "mode",
   API_BASE_URL: "app_api_base_url",
   SAVED_MESSAGES: "saved_messages",
@@ -100,14 +101,21 @@ export function getAvatar() {
   return localStorage.getItem(KEYS.AVATAR);
 }
 
-export function setAuth(username, avatar) {
+export function getRole() {
+  return localStorage.getItem(KEYS.ROLE) || "user";
+}
+
+export function setAuth(username, avatar, role = "user") {
   localStorage.setItem(KEYS.USER, username);
   if (avatar) localStorage.setItem(KEYS.AVATAR, avatar);
+  else localStorage.removeItem(KEYS.AVATAR);
+  localStorage.setItem(KEYS.ROLE, role || "user");
 }
 
 export function clearAuth() {
   localStorage.removeItem(KEYS.USER);
   localStorage.removeItem(KEYS.AVATAR);
+  localStorage.removeItem(KEYS.ROLE);
 }
 
 export function isDarkMode() {
@@ -239,6 +247,7 @@ export function saveAccountSnapshot() {
   const snapshot = {
     username,
     avatar: getAvatar(),
+    role: getRole(),
     fullName: profile.fullName || username,
     phone: profile.phone,
     birthday: profile.birthday,
@@ -256,6 +265,8 @@ export function restoreAccount(username) {
   if (!acc) return null;
   localStorage.setItem(KEYS.USER, acc.username);
   if (acc.avatar) localStorage.setItem(KEYS.AVATAR, acc.avatar);
+  else localStorage.removeItem(KEYS.AVATAR);
+  localStorage.setItem(KEYS.ROLE, acc.role || "user");
   localStorage.setItem("app_fullname", acc.fullName || acc.username);
   localStorage.setItem(KEYS.PHONE, acc.phone || "");
   localStorage.setItem(KEYS.BIRTHDAY, acc.birthday || "");

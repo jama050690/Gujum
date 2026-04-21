@@ -14,4 +14,13 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-export { authMiddleware };
+const adminMiddleware = (req, res, next) => {
+  authMiddleware(req, res, () => {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Faqat admin uchun" });
+    }
+    next();
+  });
+};
+
+export { authMiddleware, adminMiddleware };
