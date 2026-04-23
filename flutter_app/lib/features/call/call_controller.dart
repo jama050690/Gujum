@@ -96,6 +96,14 @@ class CallController extends ChangeNotifier {
   static const Duration _peerDisconnectGrace = Duration(seconds: 12);
   static const MethodChannel _callAudioChannel =
       MethodChannel('bootchat/call_audio');
+  static const Map<String, dynamic> _sdpAnswerConstraints =
+      <String, dynamic>{
+    'mandatory': <String, dynamic>{
+      'OfferToReceiveAudio': true,
+      'OfferToReceiveVideo': true,
+    },
+    'optional': <dynamic>[],
+  };
 
   final SocketService _socketService;
   final AuthController _authController;
@@ -182,6 +190,7 @@ class CallController extends ChangeNotifier {
       final stream = await navigator.mediaDevices.getUserMedia(
         _mediaConstraints(video),
       );
+      _enableLocalTracks(stream);
       _localStream = stream;
       await _configureAudioRoute(video);
 
@@ -190,7 +199,7 @@ class CallController extends ChangeNotifier {
         await pc.addTrack(track, stream);
       }
 
-      final offer = await pc.createOffer();
+      final offer = await pc.createOffer(_sdpOfferConstraints(video));
       await pc.setLocalDescription(offer);
       debugPrint('Call offer created and set locally.');
 
@@ -244,6 +253,7 @@ class CallController extends ChangeNotifier {
       final stream = await navigator.mediaDevices.getUserMedia(
         _mediaConstraints(incoming.isVideo),
       );
+      _enableLocalTracks(stream);
       _localStream = stream;
       await _configureAudioRoute(incoming.isVideo);
 
@@ -254,7 +264,7 @@ class CallController extends ChangeNotifier {
 
       await _applyRemoteDescription(incoming.offer);
 
-      final answer = await pc.createAnswer();
+      final answer = await pc.createAnswer(_sdpAnswerConstraints);
       await pc.setLocalDescription(answer);
       debugPrint('Call answer created and set locally.');
 
@@ -574,6 +584,7 @@ class CallController extends ChangeNotifier {
     debugPrint('PeerConnection created for $targetUsername');
 
     pc.onTrack = (RTCTrackEvent event) async {
+      event.track.enabled = true;
       MediaStream stream;
       if (event.streams.isNotEmpty) {
         stream = event.streams.first;
@@ -582,12 +593,14 @@ class CallController extends ChangeNotifier {
             await createLocalMediaStream('bootchat-remote-$targetUsername');
         await stream.addTrack(event.track);
       }
+      _enableRemoteTracks(stream);
       _remoteStream = stream;
       _markConnected();
       _notify();
     };
 
     pc.onAddStream = (MediaStream stream) {
+      _enableRemoteTracks(stream);
       _remoteStream = stream;
       _markConnected();
       _notify();
@@ -736,6 +749,7 @@ class CallController extends ChangeNotifier {
         'echoCancellation': true,
         'noiseSuppression': true,
         'autoGainControl': true,
+        'channelCount': 1,
         'googEchoCancellation': true,
         'googNoiseSuppression': true,
         'googAutoGainControl': true,
@@ -746,6 +760,16 @@ class CallController extends ChangeNotifier {
               'facingMode': 'user',
             }
           : false,
+    };
+  }
+
+  Map<String, dynamic> _sdpOfferConstraints(bool video) {
+    return <String, dynamic>{
+      'mandatory': <String, dynamic>{
+        'OfferToReceiveAudio': true,
+        'OfferToReceiveVideo': video,
+      },
+      'optional': <dynamic>[],
     };
   }
 
@@ -890,6 +914,21 @@ class CallController extends ChangeNotifier {
     }
   }
 
+  void _enableLocalTracks(MediaStream stream) {
+    for (final track in stream.getAudioTracks()) {
+      track.enabled = true;
+    }
+    for (final track in stream.getVideoTracks()) {
+      track.enabled = true;
+    }
+  }
+
+  void _enableRemoteTracks(MediaStream stream) {
+    for (final track in stream.getAudioTracks()) {
+      track.enabled = true;
+    }
+  }
+
   Future<void> _startIncomingRingtone() async {
     if (kIsWeb) {
       return;
@@ -918,7 +957,7 @@ class CallController extends ChangeNotifier {
     }
 
     try {
-      await Helper.setSpeakerphoneOn(video);
+      await Helper.setSpeakerphoneOn(true);
     } catch (_) {
       // Keep the call alive even if the platform refuses audio route changes.
     }
