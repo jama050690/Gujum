@@ -34,7 +34,6 @@ class _SavedMessagesPane extends StatelessWidget {
               settings: settings,
               title: t('chat_saved_messages'),
               subtitle: t('saved_messages_hint'),
-              icon: Icons.bookmark_rounded,
             ),
           ),
         ),
