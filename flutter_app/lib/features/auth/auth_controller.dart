@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/session_store.dart';
@@ -67,10 +68,14 @@ class AuthController extends ChangeNotifier {
   Future<void> login({
     required String username,
     required String password,
+    XFile? profilePic,
   }) async {
     await _runGuarded(() async {
-      final user =
-          await _authRepository.login(username: username, password: password);
+      final user = await _authRepository.login(
+        username: username,
+        password: password,
+        profilePic: profilePic,
+      );
       _user = user;
       await _sessionStore.saveUser(user.toJson());
       await _sessionStore.saveLastLoginUsername(user.username);

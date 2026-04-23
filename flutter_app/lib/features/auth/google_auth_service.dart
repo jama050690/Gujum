@@ -39,7 +39,7 @@ class GoogleAuthService {
         error.code,
         error.message,
         if (error.details != null) error.details.toString(),
-      ].where((value) => value != null && value!.trim().isNotEmpty).join(' | ');
+      ].where((value) => value != null && value.trim().isNotEmpty).join(' | ');
 
       final normalized = details.toLowerCase();
       if (normalized.contains('developer_error') ||

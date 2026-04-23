@@ -91,6 +91,8 @@ class CallController extends ChangeNotifier {
       },
     ],
   };
+  static const Duration _socketRecoveryGrace = Duration(seconds: 50);
+  static const Duration _peerDisconnectGrace = Duration(seconds: 12);
 
   final SocketService _socketService;
   final AuthController _authController;
@@ -104,6 +106,8 @@ class CallController extends ChangeNotifier {
 
   Timer? _ringingTimeout;
   Timer? _clearErrorTimer;
+  Timer? _socketRecoveryTimer;
+  Timer? _peerDisconnectTimer;
 
   CallSessionState? _state;
   CallPeer? _remotePeer;
@@ -114,6 +118,7 @@ class CallController extends ChangeNotifier {
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _disposed = false;
+  bool _isAwaitingSocketRecovery = false;
 
   String? _callId;
   String? _targetUsername;
@@ -362,16 +367,30 @@ class CallController extends ChangeNotifier {
         }
         break;
       case 'CALL_BLOCKED':
+        _cancelSocketRecovery();
         unawaited(_handleRemoteEnded('call_blocked'));
         break;
       case 'CALL_NOT_DELIVERED':
+        _cancelSocketRecovery();
         unawaited(_handleCallNotDelivered());
+        break;
+      case 'CALL_SESSION_SYNC':
+        _handleCallSessionSync(packet.payload);
+        break;
+      case 'CALL_PARTICIPANT_RECONNECTING':
+        _handleParticipantReconnecting(packet.payload);
+        break;
+      case 'CALL_PARTICIPANT_REJOINED':
+        _handleParticipantRejoined(packet.payload);
+        break;
+      case 'connect':
+        _handleSocketConnected();
         break;
       case 'disconnect':
       case 'connect_error':
       case 'error':
         if (hasSession || hasIncomingCall) {
-          unawaited(_handleRemoteEnded('call_connection_lost'));
+          _scheduleSocketRecovery();
         }
         break;
     }
@@ -465,10 +484,81 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _handleRemoteEnded([String? errorKey]) async {
+    _cancelSocketRecovery();
+    _cancelPeerDisconnectTimer();
     await _resetSession();
     if (errorKey != null) {
       _publishError(errorKey);
     }
+  }
+
+  void _handleSocketConnected() {
+    _cancelSocketRecovery();
+
+    final username = _authController.user?.username;
+    final activeCallId = _callId ?? _incomingCall?.callId;
+    if (username == null ||
+        username.isEmpty ||
+        (activeCallId == null && !hasSession && !hasIncomingCall)) {
+      return;
+    }
+
+    _socketService.emit('CALL_SESSION_SYNC_REQUEST', <String, dynamic>{
+      'username': username,
+      'callId': activeCallId,
+    });
+  }
+
+  void _handleCallSessionSync(dynamic payload) {
+    final data = _asMap(payload);
+    final syncedCallId = data['callId']?.toString().trim();
+    if (syncedCallId == null || syncedCallId.isEmpty) {
+      return;
+    }
+
+    final peer = CallPeer.fromMap(_asMap(data['peer']));
+    if (peer.username.isNotEmpty) {
+      _remotePeer = peer;
+      _targetUsername = peer.username;
+    }
+
+    _callId = syncedCallId;
+    _isVideo = data['isVideo'] == true;
+    final startedAt = _parseTimestamp(data['startedAt']);
+    _connectedAt ??= startedAt;
+
+    switch ((data['status'] ?? '').toString()) {
+      case 'connected':
+        _state = CallSessionState.connected;
+        break;
+      case 'ringing':
+      default:
+        _state ??= CallSessionState.connecting;
+        break;
+    }
+
+    _clearError();
+    _cancelSocketRecovery();
+    _cancelPeerDisconnectTimer();
+    _notify();
+  }
+
+  void _handleParticipantReconnecting(dynamic payload) {
+    final data = _asMap(payload);
+    if (!_matchesActiveCall(data['callId'])) {
+      return;
+    }
+    _schedulePeerDisconnectTimer();
+  }
+
+  void _handleParticipantRejoined(dynamic payload) {
+    final data = _asMap(payload);
+    if (!_matchesActiveCall(data['callId'])) {
+      return;
+    }
+    _cancelPeerDisconnectTimer();
+    _clearError();
+    _notify();
   }
 
   Future<RTCPeerConnection> _createPeerConnection(
@@ -512,8 +602,14 @@ class CallController extends ChangeNotifier {
       debugPrint('ICE connection state: $state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _cancelPeerDisconnectTimer();
         _markConnected();
         _notify();
+        return;
+      }
+
+      if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        _schedulePeerDisconnectTimer();
         return;
       }
 
@@ -525,8 +621,14 @@ class CallController extends ChangeNotifier {
     pc.onConnectionState = (RTCPeerConnectionState state) {
       debugPrint('Peer connection state: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        _cancelPeerDisconnectTimer();
         _markConnected();
         _notify();
+        return;
+      }
+
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        _schedulePeerDisconnectTimer();
         return;
       }
 
@@ -541,6 +643,8 @@ class CallController extends ChangeNotifier {
 
   void _markConnected() {
     _clearRingingTimeout();
+    _cancelSocketRecovery();
+    _cancelPeerDisconnectTimer();
     _connectedAt ??= DateTime.now();
     _state = CallSessionState.connected;
   }
@@ -581,6 +685,8 @@ class CallController extends ChangeNotifier {
 
   Future<void> _resetSession() async {
     _clearRingingTimeout();
+    _cancelSocketRecovery();
+    _cancelPeerDisconnectTimer();
     _pendingCandidates.clear();
     _remoteDescriptionReady = false;
     await _restoreAudioRoute();
@@ -612,6 +718,7 @@ class CallController extends ChangeNotifier {
     _isVideo = false;
     _isMuted = false;
     _isCameraOff = false;
+    _isAwaitingSocketRecovery = false;
     _notify();
   }
 
@@ -727,6 +834,48 @@ class CallController extends ChangeNotifier {
     _ringingTimeout = null;
   }
 
+  void _scheduleSocketRecovery() {
+    if (_isAwaitingSocketRecovery) {
+      return;
+    }
+    _isAwaitingSocketRecovery = true;
+    _socketRecoveryTimer?.cancel();
+    _socketRecoveryTimer = Timer(_socketRecoveryGrace, () {
+      _isAwaitingSocketRecovery = false;
+      unawaited(_handleRemoteEnded('call_connection_lost'));
+    });
+  }
+
+  void _cancelSocketRecovery() {
+    _isAwaitingSocketRecovery = false;
+    _socketRecoveryTimer?.cancel();
+    _socketRecoveryTimer = null;
+  }
+
+  void _schedulePeerDisconnectTimer() {
+    _peerDisconnectTimer?.cancel();
+    _peerDisconnectTimer = Timer(_peerDisconnectGrace, () {
+      unawaited(_handleRemoteEnded('call_connection_lost'));
+    });
+  }
+
+  void _cancelPeerDisconnectTimer() {
+    _peerDisconnectTimer?.cancel();
+    _peerDisconnectTimer = null;
+  }
+
+  DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+
+    return DateTime.tryParse(value.toString());
+  }
+
   void _notify() {
     if (!_disposed) {
       notifyListeners();
@@ -762,6 +911,8 @@ class CallController extends ChangeNotifier {
     _disposed = true;
     _clearRingingTimeout();
     _clearErrorTimer?.cancel();
+    _socketRecoveryTimer?.cancel();
+    _peerDisconnectTimer?.cancel();
     _subscription.cancel();
     unawaited(_restoreAudioRoute());
     final pc = _peerConnection;

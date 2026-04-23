@@ -106,6 +106,9 @@ class SocketService {
       'CALL_END',
       'CALL_BLOCKED',
       'CALL_NOT_DELIVERED',
+      'CALL_SESSION_SYNC',
+      'CALL_PARTICIPANT_RECONNECTING',
+      'CALL_PARTICIPANT_REJOINED',
     ]) {
       socket.on(event, (data) => _controller.add(SocketPacket(event, data)));
     }

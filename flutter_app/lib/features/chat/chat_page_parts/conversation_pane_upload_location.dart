@@ -176,7 +176,7 @@ Future<XFile?> _pickVideoAttachment() {
 }
 
 Future<PlatformFile?> _pickGenericAttachment() async {
-  final result = await FilePicker.platform.pickFiles(
+  final result = await FilePicker.pickFiles(
     type: FileType.any,
     allowMultiple: false,
     withData: kIsWeb,
@@ -195,7 +195,7 @@ Future<PlatformFile?> _pickGenericAttachment() async {
 }
 
 Future<PlatformFile?> _pickAudioAttachment() async {
-  final result = await FilePicker.platform.pickFiles(
+  final result = await FilePicker.pickFiles(
     type: FileType.audio,
     allowMultiple: false,
     withData: kIsWeb,

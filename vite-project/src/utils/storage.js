@@ -31,6 +31,25 @@ function isLikelyLocalUrl(value = "") {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(value);
 }
 
+function normalizeComparableHostname(hostname = "") {
+  return String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
+}
+
+function shouldPreferCurrentOrigin(parsedUrl) {
+  if (typeof window === "undefined") return false;
+
+  const currentHostname = normalizeComparableHostname(window.location.hostname);
+  const parsedHostname = normalizeComparableHostname(parsedUrl.hostname);
+
+  if (!currentHostname || !parsedHostname) return false;
+  if (currentHostname === parsedHostname) return true;
+
+  return false;
+}
+
 function getCurrentOrigin() {
   if (typeof window === "undefined") return "";
   return trimTrailingSlashes(window.location.origin);
@@ -80,6 +99,10 @@ function normalizeApiBaseUrl(value) {
     const parsed = new URL(normalizedInput);
 
     if (parsed.origin === "null") {
+      return fallback;
+    }
+
+    if (shouldPreferCurrentOrigin(parsed)) {
       return fallback;
     }
 

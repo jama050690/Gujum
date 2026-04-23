@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import argon2 from "argon2";
 import "../config/env.js";
 import { pool, USERS_TABLE } from "../config/database.js";
+import { upload } from "../config/upload.js";
 
 const router = express.Router();
 
@@ -54,7 +55,7 @@ async function sendOtpEmail({ to, subject, html }) {
   }
 }
 
-router.post("/send-otp", async (req, res) => {
+router.post("/send-otp", upload.single("profilePic"), async (req, res) => {
   const { fullName, username, phone, email, password, age, gender } = req.body;
   const normalizedFullName = String(fullName || "").trim();
   const normalizedUsername = String(username || "").trim();
@@ -95,6 +96,7 @@ router.post("/send-otp", async (req, res) => {
         password,
         age: normalizedAge,
         gender: normalizedGender,
+        avatar: req.file ? `/uploads/${req.file.filename}` : null,
       },
     });
 
@@ -153,7 +155,16 @@ router.post("/verify-otp", async (req, res) => {
   }
 
   try {
-    const { fullName, username, phone, email: rawEmail, password, age, gender } = otpData.userData;
+    const {
+      fullName,
+      username,
+      phone,
+      email: rawEmail,
+      password,
+      age,
+      gender,
+      avatar,
+    } = otpData.userData;
     const existing = await pool.query(
       `SELECT id FROM ${USERS_TABLE} WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2)`,
       [username, rawEmail]
@@ -165,8 +176,17 @@ router.post("/verify-otp", async (req, res) => {
 
     const passwordHash = await argon2.hash(password);
     await pool.query(
-      `INSERT INTO ${USERS_TABLE} (full_name, username, phone, email, password_hash, age, gender) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [fullName, username, phone, rawEmail, passwordHash, Number(age), gender === true || gender === "true"]
+      `INSERT INTO ${USERS_TABLE} (full_name, username, phone, email, password_hash, age, gender, avatar) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        fullName,
+        username,
+        phone,
+        rawEmail,
+        passwordHash,
+        Number(age),
+        gender === true || gender === "true",
+        avatar || null,
+      ]
     );
 
     otpStore.delete(email);

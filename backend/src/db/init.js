@@ -67,20 +67,22 @@ async function ensureAdminUser() {
     [username]
   );
 
+  const passwordHash = await argon2.hash(password);
+
   if (existing.rowCount > 0) {
     await pool.query(
       `UPDATE ${USERS_TABLE}
        SET role = 'admin',
            email = $1,
-           full_name = COALESCE(NULLIF(full_name, ''), $2)
-       WHERE id = $3`,
-      [email, fullName, existing.rows[0].id]
+           password_hash = $2,
+           full_name = COALESCE(NULLIF(full_name, ''), $3)
+       WHERE id = $4`,
+      [email, passwordHash, fullName, existing.rows[0].id]
     );
     console.log(`Admin user yangilandi: ${username}`);
     return;
   }
 
-  const passwordHash = await argon2.hash(password);
   await pool.query(
     `INSERT INTO ${USERS_TABLE} (username, email, password_hash, age, gender, full_name, role)
      VALUES ($1, $2, $3, $4, $5, $6, 'admin')`,
