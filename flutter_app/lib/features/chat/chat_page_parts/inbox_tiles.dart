@@ -4,6 +4,8 @@ class _InboxTile extends StatelessWidget {
   const _InboxTile({
     required this.settings,
     required this.item,
+    required this.isOnline,
+    required this.lastActive,
     required this.isPinned,
     required this.isMuted,
     required this.isActive,
@@ -13,6 +15,8 @@ class _InboxTile extends StatelessWidget {
 
   final SettingsController settings;
   final InboxItem item;
+  final bool isOnline;
+  final DateTime? lastActive;
   final bool isPinned;
   final bool isMuted;
   final bool isActive;
@@ -39,6 +43,7 @@ class _InboxTile extends StatelessWidget {
               imageUrl:
                   AppConfig.resolveMediaUrl(item.avatar, settings.baseUrl),
               radius: 28,
+              online: isOnline,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -105,7 +110,9 @@ class _InboxTile extends StatelessWidget {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: previewColor,
+                                  color: item.lastMessage.isEmpty && isOnline
+                                      ? const Color(0xFF41D481)
+                                      : previewColor,
                                 ),
                           ),
                         ),
@@ -173,7 +180,9 @@ class _InboxTile extends StatelessWidget {
         return '${String.fromCharCode(0x1F399)} ${t('chat_voice_message')}';
       default:
         return item.lastMessage.isEmpty
-            ? '@${item.username}'
+            ? (isOnline
+                ? t('online')
+                : _formatLastSeenStatus(lastActive, settings.localeCode))
             : item.lastMessage;
     }
   }

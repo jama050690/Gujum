@@ -41,6 +41,7 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> _messages = const [];
   InboxItem? _activeChat;
   Set<String> _onlineUsers = <String>{};
+  Map<String, DateTime?> _lastActiveUsers = const <String, DateTime?>{};
   bool _loadingInbox = false;
   bool _loadingMessages = false;
   bool _searching = false;
@@ -53,6 +54,7 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> get messages => _messages;
   InboxItem? get activeChat => _activeChat;
   Set<String> get onlineUsers => _onlineUsers;
+  DateTime? lastActiveFor(String username) => _lastActiveUsers[username];
   bool get loadingInbox => _loadingInbox;
   bool get loadingMessages => _loadingMessages;
   bool get searching => _searching;
@@ -351,6 +353,7 @@ class ChatController extends ChangeNotifier {
       _messages = const [];
       _activeChat = null;
       _onlineUsers = <String>{};
+      _lastActiveUsers = const <String, DateTime?>{};
       notifyListeners();
       return;
     }
@@ -396,6 +399,10 @@ class ChatController extends ChangeNotifier {
             .where((item) => item['online'] == true)
             .map((item) => item['username'].toString())
             .toSet();
+        _lastActiveUsers = <String, DateTime?>{
+          for (final item in users)
+            item['username'].toString(): _parseLastActive(item['lastActive']),
+        };
         notifyListeners();
         break;
       case 'USER_STATUS_CHANGED':
@@ -411,6 +418,12 @@ class ChatController extends ChangeNotifier {
           next.remove(username);
         }
         _onlineUsers = next;
+        _lastActiveUsers = <String, DateTime?>{
+          ..._lastActiveUsers,
+          username: payload['online'] == true
+              ? null
+              : _parseLastActive(payload['lastActive']) ?? DateTime.now(),
+        };
         notifyListeners();
         break;
       case 'NEW_MESSAGE':
@@ -592,5 +605,15 @@ class ChatController extends ChangeNotifier {
     if (refreshedIndex >= 0) {
       _activeChat = current[refreshedIndex];
     }
+  }
+
+  DateTime? _parseLastActive(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
+    }
+    return DateTime.tryParse(value.toString())?.toLocal();
   }
 }

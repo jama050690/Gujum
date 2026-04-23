@@ -5,11 +5,13 @@ class _Avatar extends StatelessWidget {
     required this.label,
     required this.imageUrl,
     this.radius = 24,
+    this.online = false,
   });
 
   final String label;
   final String imageUrl;
   final double radius;
+  final bool online;
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +39,33 @@ class _Avatar extends StatelessWidget {
       fontWeight: FontWeight.w700,
     );
 
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: background,
-      foregroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-      child: Text(initials.isEmpty ? '?' : initials, style: textStyle),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: radius,
+          backgroundColor: background,
+          foregroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+          child: Text(initials.isEmpty ? '?' : initials, style: textStyle),
+        ),
+        if (online)
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: Container(
+              width: radius * 0.46,
+              height: radius * 0.46,
+              decoration: BoxDecoration(
+                color: const Color(0xFF41D481),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFF17212B),
+                  width: radius * 0.1,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -84,4 +108,67 @@ String _formatInboxTime(DateTime? value, String localeCode) {
   final month = value.month.toString().padLeft(2, '0');
   final day = value.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
+}
+
+String _formatLastSeenStatus(DateTime? value, String localeCode) {
+  if (value == null) {
+    return AppStrings.text(localeCode, 'offline');
+  }
+
+  final prefix = switch (localeCode) {
+    'ru' => 'Был(а) в сети ',
+    'en' => 'last seen ',
+    _ => 'Oxirgi marta ',
+  };
+  return '$prefix${_formatRelativeTime(value, localeCode)}';
+}
+
+String _formatRelativeTime(DateTime value, String localeCode) {
+  final now = DateTime.now();
+  final difference = now.difference(value);
+
+  if (difference.inMinutes < 1) {
+    return switch (localeCode) {
+      'ru' => 'только что',
+      'en' => 'just now',
+      _ => 'hozirgina',
+    };
+  }
+
+  if (difference.inHours < 1) {
+    final minutes = difference.inMinutes;
+    return switch (localeCode) {
+      'ru' => '$minutes мин назад',
+      'en' => '$minutes minutes ago',
+      _ => '$minutes daqiqa oldin',
+    };
+  }
+
+  if (difference.inDays < 1) {
+    final hours = difference.inHours;
+    return switch (localeCode) {
+      'ru' => '$hours ч назад',
+      'en' => '$hours hours ago',
+      _ => '$hours soat oldin',
+    };
+  }
+
+  if (difference.inDays == 1) {
+    return switch (localeCode) {
+      'ru' => 'вчера',
+      'en' => 'yesterday',
+      _ => 'kecha',
+    };
+  }
+
+  if (difference.inDays < 7) {
+    final days = difference.inDays;
+    return switch (localeCode) {
+      'ru' => '$days дн назад',
+      'en' => '$days days ago',
+      _ => '$days kun oldin',
+    };
+  }
+
+  return _formatInboxTime(value, localeCode);
 }

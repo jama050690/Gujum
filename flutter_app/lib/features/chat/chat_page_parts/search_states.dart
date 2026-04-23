@@ -6,6 +6,8 @@ class _SearchResultsSection extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.results,
+    required this.onlineUsers,
+    required this.lastActiveFor,
     required this.onTap,
   });
 
@@ -13,6 +15,8 @@ class _SearchResultsSection extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<SearchUser> results;
+  final Set<String> onlineUsers;
+  final DateTime? Function(String username) lastActiveFor;
   final Future<void> Function(SearchUser user) onTap;
 
   @override
@@ -45,6 +49,7 @@ class _SearchResultsSection extends StatelessWidget {
                     imageUrl: AppConfig.resolveMediaUrl(
                         user.avatar, settings.baseUrl),
                     radius: 23,
+                    online: onlineUsers.contains(user.username),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -63,12 +68,19 @@ class _SearchResultsSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          subtitle,
+                          onlineUsers.contains(user.username)
+                              ? AppStrings.text(settings.localeCode, 'online')
+                              : _formatLastSeenStatus(
+                                  lastActiveFor(user.username),
+                                  settings.localeCode,
+                                ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF8FA3B6),
+                                    color: onlineUsers.contains(user.username)
+                                        ? const Color(0xFF41D481)
+                                        : const Color(0xFF8FA3B6),
                                   ),
                         ),
                       ],

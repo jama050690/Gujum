@@ -28,13 +28,17 @@ extension _ConversationPaneView on _ConversationPaneState {
     }
 
     final online = chat.onlineUsers.contains(activeChat.username);
+    final lastActive = chat.lastActiveFor(activeChat.username);
     final selectedMessages = _selectedMessages(chat.messages);
     final selectionMode = selectedMessages.isNotEmpty;
     final headerTitle = selectionMode
         ? '${selectedMessages.length} ${t('message_selected')}'
         : activeChat.fullName;
-    final headerSubtitle =
-        selectionMode ? activeChat.fullName : t(online ? 'online' : 'offline');
+    final headerSubtitle = selectionMode
+        ? activeChat.fullName
+        : online
+            ? t('online')
+            : _formatLastSeenStatus(lastActive, widget.settings.localeCode);
 
     return LayoutBuilder(
       builder: (context, constraints) {

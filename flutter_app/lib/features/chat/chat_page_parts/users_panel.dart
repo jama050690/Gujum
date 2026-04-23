@@ -163,6 +163,8 @@ class _UsersPanel extends StatelessWidget {
                           (item) => _InboxTile(
                             settings: settings,
                             item: item,
+                            isOnline: chat.onlineUsers.contains(item.username),
+                            lastActive: chat.lastActiveFor(item.username),
                             isPinned: pinnedChats.contains(item.username),
                             isMuted: mutedChats.contains(item.username),
                             isActive: chat.activeChat?.username == item.username,
@@ -193,6 +195,8 @@ class _UsersPanel extends StatelessWidget {
                           (item) => _InboxTile(
                             settings: settings,
                             item: item,
+                            isOnline: chat.onlineUsers.contains(item.username),
+                            lastActive: chat.lastActiveFor(item.username),
                             isPinned: pinnedChats.contains(item.username),
                             isMuted: mutedChats.contains(item.username),
                             isActive: chat.activeChat?.username == item.username,
@@ -215,6 +219,8 @@ class _UsersPanel extends StatelessWidget {
                             title: t('search_global_results'),
                             subtitle: t('search_tap_to_chat'),
                             results: extraResults,
+                            onlineUsers: chat.onlineUsers,
+                            lastActiveFor: chat.lastActiveFor,
                             onTap: onOpenSearchResult,
                           ),
                       ],
