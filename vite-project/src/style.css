@@ -72,6 +72,28 @@
 }
 
 /* ========================
+   NATIVE CONTROL RESET
+======================== */
+button,
+input,
+select,
+textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  background-clip: padding-box;
+}
+
+input::-webkit-search-decoration,
+input::-webkit-search-cancel-button,
+input::-webkit-search-results-button,
+input::-webkit-search-results-decoration,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+/* ========================
    TELEGRAM CHAT BACKGROUND
 ======================== */
 .tg-chat-bg {

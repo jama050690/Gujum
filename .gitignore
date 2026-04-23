@@ -12,8 +12,6 @@
 **/yarn-debug.log*
 **/yarn-error.log*
 **/pnpm-debug.log*
-
-**/uploads/
 backend/src/.env
 vite-project/.env.local
 vite-project/.env.production
