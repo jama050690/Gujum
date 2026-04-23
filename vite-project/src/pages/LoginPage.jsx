@@ -16,6 +16,7 @@ const LANGUAGE_OPTIONS = [
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [profilePreview, setProfilePreview] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const [inputsUnlocked, setInputsUnlocked] = useState(false);
   const usernameInputRef = useRef(null);
   const passwordInputRef = useRef(null);
+  const profileInputRef = useRef(null);
   const googleButtonRef = useRef(null);
   const googleButtonInnerRef = useRef(null);
   const formRootRef = useRef(null);
@@ -317,6 +319,9 @@ export default function LoginPage() {
       const formData = new FormData();
       formData.append("username", normalizedUsername);
       formData.append("password", password);
+      if (profileInputRef.current?.files?.[0]) {
+        formData.append("profilePic", profileInputRef.current.files[0]);
+      }
 
       const res = await withTimeout(`${getBaseUrl()}/api/login`, {
         method: "POST",
@@ -343,6 +348,35 @@ export default function LoginPage() {
     changeLanguage(nextLang);
     navigate(`/${nextLang}/login`);
   };
+
+  const handleProfilePick = () => {
+    userInteractedRef.current = true;
+    profileInputRef.current?.click();
+  };
+
+  const handleProfileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setProfilePreview("");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setProfilePreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+      return previewUrl;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (profilePreview) {
+        URL.revokeObjectURL(profilePreview);
+      }
+    };
+  }, [profilePreview]);
 
   const shellClass = isDark
     ? "bg-[linear-gradient(115deg,#07131d_0%,#0d2233_42%,#17374e_100%)] text-white"
@@ -416,9 +450,34 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-5 flex justify-center">
-          <div className="flex h-[96px] w-[96px] items-center justify-center rounded-full border-[4px] border-[#b8d8ff] bg-[#eef1f5]">
-            <i className="fas fa-user-circle text-[68px] text-[#b5bcc6]" />
-          </div>
+          <button
+            type="button"
+            onClick={handleProfilePick}
+            className="group flex h-[108px] w-[108px] cursor-pointer items-center justify-center overflow-hidden rounded-full border-[4px] border-[#b8d8ff] bg-[#eef1f5] transition hover:scale-[1.02] hover:border-[#78b7ff]"
+            title={tr("login_profile_pick", "Profil rasmini tanlash")}
+          >
+            {profilePreview ? (
+              <img
+                src={profilePreview}
+                alt="Selected profile"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-[#7f8b99]">
+                <i className="fas fa-user-circle text-[68px]" />
+                <span className="mt-1 text-[11px] font-semibold text-[#4d8fe6] opacity-0 transition group-hover:opacity-100">
+                  Upload
+                </span>
+              </div>
+            )}
+          </button>
+          <input
+            ref={profileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleProfileChange}
+          />
         </div>
 
         {error && (
