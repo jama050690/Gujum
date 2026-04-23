@@ -67,6 +67,8 @@ class CallController extends ChangeNotifier {
       <String, dynamic>{
     'sdpSemantics': 'unified-plan',
     'iceCandidatePoolSize': 4,
+    'bundlePolicy': 'max-bundle',
+    'rtcpMuxPolicy': 'require',
     'iceServers': <Map<String, dynamic>>[
       <String, dynamic>{'urls': 'stun:stun.l.google.com:19302'},
       <String, dynamic>{'urls': 'stun:stun1.l.google.com:19302'},
@@ -75,6 +77,16 @@ class CallController extends ChangeNotifier {
       <String, dynamic>{'urls': 'stun:stun4.l.google.com:19302'},
       <String, dynamic>{'urls': 'stun:stun.cloudflare.com:3478'},
       <String, dynamic>{'urls': 'stun:global.stun.twilio.com:3478'},
+      <String, dynamic>{
+        'urls': 'turn:3.77.233.184:3478',
+        'username': 'bootchat',
+        'credential': 'Bootchat2024!',
+      },
+      <String, dynamic>{
+        'urls': 'turn:3.77.233.184:3478?transport=tcp',
+        'username': 'bootchat',
+        'credential': 'Bootchat2024!',
+      },
       <String, dynamic>{
         'urls': 'turn:63.183.168.37:3478?transport=udp',
         'username': 'bootchat',

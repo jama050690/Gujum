@@ -45,6 +45,49 @@ class _AuthFlowState extends State<AuthFlow> {
   }
 }
 
+class _BootchatLogo extends StatelessWidget {
+  const _BootchatLogo({
+    required this.size,
+    this.radius = 22,
+    this.backgroundColor,
+    this.padding = 10,
+    this.withShadow = false,
+  });
+
+  final double size;
+  final double radius;
+  final Color? backgroundColor;
+  final double padding;
+  final bool withShadow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        color:
+            backgroundColor ?? Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: withShadow
+            ? const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ]
+            : null,
+      ),
+      child: Image.asset(
+        'assets/images/bootchat_logo.png',
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}
+
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
@@ -987,20 +1030,10 @@ class _AuthScaffold extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer,
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: Icon(
-                                    Icons.bolt_rounded,
-                                    color: Theme.of(context).colorScheme.primary,
-                                    size: 30,
-                                  ),
+                                const _BootchatLogo(
+                                  size: 56,
+                                  radius: 18,
+                                  padding: 8,
                                 ),
                                 const SizedBox(width: 16),
                                 Column(
@@ -1062,25 +1095,11 @@ class _LoginHeader extends StatelessWidget {
           child: _LocaleMenu(settings: settings),
         ),
         SizedBox(height: compact ? 6 : 8),
-        Container(
-          width: compact ? 64 : 78,
-          height: compact ? 64 : 78,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.bolt_rounded,
-            color: Theme.of(context).colorScheme.primary,
-            size: compact ? 34 : 42,
-          ),
+        _BootchatLogo(
+          size: compact ? 64 : 78,
+          radius: 22,
+          padding: compact ? 9 : 11,
+          withShadow: true,
         ),
         SizedBox(height: compact ? 12 : 16),
         Text(

@@ -67,13 +67,11 @@ class _BrandEmptyState extends StatelessWidget {
     required this.settings,
     required this.title,
     required this.subtitle,
-    this.icon = Icons.bolt_rounded,
   });
 
   final SettingsController settings;
   final String title;
   final String subtitle;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -86,16 +84,19 @@ class _BrandEmptyState extends StatelessWidget {
             Container(
               width: 144,
               height: 144,
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: settings.isDarkMode
                     ? Colors.white.withAlpha(10)
                     : Colors.white.withAlpha(105),
                 borderRadius: BorderRadius.circular(34),
               ),
-              child: Icon(
-                icon,
-                size: 76,
-                color: settings.isDarkMode ? Colors.white24 : Colors.white70,
+              child: Opacity(
+                opacity: settings.isDarkMode ? 0.85 : 0.92,
+                child: Image.asset(
+                  'assets/images/bootchat_logo.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             const SizedBox(height: 22),
