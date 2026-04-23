@@ -3,10 +3,15 @@ import { useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { BASE_URL } from "@/utils/api";
+import { BRAND_LOGO_URL } from "@/utils/branding";
+import {
+  initializeGoogleIdentity,
+  loadGoogleIdentityScript,
+  setGoogleCredentialHandler,
+} from "@/utils/googleIdentity";
 
 export default function SignupPage() {
   const LAST_LOGIN_USERNAME_KEY = "bootchat:last_login_username";
-  const brandLogoUrl = `${BASE_URL}/static/imgs/chaqmoq.png`;
   const { t, lang } = useLanguage();
   const { login } = useAuth();
   const [form, setForm] = useState({
@@ -113,48 +118,24 @@ export default function SignupPage() {
     if (!GOOGLE_CLIENT_ID) return;
 
     let cancelled = false;
-    const scriptId = "google-identity-service";
+    setGoogleCredentialHandler(handleGoogleCredential);
 
-    const initGoogle = () => {
-      if (cancelled) return;
-      const gsi = window.google?.accounts?.id;
-      if (!gsi) return;
-
-      gsi.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredential,
-        auto_select: false,
-        use_fedcm_for_prompt: false,
+    loadGoogleIdentityScript()
+      .then(() => {
+        if (cancelled) return;
+        if (initializeGoogleIdentity(GOOGLE_CLIENT_ID)) {
+          setGoogleReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleReady(false);
+        }
       });
-      gsi.disableAutoSelect?.();
-      setGoogleReady(true);
-    };
-
-    if (window.google?.accounts?.id) {
-      initGoogle();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    let script = document.getElementById(scriptId);
-    const onLoad = () => initGoogle();
-
-    if (!script) {
-      script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.defer = true;
-      script.addEventListener("load", onLoad);
-      document.head.appendChild(script);
-    } else {
-      script.addEventListener("load", onLoad);
-    }
 
     return () => {
       cancelled = true;
-      script?.removeEventListener("load", onLoad);
+      setGoogleCredentialHandler(null);
     };
   }, [GOOGLE_CLIENT_ID, handleGoogleCredential]);
 
@@ -392,7 +373,7 @@ export default function SignupPage() {
         <div className="text-center mb-5">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#3390ec] to-[#2b7cd3] shadow-lg">
             <img
-              src={brandLogoUrl}
+              src={BRAND_LOGO_URL}
               alt="Bootchat logo"
               className="h-10 w-10 object-contain"
             />
