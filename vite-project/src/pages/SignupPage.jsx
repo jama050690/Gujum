@@ -30,8 +30,10 @@ export default function SignupPage() {
   const [googleReady, setGoogleReady] = useState(false);
   const [googleButtonRendered, setGoogleButtonRendered] = useState(false);
   const [inputsUnlocked, setInputsUnlocked] = useState(false);
+  const [profilePreview, setProfilePreview] = useState("");
   const googleButtonRef = useRef(null);
   const googleButtonInnerRef = useRef(null);
+  const profileInputRef = useRef(null);
   const formRootRef = useRef(null);
   const userInteractedRef = useRef(false);
   const navigate = useNavigate();
@@ -278,6 +280,9 @@ export default function SignupPage() {
       formData.append("password", form.password);
       formData.append("age", String(parseInt(form.age, 10)));
       formData.append("gender", String(form.gender));
+      if (profileInputRef.current?.files?.[0]) {
+        formData.append("profilePic", profileInputRef.current.files[0]);
+      }
       const res = await fetch(`${BASE_URL}/api/send-otp`, {
         method: "POST",
         body: formData,
@@ -340,6 +345,35 @@ export default function SignupPage() {
     }
   };
 
+  const handleProfilePick = () => {
+    userInteractedRef.current = true;
+    profileInputRef.current?.click();
+  };
+
+  const handleProfileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setProfilePreview("");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setProfilePreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+      return previewUrl;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (profilePreview) {
+        URL.revokeObjectURL(profilePreview);
+      }
+    };
+  }, [profilePreview]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4">
       <div
@@ -380,6 +414,36 @@ export default function SignupPage() {
 
         {!otpStep ? (
           <>
+            <div className="mb-4 flex justify-center">
+              <button
+                type="button"
+                onClick={handleProfilePick}
+                className="group flex h-[104px] w-[104px] cursor-pointer items-center justify-center overflow-hidden rounded-full border-[4px] border-[#b8d8ff] bg-[#eef4fb] transition hover:scale-[1.02] hover:border-[#78b7ff]"
+                title={tr("signup_profile_pick", "Profil rasmini tanlash")}
+              >
+                {profilePreview ? (
+                  <img
+                    src={profilePreview}
+                    alt="Selected profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-[#7f8b99]">
+                    <i className="fas fa-user-circle text-[68px]" />
+                    <span className="mt-1 text-[11px] font-semibold text-[#4d8fe6] opacity-0 transition group-hover:opacity-100">
+                      Upload
+                    </span>
+                  </div>
+                )}
+              </button>
+              <input
+                ref={profileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfileChange}
+              />
+            </div>
             <div className="space-y-3">
               <InputField icon="fa-user" name="bootchat_signup_fullname" autoComplete="off" readOnly={!inputsUnlocked} onFocus={(event) => unlockInputs(event.currentTarget)} onPointerDown={(event) => unlockInputs(event.currentTarget)} placeholder={t("signup_fullname")} value={form.fullName} onChange={handleChange("fullName")} />
               <InputField icon="fa-user" name="bootchat_signup_username" autoComplete="off" readOnly={!inputsUnlocked} onFocus={(event) => unlockInputs(event.currentTarget)} onPointerDown={(event) => unlockInputs(event.currentTarget)} placeholder={t("signup_username")} value={form.username} onChange={handleChange("username")} />
