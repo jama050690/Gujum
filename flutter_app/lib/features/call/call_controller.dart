@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../core/network/socket_service.dart';
@@ -93,6 +94,8 @@ class CallController extends ChangeNotifier {
   };
   static const Duration _socketRecoveryGrace = Duration(seconds: 50);
   static const Duration _peerDisconnectGrace = Duration(seconds: 12);
+  static const MethodChannel _callAudioChannel =
+      MethodChannel('bootchat/call_audio');
 
   final SocketService _socketService;
   final AuthController _authController;
@@ -224,6 +227,7 @@ class CallController extends ChangeNotifier {
     }
 
     _clearError();
+    await _stopIncomingRingtone();
     _remotePeer = incoming.caller;
     _callId = incoming.callId;
     _targetUsername = incoming.caller.username;
@@ -288,6 +292,7 @@ class CallController extends ChangeNotifier {
       'target': incoming.caller.username,
       'isVideo': incoming.isVideo,
     });
+    unawaited(_stopIncomingRingtone());
     _incomingCall = null;
     _remotePeer = null;
     _notify();
@@ -422,6 +427,7 @@ class CallController extends ChangeNotifier {
       isVideo: data['isVideo'] == true,
     );
     _clearError();
+    unawaited(_startIncomingRingtone());
     _notify();
   }
 
@@ -643,6 +649,7 @@ class CallController extends ChangeNotifier {
 
   void _markConnected() {
     _clearRingingTimeout();
+    unawaited(_stopIncomingRingtone());
     _cancelSocketRecovery();
     _cancelPeerDisconnectTimer();
     _connectedAt ??= DateTime.now();
@@ -685,6 +692,7 @@ class CallController extends ChangeNotifier {
 
   Future<void> _resetSession() async {
     _clearRingingTimeout();
+    await _stopIncomingRingtone();
     _cancelSocketRecovery();
     _cancelPeerDisconnectTimer();
     _pendingCandidates.clear();
@@ -882,6 +890,28 @@ class CallController extends ChangeNotifier {
     }
   }
 
+  Future<void> _startIncomingRingtone() async {
+    if (kIsWeb) {
+      return;
+    }
+    try {
+      await _callAudioChannel.invokeMethod<void>('startIncomingRingtone');
+    } catch (_) {
+      // Incoming call UI should still work even if the platform ringtone fails.
+    }
+  }
+
+  Future<void> _stopIncomingRingtone() async {
+    if (kIsWeb) {
+      return;
+    }
+    try {
+      await _callAudioChannel.invokeMethod<void>('stopIncomingRingtone');
+    } catch (_) {
+      // Ignore cleanup failures to avoid breaking call teardown.
+    }
+  }
+
   Future<void> _configureAudioRoute(bool video) async {
     if (kIsWeb) {
       return;
@@ -914,6 +944,7 @@ class CallController extends ChangeNotifier {
     _socketRecoveryTimer?.cancel();
     _peerDisconnectTimer?.cancel();
     _subscription.cancel();
+    unawaited(_stopIncomingRingtone());
     unawaited(_restoreAudioRoute());
     final pc = _peerConnection;
     _peerConnection = null;
