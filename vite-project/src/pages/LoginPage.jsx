@@ -14,6 +14,7 @@ const LANGUAGE_OPTIONS = [
 ];
 
 export default function LoginPage() {
+  const brandLogoUrl = `${getBaseUrl()}/static/imgs/chaqmoq.png`;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [profilePreview, setProfilePreview] = useState("");
@@ -435,9 +436,13 @@ export default function LoginPage() {
         </div>
 
         <div
-          className={`mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-[24px] ${iconBoxClass}`}
+          className={`mx-auto flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[24px] ${iconBoxClass}`}
         >
-          <i className="fas fa-bolt text-[34px]" />
+          <img
+            src={brandLogoUrl}
+            alt="Bootchat logo"
+            className="h-[46px] w-[46px] object-contain"
+          />
         </div>
 
         <div className="mt-5 text-center">

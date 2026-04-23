@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/network/api_client.dart';
@@ -63,14 +62,11 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _imagePicker = ImagePicker();
   String? _error;
   String _savedUsername = '';
   bool _googleLoading = false;
   bool _obscurePassword = true;
   bool _userInteracted = false;
-  XFile? _selectedProfileImage;
-  Uint8List? _selectedProfilePreview;
 
   @override
   void initState() {
@@ -127,13 +123,6 @@ class _LoginPageState extends State<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_error != null) _ErrorBanner(message: _error!, compact: compact),
-          _ProfileImagePickerCard(
-            compact: compact,
-            imageBytes: _selectedProfilePreview,
-            onPick: _pickProfileImage,
-            onClear: _selectedProfileImage == null ? null : _clearProfileImage,
-          ),
-          SizedBox(height: compact ? 12 : 16),
           _AuthFieldLabel(label: t('username'), compact: compact),
           SizedBox(height: compact ? 6 : 8),
           TextField(
@@ -285,7 +274,6 @@ class _LoginPageState extends State<LoginPage> {
       await auth.login(
         username: _usernameController.text.trim(),
         password: _passwordController.text,
-        profilePic: _selectedProfileImage,
       );
     } on ApiException catch (error) {
       setState(() => _error = error.message);
@@ -380,34 +368,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _error = null);
   }
 
-  Future<void> _pickProfileImage() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
-    if (picked == null || !mounted) {
-      return;
-    }
-
-    final preview = await picked.readAsBytes();
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _selectedProfileImage = picked;
-      _selectedProfilePreview = preview;
-      _error = null;
-    });
-  }
-
-  void _clearProfileImage() {
-    setState(() {
-      _selectedProfileImage = null;
-      _selectedProfilePreview = null;
-    });
-  }
 }
 
 class SignupPage extends StatefulWidget {
@@ -430,7 +390,6 @@ class _SignupPageState extends State<SignupPage> {
   final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
   final _otpController = TextEditingController();
-  final _imagePicker = ImagePicker();
 
   bool _isMale = true;
   bool _otpStep = false;
@@ -439,8 +398,6 @@ class _SignupPageState extends State<SignupPage> {
   bool _loading = false;
   bool _googleLoading = false;
   bool _obscurePassword = true;
-  XFile? _selectedProfileImage;
-  Uint8List? _selectedProfilePreview;
 
   @override
   void dispose() {
@@ -478,14 +435,6 @@ class _SignupPageState extends State<SignupPage> {
           if (_error != null) _ErrorBanner(message: _error!),
           if (_info != null) _InfoBanner(message: _info!),
           if (!_otpStep) ...[
-            _ProfileImagePickerCard(
-              compact: compact,
-              imageBytes: _selectedProfilePreview,
-              onPick: _pickProfileImage,
-              onClear:
-                  _selectedProfileImage == null ? null : _clearProfileImage,
-            ),
-            SizedBox(height: compact ? 8 : 12),
             TextField(
               controller: _fullNameController,
               decoration: _authInputDecoration(
@@ -667,7 +616,6 @@ class _SignupPageState extends State<SignupPage> {
           password: _passwordController.text,
           age: age,
           gender: _isMale,
-          profilePic: _selectedProfileImage,
         ),
       );
       setState(() {
@@ -782,106 +730,6 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  Future<void> _pickProfileImage() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1200,
-    );
-    if (picked == null || !mounted) {
-      return;
-    }
-
-    final preview = await picked.readAsBytes();
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _selectedProfileImage = picked;
-      _selectedProfilePreview = preview;
-      _error = null;
-    });
-  }
-
-  void _clearProfileImage() {
-    setState(() {
-      _selectedProfileImage = null;
-      _selectedProfilePreview = null;
-    });
-  }
-}
-
-class _ProfileImagePickerCard extends StatelessWidget {
-  const _ProfileImagePickerCard({
-    required this.compact,
-    required this.imageBytes,
-    required this.onPick,
-    required this.onClear,
-  });
-
-  final bool compact;
-  final Uint8List? imageBytes;
-  final VoidCallback onPick;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(compact ? 12 : 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827).withAlpha(18),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withAlpha(30)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: compact ? 26 : 30,
-            backgroundColor: const Color(0xFF1D4ED8).withAlpha(35),
-            backgroundImage: imageBytes == null ? null : MemoryImage(imageBytes!),
-            child: imageBytes == null
-                ? Icon(
-                    Icons.image_outlined,
-                    color: Colors.white.withAlpha(220),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Profile image',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  imageBytes == null
-                      ? 'Optional, but you can upload it now.'
-                      : 'Image selected and ready to upload.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: onPick,
-            child: const Text('Choose'),
-          ),
-          if (onClear != null)
-            IconButton(
-              onPressed: onClear,
-              icon: const Icon(Icons.close_rounded),
-              tooltip: 'Clear image',
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 class ForgotPasswordPage extends StatefulWidget {

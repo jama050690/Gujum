@@ -6,6 +6,7 @@ import { BASE_URL } from "@/utils/api";
 
 export default function SignupPage() {
   const LAST_LOGIN_USERNAME_KEY = "bootchat:last_login_username";
+  const brandLogoUrl = `${BASE_URL}/static/imgs/chaqmoq.png`;
   const { t, lang } = useLanguage();
   const { login } = useAuth();
   const [form, setForm] = useState({
@@ -390,8 +391,12 @@ export default function SignupPage() {
           />
         </div>
         <div className="text-center mb-5">
-          <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-[#3390ec] to-[#2b7cd3] flex items-center justify-center shadow-lg">
-            <i className="fas fa-bolt text-white text-3xl" />
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#3390ec] to-[#2b7cd3] shadow-lg">
+            <img
+              src={brandLogoUrl}
+              alt="Bootchat logo"
+              className="h-10 w-10 object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">
             {otpStep ? t("signup_otp_title") : t("signup_title")}

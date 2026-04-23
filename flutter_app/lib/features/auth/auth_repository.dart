@@ -1,7 +1,5 @@
 import '../../core/network/api_client.dart';
 import '../../models/session_user.dart';
-import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 
 class AuthRepository {
   AuthRepository({
@@ -13,7 +11,6 @@ class AuthRepository {
   Future<SessionUser> login({
     required String username,
     required String password,
-    XFile? profilePic,
   }) async {
     final response = await _apiClient.multipartPost(
       '/api/login',
@@ -21,14 +18,6 @@ class AuthRepository {
         'username': username,
         'password': password,
       },
-      files: profilePic == null
-          ? null
-          : <http.MultipartFile>[
-              await _multipartFileFromXFile(
-                field: 'profilePic',
-                file: profilePic,
-              ),
-            ],
     );
 
     final userJson =
@@ -59,18 +48,8 @@ class AuthRepository {
   }
 
   Future<OtpResponse> sendSignupOtp(SignupDraft draft) async {
-    final response = await _apiClient.multipartPost(
-      '/api/send-otp',
-      fields: draft.toJson(),
-      files: draft.profilePic == null
-          ? null
-          : <http.MultipartFile>[
-              await _multipartFileFromXFile(
-                field: 'profilePic',
-                file: draft.profilePic!,
-              ),
-            ],
-    );
+    final response =
+        await _apiClient.postJson('/api/send-otp', body: draft.toJson());
     return OtpResponse.fromJson(response as Map<String, dynamic>);
   }
 
@@ -118,18 +97,6 @@ class AuthRepository {
     );
   }
 
-  Future<http.MultipartFile> _multipartFileFromXFile({
-    required String field,
-    required XFile file,
-  }) async {
-    final bytes = await file.readAsBytes();
-    final filename = file.name.isEmpty ? 'upload.jpg' : file.name;
-    return http.MultipartFile.fromBytes(
-      field,
-      bytes,
-      filename: filename,
-    );
-  }
 }
 
 class SignupDraft {
@@ -141,7 +108,6 @@ class SignupDraft {
     required this.password,
     required this.age,
     required this.gender,
-    this.profilePic,
   });
 
   final String fullName;
@@ -151,7 +117,6 @@ class SignupDraft {
   final String password;
   final int age;
   final bool gender;
-  final XFile? profilePic;
 
   Map<String, String> toJson() => {
         'fullName': fullName,

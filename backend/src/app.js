@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.routes.js";
 import otpRoutes from "./routes/otp.routes.js";
@@ -17,6 +19,8 @@ import pushRoutes from "./routes/push.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Global middleware
 app.use(
@@ -28,6 +32,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
+app.use("/static", express.static(path.join(__dirname, "public")));
 
 // Routes
 app.use("/api", authRoutes);
