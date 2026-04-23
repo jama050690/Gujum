@@ -250,6 +250,7 @@ router.get("/inbox", async (req, res) => {
         u.username as sender,
         u.avatar,
         u.full_name as "senderFullName",
+        u.last_seen as "lastActive",
         lm.content as lastContent,
         lm.image as lastImage,
         lm.audio as lastAudio,

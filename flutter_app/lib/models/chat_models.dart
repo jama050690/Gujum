@@ -3,6 +3,7 @@ class InboxItem {
     required this.username,
     required this.fullName,
     required this.avatar,
+    required this.lastActive,
     required this.lastMessage,
     required this.lastMessageAt,
     required this.unreadCount,
@@ -11,6 +12,7 @@ class InboxItem {
   final String username;
   final String fullName;
   final String? avatar;
+  final DateTime? lastActive;
   final String lastMessage;
   final DateTime? lastMessageAt;
   final int unreadCount;
@@ -19,6 +21,7 @@ class InboxItem {
     String? username,
     String? fullName,
     String? avatar,
+    DateTime? lastActive,
     String? lastMessage,
     DateTime? lastMessageAt,
     int? unreadCount,
@@ -27,6 +30,7 @@ class InboxItem {
       username: username ?? this.username,
       fullName: fullName ?? this.fullName,
       avatar: avatar ?? this.avatar,
+      lastActive: lastActive ?? this.lastActive,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       unreadCount: unreadCount ?? this.unreadCount,
@@ -47,6 +51,7 @@ class InboxItem {
       username: (json['sender'] ?? json['username'] ?? '').toString(),
       fullName: (json['senderFullName'] ?? json['full_name'] ?? json['username'] ?? '').toString(),
       avatar: json['avatar']?.toString(),
+      lastActive: _parseDate(json['lastActive']),
       lastMessage: preview.isNotEmpty
           ? (isLocation ? '[location]' : preview)
           : (video != null

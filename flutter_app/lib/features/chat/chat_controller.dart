@@ -96,6 +96,13 @@ class ChatController extends ChangeNotifier {
       _inbox = (await _chatRepository.fetchInbox(user.username))
           .where((item) => item.username != user.username)
           .toList(growable: false);
+      final seededLastActive = <String, DateTime?>{
+        for (final item in _inbox) item.username: item.lastActive,
+      };
+      _lastActiveUsers = <String, DateTime?>{
+        ...seededLastActive,
+        ..._lastActiveUsers,
+      };
       if (_activeChat != null) {
         final index =
             _inbox.indexWhere((item) => item.username == _activeChat!.username);
