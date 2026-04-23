@@ -23,10 +23,10 @@ const lastActiveTime = new Map();
 const activeCalls = new Map(); // callId -> session
 const activeCallByUser = new Map(); // username -> callId
 const CALL_RESUME_GRACE_MS = Number(process.env.CALL_RESUME_GRACE_MS || 45000);
-const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 15000);
+const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 60000);
 const pendingOfflineTimeouts = new Map(); // username -> timeout
 const pendingCallOffers = new Map(); // username -> { payload, callerUsername, isVideo, createdAt, timeout }
-const CALL_OFFER_DELIVERY_GRACE_MS = Number(process.env.CALL_OFFER_DELIVERY_GRACE_MS || 15000);
+const CALL_OFFER_DELIVERY_GRACE_MS = Number(process.env.CALL_OFFER_DELIVERY_GRACE_MS || 30000);
 
 function hasLiveSockets(username) {
   const sockets = onlineUsers.get(username);

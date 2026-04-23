@@ -185,7 +185,7 @@ class AppStrings {
       'call_answer': 'Javob berish',
       'call_end': 'Tugatish',
       'call_rejected': "Qo'ng'iroq rad etildi",
-      'call_not_delivered': 'Foydalanuvchi hozir tarmoqda emas',
+      'call_not_delivered': 'Qo\'ng\'iroq foydalanuvchiga yetkazilmadi',
       'call_blocked': "Qo'ng'iroq amalga oshmadi",
       'call_permission_denied':
           'Mikrofon yoki kamera uchun ruxsat berilmadi',
@@ -381,7 +381,7 @@ class AppStrings {
       'call_answer': 'Answer',
       'call_end': 'End',
       'call_rejected': 'Call was rejected',
-      'call_not_delivered': 'The user is offline right now',
+      'call_not_delivered': 'The call could not be delivered to the user',
       'call_blocked': 'The call could not be completed',
       'call_permission_denied':
           'Microphone or camera permission was denied',
