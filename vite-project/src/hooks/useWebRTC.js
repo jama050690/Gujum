@@ -5,6 +5,11 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+    { urls: "stun:global.stun.twilio.com:3478" },
     {
       urls: "turn:3.77.233.184:3478",
       username: "bootchat",
@@ -12,6 +17,21 @@ const ICE_SERVERS = {
     },
     {
       urls: "turn:3.77.233.184:3478?transport=tcp",
+      username: "bootchat",
+      credential: "Bootchat2024!",
+    },
+    {
+      urls: "turn:63.183.168.37:3478?transport=udp",
+      username: "bootchat",
+      credential: "Bootchat2024!",
+    },
+    {
+      urls: "turn:63.183.168.37:3478?transport=tcp",
+      username: "bootchat",
+      credential: "Bootchat2024!",
+    },
+    {
+      urls: "turns:63.183.168.37:5349?transport=tcp",
       username: "bootchat",
       credential: "Bootchat2024!",
     },
@@ -23,6 +43,13 @@ const AUDIO_CONSTRAINTS = {
   noiseSuppression: { ideal: true },
   autoGainControl: { ideal: true },
   channelCount: { ideal: 1 },
+};
+
+const VIDEO_CONSTRAINTS = {
+  facingMode: "user",
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 24, max: 30 },
 };
 
 const ACTIVE_CALL_STORAGE_KEY = "app_active_call_session";
@@ -102,6 +129,10 @@ function getMediaAccessErrorMessage(error, isVideo) {
     return `${deviceLabel} hozir boshqa dastur tomonidan band.`;
   }
 
+  if (error?.name === "AbortError") {
+    return `${deviceLabel} ishga tushmadi. Qurilmani qayta tanlab yana urinib ko'ring.`;
+  }
+
   return `Qo'ng'iroqni boshlashda xato: ${error?.message || "Noma'lum xato"}`;
 }
 
@@ -132,6 +163,26 @@ export function useWebRTC(socket, currentUser) {
   const callIdRef = useRef(null);
   const remoteUserRef = useRef(null);
   const callStateRef = useRef(null);
+
+  const syncLocalTrackState = useCallback((stream, { muted = false, cameraOff = false, videoEnabled = false } = {}) => {
+    if (!stream) return;
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = !muted;
+    });
+    stream.getVideoTracks().forEach((track) => {
+      track.enabled = videoEnabled ? !cameraOff : false;
+    });
+  }, []);
+
+  const syncRemoteTrackState = useCallback((stream) => {
+    if (!stream) return;
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = true;
+    });
+    stream.getVideoTracks().forEach((track) => {
+      track.enabled = true;
+    });
+  }, []);
 
   useEffect(() => {
     remoteUserRef.current = remoteUser;
@@ -251,7 +302,14 @@ export function useWebRTC(socket, currentUser) {
     const hasVideo = currentStream?.getVideoTracks().some((track) => track.readyState === "live");
 
     if (currentStream && hasAudio && (!videoEnabled || hasVideo)) {
+      syncLocalTrackState(currentStream, {
+        muted: false,
+        cameraOff: false,
+        videoEnabled,
+      });
       setLocalStream(currentStream);
+      setIsMuted(false);
+      setIsCameraOff(false);
       return currentStream;
     }
 
@@ -262,15 +320,20 @@ export function useWebRTC(socket, currentUser) {
 
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: AUDIO_CONSTRAINTS,
-      video: videoEnabled ? { facingMode: "user" } : false,
+      video: videoEnabled ? VIDEO_CONSTRAINTS : false,
     });
 
+    syncLocalTrackState(stream, {
+      muted: false,
+      cameraOff: false,
+      videoEnabled,
+    });
     localStreamRef.current = stream;
     setLocalStream(stream);
     setIsMuted(false);
     setIsCameraOff(false);
     return stream;
-  }, []);
+  }, [syncLocalTrackState]);
 
   const flushQueuedCandidates = useCallback(async (pc) => {
     const queued = [...iceCandidateQueue.current];
@@ -285,18 +348,24 @@ export function useWebRTC(socket, currentUser) {
     }
   }, []);
 
-  const createPeerConnection = useCallback((targetUsername) => {
+  const createPeerConnection = useCallback((targetUsername, wantsVideo = false) => {
     resetPeerConnection();
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
+    pc.addTransceiver("audio", { direction: "sendrecv" });
+    if (wantsVideo) {
+      pc.addTransceiver("video", { direction: "sendrecv" });
+    }
 
     pc.ontrack = (event) => {
       const incomingTrack = event.track;
+      incomingTrack.enabled = true;
       debugLog("Remote track received:", incomingTrack.kind, incomingTrack.readyState);
 
       const incomingStream = event.streams?.[0] || null;
 
       if (incomingStream) {
+        syncRemoteTrackState(incomingStream);
         remoteStreamRef.current = incomingStream;
         setRemoteStream(incomingStream);
       } else {
@@ -312,9 +381,21 @@ export function useWebRTC(socket, currentUser) {
           remoteStreamRef.current.addTrack(incomingTrack);
         }
 
+        syncRemoteTrackState(remoteStreamRef.current);
         setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
       }
 
+      incomingTrack.onmute = () => {
+        if (remoteStreamRef.current) {
+          setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+        }
+      };
+      incomingTrack.onunmute = () => {
+        if (remoteStreamRef.current) {
+          syncRemoteTrackState(remoteStreamRef.current);
+          setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+        }
+      };
       incomingTrack.onended = () => {
         if (!remoteStreamRef.current) return;
         remoteStreamRef.current.removeTrack(incomingTrack);
@@ -358,8 +439,6 @@ export function useWebRTC(socket, currentUser) {
       } else if (pc.iceConnectionState === "disconnected") {
         setCallState("reconnecting");
         setCallError("Aloqa uzildi — qayta ulanmoqda...");
-        remoteStreamRef.current = null;
-        setRemoteStream(null);
         clearReconnectTimeout();
         reconnectTimeoutRef.current = setTimeout(() => {
           setCallError("Aloqa tiklana olmadi.");
@@ -373,12 +452,18 @@ export function useWebRTC(socket, currentUser) {
       if (pc.connectionState === "failed") {
         setCallState("reconnecting");
         setCallError("Ulanish muvaffaqiyatsiz tugadi.");
+      } else if (pc.connectionState === "connected") {
+        clearReconnectTimeout();
+        setCallError(null);
+        setCallState("connected");
+        callStartTimeRef.current = callStartTimeRef.current || Date.now();
+        setCallStartedAt(callStartTimeRef.current);
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [clearReconnectTimeout, cleanup, resetPeerConnection, socket]);
+  }, [clearReconnectTimeout, cleanup, resetPeerConnection, socket, syncRemoteTrackState]);
 
   const applyOfferAsAnswerer = useCallback(async ({ callId, caller, offer, nextIsVideo }) => {
     callIdRef.current = callId;
@@ -398,7 +483,7 @@ export function useWebRTC(socket, currentUser) {
     });
 
     const stream = await prepareLocalStream(nextIsVideo);
-    const pc = createPeerConnection(caller.username);
+    const pc = createPeerConnection(caller.username, nextIsVideo);
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -443,7 +528,7 @@ export function useWebRTC(socket, currentUser) {
     });
 
     const stream = await prepareLocalStream(video);
-    const pc = createPeerConnection(peer.username);
+    const pc = createPeerConnection(peer.username, video);
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     const offer = await pc.createOffer({
@@ -680,8 +765,6 @@ export function useWebRTC(socket, currentUser) {
 
       setCallState("reconnecting");
       setCallError("Foydalanuvchi qayta ulanmoqda...");
-      remoteStreamRef.current = null;
-      setRemoteStream(null);
       resetPeerConnection();
     };
 
@@ -876,23 +959,23 @@ export function useWebRTC(socket, currentUser) {
 
   const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
+      const nextMuted = !isMuted;
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !nextMuted;
+      });
+      setIsMuted(nextMuted);
     }
-  }, []);
+  }, [isMuted]);
 
   const toggleCamera = useCallback(() => {
     if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsCameraOff(!videoTrack.enabled);
-      }
+      const nextCameraOff = !isCameraOff;
+      localStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = !nextCameraOff;
+      });
+      setIsCameraOff(nextCameraOff);
     }
-  }, []);
+  }, [isCameraOff]);
 
   return {
     callState,

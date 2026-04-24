@@ -27,6 +27,7 @@ export default function CallScreen({
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.muted = true;
     }
   }, [localStream]);
 
@@ -42,6 +43,8 @@ export default function CallScreen({
     if (remoteAudioRef.current.srcObject !== remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
     }
+    remoteAudioRef.current.muted = false;
+    remoteAudioRef.current.volume = 1;
 
     const playPromise = remoteAudioRef.current.play?.();
     if (playPromise && typeof playPromise.catch === "function") {
@@ -57,6 +60,7 @@ export default function CallScreen({
     if (remoteVideoRef.current.srcObject !== remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
+    remoteVideoRef.current.muted = true;
 
     const playPromise = remoteVideoRef.current.play?.();
     if (playPromise && typeof playPromise.catch === "function") {
@@ -75,7 +79,7 @@ export default function CallScreen({
     const syncVideoState = () => {
       const videoTracks = remoteStream.getVideoTracks();
       setHasRemoteVideoTrack(
-        videoTracks.some((track) => track.readyState === "live"),
+        videoTracks.some((track) => track.readyState === "live" && !track.muted),
       );
     };
 
