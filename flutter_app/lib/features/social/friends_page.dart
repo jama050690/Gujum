@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
