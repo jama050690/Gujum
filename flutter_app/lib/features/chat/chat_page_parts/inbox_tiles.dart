@@ -26,15 +26,32 @@ class _InboxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
-    const activeColor = Color(0xFF253444);
-    const previewColor = Color(0xFF8FA3B6);
+    final isDark = settings.isDarkMode;
+    final activeColor =
+        isDark ? const Color(0xFF253444) : const Color(0xFFE8F2FD);
+    final titleColor =
+        isDark ? Colors.white : const Color(0xFF17212B);
+    final previewColor =
+        isDark ? const Color(0xFF8FA3B6) : const Color(0xFF6A7C8F);
+    final dividerColor =
+        isDark ? const Color(0xFF223140) : const Color(0xFFE4EBF3);
+    final timeColor = item.unreadCount > 0
+        ? const Color(0xFF2EA6FF)
+        : (isDark ? const Color(0xFF8FA3B6) : const Color(0xFF91A0AE));
+    final onlineColor = isDark
+        ? const Color(0xFF41D481)
+        : const Color(0xFF189C5B);
+    final badgeColor = isMuted
+        ? (isDark ? const Color(0xFF5C7084) : const Color(0xFFB8C5D1))
+        : const Color(0xFF2EA6FF);
 
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         color: isActive ? activeColor : Colors.transparent,
-        padding: const EdgeInsets.fromLTRB(16, 8, 14, 6),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,13 +65,13 @@ class _InboxTile extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Container(
-                padding: const EdgeInsets.only(top: 6, bottom: 12),
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
                       color: isActive
                           ? Colors.transparent
-                          : const Color(0xFF223140),
+                          : dividerColor,
                     ),
                   ),
                 ),
@@ -73,7 +90,7 @@ class _InboxTile extends StatelessWidget {
                                 .titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: titleColor,
                                 ),
                           ),
                         ),
@@ -91,9 +108,10 @@ class _InboxTile extends StatelessWidget {
                               item.lastMessageAt, settings.localeCode),
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: item.unreadCount > 0
-                                        ? const Color(0xFF79C1FF)
-                                        : previewColor,
+                                    color: timeColor,
+                                    fontWeight: item.unreadCount > 0
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
                                   ),
                         ),
                       ],
@@ -111,8 +129,9 @@ class _InboxTile extends StatelessWidget {
                                 .bodyMedium
                                 ?.copyWith(
                                   color: item.lastMessage.isEmpty && isOnline
-                                      ? const Color(0xFF41D481)
+                                      ? onlineColor
                                       : previewColor,
+                                  height: 1.2,
                                 ),
                           ),
                         ),
@@ -123,11 +142,9 @@ class _InboxTile extends StatelessWidget {
                             height: 22,
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.white24
-                                : isMuted
-                                    ? const Color(0xFF5C7084)
-                                    : const Color(0xFF2EA6FF),
+                              color: isActive
+                                  ? const Color(0xFF7FBFFF)
+                                  : badgeColor,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             alignment: Alignment.center,
@@ -145,10 +162,12 @@ class _InboxTile extends StatelessWidget {
                         ],
                         if (isPinned) ...[
                           const SizedBox(width: 8),
-                          const Icon(
+                          Icon(
                             Icons.push_pin_rounded,
                             size: 16,
-                            color: Color(0xFF62788D),
+                            color: isDark
+                                ? const Color(0xFF62788D)
+                                : const Color(0xFF9AAAB8),
                           ),
                         ],
                       ],

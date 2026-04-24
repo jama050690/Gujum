@@ -61,15 +61,15 @@ class _UsersPanel extends StatelessWidget {
         chat.connectionLabel == null ? null : t(chat.connectionLabel!);
     final panelBackground = settings.isDarkMode
         ? const Color(0xFF17212B)
-        : const Color(0xFFF5F7FB);
+        : Colors.white;
     final activeColor = settings.isDarkMode
         ? const Color(0xFF253444)
-        : const Color(0xFFDDEAF7);
+        : const Color(0xFFE7F1FB);
     final iconColor = settings.isDarkMode ? Colors.white70 : const Color(0xFF506070);
     final bodyColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
     final dividerColor = settings.isDarkMode
         ? const Color(0xFF223140)
-        : const Color(0xFFD8E1EC);
+        : const Color(0xFFE3EAF2);
     final infoChipColor = settings.isDarkMode
         ? const Color(0xFF203244)
         : const Color(0xFFE7EFF8);

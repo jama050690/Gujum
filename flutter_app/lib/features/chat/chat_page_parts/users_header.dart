@@ -101,7 +101,9 @@ class _UsersHeader extends StatelessWidget {
       currentUser?.avatar,
       settings.baseUrl,
     );
-    final titleColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final titleColor = settings.isDarkMode
+        ? Colors.white
+        : const Color(0xFF2492E8);
     final searchChipColor = settings.isDarkMode
         ? const Color(0xFF223140)
         : const Color(0xFFEAF0F6);

@@ -199,10 +199,7 @@ class CallController extends ChangeNotifier {
     _notify();
 
     try {
-      final stream = await navigator.mediaDevices.getUserMedia(
-        _mediaConstraints(video),
-      );
-      _enableLocalTracks(stream);
+      final stream = await _prepareLocalStream(video);
       _localStream = stream;
       await _configureAudioRoute(video);
 
@@ -262,10 +259,7 @@ class CallController extends ChangeNotifier {
     _notify();
 
     try {
-      final stream = await navigator.mediaDevices.getUserMedia(
-        _mediaConstraints(incoming.isVideo),
-      );
-      _enableLocalTracks(stream);
+      final stream = await _prepareLocalStream(incoming.isVideo);
       _localStream = stream;
       await _configureAudioRoute(incoming.isVideo);
 
@@ -603,7 +597,12 @@ class CallController extends ChangeNotifier {
       } else {
         stream = _remoteStream ??
             await createLocalMediaStream('bootchat-remote-$targetUsername');
-        await stream.addTrack(event.track);
+        final alreadyAdded = stream
+            .getTracks()
+            .any((track) => track.id == event.track.id);
+        if (!alreadyAdded) {
+          await stream.addTrack(event.track);
+        }
       }
       _enableRemoteTracks(stream);
       _remoteStream = stream;
@@ -670,6 +669,31 @@ class CallController extends ChangeNotifier {
 
     _peerConnection = pc;
     return pc;
+  }
+
+  Future<MediaStream> _prepareLocalStream(bool video) async {
+    final current = _localStream;
+    final hasAudio = current?.getAudioTracks().any((track) => track.enabled) ?? false;
+    final hasVideo = current?.getVideoTracks().any((track) => track.enabled) ?? false;
+
+    if (current != null && hasAudio && (!video || hasVideo)) {
+      _enableLocalTracks(current);
+      return current;
+    }
+
+    if (current != null) {
+      for (final track in current.getTracks()) {
+        track.stop();
+      }
+      current.dispose();
+      _localStream = null;
+    }
+
+    final stream = await navigator.mediaDevices.getUserMedia(
+      _mediaConstraints(video),
+    );
+    _enableLocalTracks(stream);
+    return stream;
   }
 
   void _markConnected() {
@@ -972,6 +996,18 @@ class CallController extends ChangeNotifier {
     }
 
     try {
+      await _callAudioChannel.invokeMethod<void>(
+        'activateCallAudio',
+        <String, dynamic>{
+          'speakerOn': true,
+          'video': video,
+        },
+      );
+    } catch (_) {
+      // Fall back to flutter_webrtc helper below.
+    }
+
+    try {
       await Helper.setSpeakerphoneOn(true);
     } catch (_) {
       // Keep the call alive even if the platform refuses audio route changes.
@@ -981,6 +1017,12 @@ class CallController extends ChangeNotifier {
   Future<void> _restoreAudioRoute() async {
     if (kIsWeb) {
       return;
+    }
+
+    try {
+      await _callAudioChannel.invokeMethod<void>('restoreAudioRoute');
+    } catch (_) {
+      // Fall back to flutter_webrtc helper below.
     }
 
     try {
