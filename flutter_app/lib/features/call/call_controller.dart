@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/network/socket_service.dart';
 import '../auth/auth_controller.dart';
@@ -199,6 +200,7 @@ class CallController extends ChangeNotifier {
     _notify();
 
     try {
+      await _ensureMediaPermissions(video);
       final stream = await _prepareLocalStream(video);
       _localStream = stream;
       await _configureAudioRoute(video);
@@ -259,6 +261,7 @@ class CallController extends ChangeNotifier {
     _notify();
 
     try {
+      await _ensureMediaPermissions(incoming.isVideo);
       final stream = await _prepareLocalStream(incoming.isVideo);
       _localStream = stream;
       await _configureAudioRoute(incoming.isVideo);
@@ -694,6 +697,26 @@ class CallController extends ChangeNotifier {
     );
     _enableLocalTracks(stream);
     return stream;
+  }
+
+  Future<void> _ensureMediaPermissions(bool video) async {
+    if (kIsWeb) {
+      return;
+    }
+
+    final permissions = <Permission>[
+      Permission.microphone,
+      if (video) Permission.camera,
+    ];
+
+    final results = await permissions.request();
+    final denied = results.entries.where((entry) => !entry.value.isGranted);
+    if (denied.isNotEmpty) {
+      throw PlatformException(
+        code: 'permission-denied',
+        message: 'Microphone/camera permission denied',
+      );
+    }
   }
 
   void _markConnected() {
