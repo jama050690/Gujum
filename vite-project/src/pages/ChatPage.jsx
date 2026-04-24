@@ -254,6 +254,7 @@ export default function ChatPage() {
         onHangUp={webrtc.hangUp}
         onToggleMute={webrtc.toggleMute}
         onToggleCamera={webrtc.toggleCamera}
+        onSwitchCallMode={webrtc.switchCallMode}
         isMuted={webrtc.isMuted}
         isCameraOff={webrtc.isCameraOff}
       />

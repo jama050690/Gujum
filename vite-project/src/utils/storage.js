@@ -75,6 +75,12 @@ function getDefaultApiBaseUrl() {
   return getFallbackApiBaseUrl();
 }
 
+function getScopedStorageKey(baseKey, username = getUser()) {
+  const normalizedUser = String(username || "").trim();
+  if (!normalizedUser) return baseKey;
+  return `bootchat:${normalizedUser}:${baseKey}`;
+}
+
 function normalizeApiBaseUrl(value) {
   const normalizedInput = trimTrailingSlashes(value || "");
   const fallback = getFallbackApiBaseUrl();
@@ -166,7 +172,7 @@ export function saveApiBaseUrl(url) {
 
 export function getSavedMessages() {
   try {
-    return JSON.parse(localStorage.getItem(KEYS.SAVED_MESSAGES) || "[]");
+    return JSON.parse(localStorage.getItem(getScopedStorageKey(KEYS.SAVED_MESSAGES)) || "[]");
   } catch {
     return [];
   }
@@ -175,23 +181,23 @@ export function getSavedMessages() {
 export function saveMessage(msg) {
   const msgs = getSavedMessages();
   msgs.push({ ...msg, savedAt: Date.now() });
-  localStorage.setItem(KEYS.SAVED_MESSAGES, JSON.stringify(msgs));
+  localStorage.setItem(getScopedStorageKey(KEYS.SAVED_MESSAGES), JSON.stringify(msgs));
 }
 
 export function deleteSavedMessage(savedAt) {
   const msgs = getSavedMessages();
   const filtered = msgs.filter((m) => m.savedAt !== savedAt);
-  localStorage.setItem(KEYS.SAVED_MESSAGES, JSON.stringify(filtered));
+  localStorage.setItem(getScopedStorageKey(KEYS.SAVED_MESSAGES), JSON.stringify(filtered));
   return filtered;
 }
 
 export function clearSavedMessages() {
-  localStorage.removeItem(KEYS.SAVED_MESSAGES);
+  localStorage.removeItem(getScopedStorageKey(KEYS.SAVED_MESSAGES));
 }
 
 export function getContacts() {
   try {
-    return JSON.parse(localStorage.getItem(KEYS.CONTACTS) || "[]");
+    return JSON.parse(localStorage.getItem(getScopedStorageKey(KEYS.CONTACTS)) || "[]");
   } catch {
     return [];
   }
@@ -200,38 +206,38 @@ export function getContacts() {
 export function saveContact(contact) {
   const contacts = getContacts();
   contacts.push(contact);
-  localStorage.setItem(KEYS.CONTACTS, JSON.stringify(contacts));
+  localStorage.setItem(getScopedStorageKey(KEYS.CONTACTS), JSON.stringify(contacts));
 }
 
 export function getSyncedContacts() {
   try {
-    return JSON.parse(localStorage.getItem(KEYS.SYNCED_CONTACTS) || "[]");
+    return JSON.parse(localStorage.getItem(getScopedStorageKey(KEYS.SYNCED_CONTACTS)) || "[]");
   } catch {
     return [];
   }
 }
 
 export function saveSyncedContacts(contacts) {
-  localStorage.setItem(KEYS.SYNCED_CONTACTS, JSON.stringify(contacts));
+  localStorage.setItem(getScopedStorageKey(KEYS.SYNCED_CONTACTS), JSON.stringify(contacts));
 }
 
 export function getProfileData() {
   return {
-    fullName: localStorage.getItem("app_fullname") || "",
-    phone: localStorage.getItem(KEYS.PHONE) || "",
-    birthday: localStorage.getItem(KEYS.BIRTHDAY) || "",
-    bio: localStorage.getItem(KEYS.BIO) || "",
-    photos: JSON.parse(localStorage.getItem(KEYS.PHOTOS) || "[]"),
+    fullName: localStorage.getItem(getScopedStorageKey("app_fullname")) || "",
+    phone: localStorage.getItem(getScopedStorageKey(KEYS.PHONE)) || "",
+    birthday: localStorage.getItem(getScopedStorageKey(KEYS.BIRTHDAY)) || "",
+    bio: localStorage.getItem(getScopedStorageKey(KEYS.BIO)) || "",
+    photos: JSON.parse(localStorage.getItem(getScopedStorageKey(KEYS.PHOTOS)) || "[]"),
   };
 }
 
 export function saveProfileData(data) {
   if (data.fullName !== undefined)
-    localStorage.setItem("app_fullname", data.fullName);
-  if (data.phone !== undefined) localStorage.setItem(KEYS.PHONE, data.phone);
+    localStorage.setItem(getScopedStorageKey("app_fullname"), data.fullName);
+  if (data.phone !== undefined) localStorage.setItem(getScopedStorageKey(KEYS.PHONE), data.phone);
   if (data.birthday !== undefined)
-    localStorage.setItem(KEYS.BIRTHDAY, data.birthday);
-  if (data.bio !== undefined) localStorage.setItem(KEYS.BIO, data.bio);
+    localStorage.setItem(getScopedStorageKey(KEYS.BIRTHDAY), data.birthday);
+  if (data.bio !== undefined) localStorage.setItem(getScopedStorageKey(KEYS.BIO), data.bio);
 }
 
 export function getSettings() {
@@ -290,16 +296,27 @@ export function restoreAccount(username) {
   if (acc.avatar) localStorage.setItem(KEYS.AVATAR, acc.avatar);
   else localStorage.removeItem(KEYS.AVATAR);
   localStorage.setItem(KEYS.ROLE, acc.role || "user");
-  localStorage.setItem("app_fullname", acc.fullName || acc.username);
-  localStorage.setItem(KEYS.PHONE, acc.phone || "");
-  localStorage.setItem(KEYS.BIRTHDAY, acc.birthday || "");
-  localStorage.setItem(KEYS.BIO, acc.bio || "");
+  localStorage.setItem(getScopedStorageKey("app_fullname", acc.username), acc.fullName || acc.username);
+  localStorage.setItem(getScopedStorageKey(KEYS.PHONE, acc.username), acc.phone || "");
+  localStorage.setItem(getScopedStorageKey(KEYS.BIRTHDAY, acc.username), acc.birthday || "");
+  localStorage.setItem(getScopedStorageKey(KEYS.BIO, acc.username), acc.bio || "");
   return acc;
 }
 
 export function removeAccount(username) {
   const accounts = getAccounts().filter((a) => a.username !== username);
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  const scopedKeys = [
+    getScopedStorageKey(KEYS.SAVED_MESSAGES, username),
+    getScopedStorageKey(KEYS.CONTACTS, username),
+    getScopedStorageKey(KEYS.SYNCED_CONTACTS, username),
+    getScopedStorageKey("app_fullname", username),
+    getScopedStorageKey(KEYS.PHONE, username),
+    getScopedStorageKey(KEYS.BIRTHDAY, username),
+    getScopedStorageKey(KEYS.BIO, username),
+    getScopedStorageKey(KEYS.PHOTOS, username),
+  ];
+  scopedKeys.forEach((key) => localStorage.removeItem(key));
 }
 
 export { KEYS };

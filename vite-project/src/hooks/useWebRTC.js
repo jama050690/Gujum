@@ -1,7 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { playRingtone, playCallEnd } from "@/utils/sounds";
+import { getProfileData } from "@/utils/storage";
 
 const ICE_SERVERS = {
+  sdpSemantics: "unified-plan",
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceCandidatePoolSize: 4,
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -103,10 +108,11 @@ function clearPersistedCallSession() {
 }
 
 function buildSelfInfo(currentUser) {
+  const profile = typeof window !== "undefined" ? getProfileData() : { fullName: null };
   return {
     username: currentUser,
     avatar: typeof window !== "undefined" ? localStorage.getItem("app_avatar") : null,
-    full_name: typeof window !== "undefined" ? localStorage.getItem("app_fullname") : null,
+    full_name: profile.fullName || null,
   };
 }
 
@@ -348,42 +354,80 @@ export function useWebRTC(socket, currentUser) {
     }
   }, []);
 
+  const syncPeerConnectionTracks = useCallback(async (stream, videoEnabled) => {
+    const pc = pcRef.current;
+    if (!pc || !stream) return;
+
+    const senders = pc.getSenders();
+    const audioTrack = stream.getAudioTracks()[0] || null;
+    const videoTrack = videoEnabled ? stream.getVideoTracks()[0] || null : null;
+
+    const audioSender = senders.find((sender) => sender.track?.kind === "audio");
+    if (audioSender) {
+      await audioSender.replaceTrack(audioTrack);
+    } else if (audioTrack) {
+      pc.addTrack(audioTrack, stream);
+    }
+
+    const videoSenders = senders.filter((sender) => sender.track?.kind === "video");
+    if (videoTrack) {
+      if (videoSenders.length > 0) {
+        await videoSenders[0].replaceTrack(videoTrack);
+        for (const extraSender of videoSenders.slice(1)) {
+          try {
+            pc.removeTrack(extraSender);
+          } catch {
+            // noop
+          }
+        }
+      } else {
+        pc.addTrack(videoTrack, stream);
+      }
+    } else {
+      for (const sender of videoSenders) {
+        try {
+          pc.removeTrack(sender);
+        } catch {
+          // noop
+        }
+      }
+    }
+  }, []);
+
   const createPeerConnection = useCallback((targetUsername, wantsVideo = false) => {
     resetPeerConnection();
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
-    pc.addTransceiver("audio", { direction: "sendrecv" });
-    if (wantsVideo) {
-      pc.addTransceiver("video", { direction: "sendrecv" });
-    }
 
     pc.ontrack = (event) => {
       const incomingTrack = event.track;
       incomingTrack.enabled = true;
       debugLog("Remote track received:", incomingTrack.kind, incomingTrack.readyState);
 
-      const incomingStream = event.streams?.[0] || null;
-
-      if (incomingStream) {
-        syncRemoteTrackState(incomingStream);
-        remoteStreamRef.current = incomingStream;
-        setRemoteStream(incomingStream);
-      } else {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream();
-        }
-
-        const alreadyAdded = remoteStreamRef.current
-          .getTracks()
-          .some((track) => track.id === incomingTrack.id);
-
-        if (!alreadyAdded) {
-          remoteStreamRef.current.addTrack(incomingTrack);
-        }
-
-        syncRemoteTrackState(remoteStreamRef.current);
-        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = new MediaStream();
       }
+
+      const existingStream = remoteStreamRef.current;
+      const sameKindTracks = existingStream
+        .getTracks()
+        .filter((track) => track.kind === incomingTrack.kind);
+      const duplicateTrack = existingStream
+        .getTracks()
+        .some((track) => track.id === incomingTrack.id);
+
+      for (const track of sameKindTracks) {
+        if (track.id !== incomingTrack.id) {
+          existingStream.removeTrack(track);
+        }
+      }
+
+      if (!duplicateTrack) {
+        existingStream.addTrack(incomingTrack);
+      }
+
+      syncRemoteTrackState(existingStream);
+      setRemoteStream(new MediaStream(existingStream.getTracks()));
 
       incomingTrack.onmute = () => {
         if (remoteStreamRef.current) {
@@ -414,6 +458,10 @@ export function useWebRTC(socket, currentUser) {
       } else {
         debugLog("ICE gathering complete");
       }
+    };
+
+    pc.onicecandidateerror = (event) => {
+      console.warn("ICE candidate error:", event);
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -985,6 +1033,56 @@ export function useWebRTC(socket, currentUser) {
     }
   }, [isCameraOff]);
 
+  const switchCallMode = useCallback(async (nextVideoEnabled) => {
+    const pc = pcRef.current;
+    const target = targetUsernameRef.current || remoteUserRef.current?.username;
+    if (!socket || !pc || !target || !callIdRef.current) return;
+    if (!callStateRef.current || callStateRef.current === "ringing" || callStateRef.current === "calling") {
+      return;
+    }
+
+    try {
+      const stream = await prepareLocalStream(nextVideoEnabled);
+      await syncPeerConnectionTracks(stream, nextVideoEnabled);
+
+      if (pc.signalingState !== "stable") {
+        debugLog("switchCallMode skipped due to signaling state:", pc.signalingState);
+        return;
+      }
+
+      isVideoRef.current = nextVideoEnabled;
+      setIsVideo(nextVideoEnabled);
+      setIsCameraOff(false);
+      setCallState("connecting");
+      setCallError(null);
+      persistCallSession(remoteUserRef.current, {
+        callId: callIdRef.current,
+        peer: remoteUserRef.current,
+        isVideo: nextVideoEnabled,
+        startedAt: callStartTimeRef.current,
+        direction: isCallerRef.current ? "outgoing" : "incoming",
+      });
+
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: nextVideoEnabled,
+      });
+      await pc.setLocalDescription(offer);
+
+      socket.emit("CALL_OFFER", {
+        callId: callIdRef.current,
+        target,
+        caller: buildSelfInfo(currentUser),
+        offer,
+        isVideo: nextVideoEnabled,
+        resume: true,
+      });
+    } catch (err) {
+      console.error("Call mode switch xato:", err);
+      setCallError(getMediaAccessErrorMessage(err, nextVideoEnabled));
+    }
+  }, [callStateRef, currentUser, persistCallSession, prepareLocalStream, socket, syncPeerConnectionTracks]);
+
   return {
     callState,
     callError,
@@ -1002,5 +1100,6 @@ export function useWebRTC(socket, currentUser) {
     hangUp,
     toggleMute,
     toggleCamera,
+    switchCallMode,
   };
 }

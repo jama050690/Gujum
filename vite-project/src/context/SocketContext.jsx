@@ -41,10 +41,14 @@ function isLocalHostname(hostname = "") {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
-function getSocketTransportOptions() {
+function getSocketTransportOptions(baseUrl) {
+  const origin = getSocketOrigin(baseUrl);
+  const hostname = origin ? new URL(origin).hostname : window.location.hostname;
+  const preferWebSocketOnly = !isLocalHostname(hostname);
+
   return {
-    transports: ["websocket", "polling"],
-    upgrade: true,
+    transports: preferWebSocketOnly ? ["websocket"] : ["websocket", "polling"],
+    upgrade: !preferWebSocketOnly,
   };
 }
 
@@ -68,7 +72,7 @@ export function SocketProvider({ children, username }) {
 
     const baseUrl = getBaseUrl();
     const socketOrigin = getSocketOrigin(baseUrl);
-    const transportOptions = getSocketTransportOptions();
+    const transportOptions = getSocketTransportOptions(baseUrl);
     const socketPaths = getSocketPaths();
     let activeSocket = null;
     let disposed = false;
@@ -96,11 +100,12 @@ export function SocketProvider({ children, username }) {
         withCredentials: true,
         transports: transportOptions.transports,
         upgrade: transportOptions.upgrade,
+        rememberUpgrade: transportOptions.transports.length === 1,
         reconnection: true,
         reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 10000,
+        reconnectionDelay: 1500,
+        reconnectionDelayMax: 8000,
+        timeout: 15000,
       });
 
       activeSocket = nextSocket;

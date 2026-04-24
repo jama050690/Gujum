@@ -593,22 +593,37 @@ class CallController extends ChangeNotifier {
     debugPrint('PeerConnection created for $targetUsername');
 
     pc.onTrack = (RTCTrackEvent event) async {
+      debugPrint(
+        'Remote track received: kind=${event.track.kind}, '
+        'id=${event.track.id}, streams=${event.streams.length}',
+      );
       event.track.enabled = true;
-      MediaStream stream;
-      if (event.streams.isNotEmpty) {
-        stream = event.streams.first;
-      } else {
-        stream = _remoteStream ??
-            await createLocalMediaStream('bootchat-remote-$targetUsername');
-        final alreadyAdded = stream
-            .getTracks()
-            .any((track) => track.id == event.track.id);
-        if (!alreadyAdded) {
-          await stream.addTrack(event.track);
+      final stream = _remoteStream ??
+          await createLocalMediaStream('bootchat-remote-$targetUsername');
+
+      final sameKindTracks = stream
+          .getTracks()
+          .where((track) => track.kind == event.track.kind)
+          .toList(growable: false);
+      for (final track in sameKindTracks) {
+        if (track.id != event.track.id) {
+          await stream.removeTrack(track);
         }
       }
+
+      final alreadyAdded =
+          stream.getTracks().any((track) => track.id == event.track.id);
+      if (!alreadyAdded) {
+        await stream.addTrack(event.track);
+      }
+
       _enableRemoteTracks(stream);
       _remoteStream = stream;
+      debugPrint(
+        'Remote stream updated: '
+        'audio=${stream.getAudioTracks().length}, '
+        'video=${stream.getVideoTracks().length}',
+      );
       _markConnected();
       _notify();
     };

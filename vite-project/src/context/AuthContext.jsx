@@ -1,8 +1,9 @@
 import { createContext, useContext, useState } from "react";
 import {
-  getUser, getAvatar, getRole, setAuth, clearAuth,
+  getUser, getAvatar, getRole, setAuth, clearAuth, getProfileData, saveProfileData,
   getAccounts, saveAccountSnapshot, restoreAccount, removeAccount as removeStoredAccount,
 } from "@/utils/storage";
+import { getBaseUrl } from "@/utils/api";
 
 const AuthContext = createContext(null);
 
@@ -10,7 +11,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(getUser());
   const [avatar, setAvatar] = useState(getAvatar());
   const [role, setRole] = useState(getRole());
-  const [fullName, setFullName] = useState(localStorage.getItem("app_fullname"));
+  const [fullName, setFullName] = useState(getProfileData().fullName);
   const [accounts, setAccounts] = useState(getAccounts());
 
   const refreshAccounts = () => setAccounts(getAccounts());
@@ -20,15 +21,18 @@ export function AuthProvider({ children }) {
     setUser(username);
     setAvatar(avatarUrl);
     setRole(roleVal || "user");
-    if (fullNameVal) localStorage.setItem("app_fullname", fullNameVal);
+    if (fullNameVal) saveProfileData({ fullName: fullNameVal });
     setFullName(fullNameVal || username);
     saveAccountSnapshot();
     refreshAccounts();
   };
 
   const logout = () => {
+    fetch(`${getBaseUrl()}/api/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
     clearAuth();
-    localStorage.removeItem("app_fullname");
     setUser(null);
     setAvatar(null);
     setRole("user");
@@ -67,7 +71,7 @@ export function AuthProvider({ children }) {
   };
 
   const updateFullName = (name) => {
-    localStorage.setItem("app_fullname", name);
+    saveProfileData({ fullName: name });
     setFullName(name);
   };
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { getSettings, saveSetting, getProfileData, KEYS } from "@/utils/storage";
+import { getSettings, saveSetting, getProfileData, saveProfileData, KEYS } from "@/utils/storage";
 import { fetchJSON, BASE_URL } from "@/utils/api";
 import Modal from "./Modal";
 import Avatar from "../common/Avatar";
@@ -272,7 +272,7 @@ function AccountSection({ profile }) {
   };
 
   const handleBioSave = async () => {
-    localStorage.setItem("app_bio", bio);
+    saveProfileData({ bio });
     try {
       await fetchJSON("/api/users/profile", {
         method: "PUT",

@@ -4,6 +4,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { BASE_URL } from "@/utils/api";
 import { BRAND_LOGO_URL } from "@/utils/branding";
+import { saveProfileData } from "@/utils/storage";
 import {
   initializeGoogleIdentity,
   loadGoogleIdentityScript,
@@ -56,9 +57,12 @@ export default function SignupPage() {
     (userData) => {
       sessionStorage.removeItem("switch_to_user");
       localStorage.setItem(LAST_LOGIN_USERNAME_KEY, userData.username);
-      if (userData.phone) localStorage.setItem("app_phone", userData.phone);
-      if (userData.birthday) localStorage.setItem("app_birthday", userData.birthday);
-      if (userData.bio) localStorage.setItem("app_bio", userData.bio);
+      saveProfileData({
+        fullName: userData.fullName || userData.username,
+        phone: userData.phone || "",
+        birthday: userData.birthday || "",
+        bio: userData.bio || "",
+      });
       login(userData.username, userData.avatar || null, userData.fullName, userData.role);
       navigate(userData.role === "admin" ? `/${lang}/admin` : `/${lang}`);
     },

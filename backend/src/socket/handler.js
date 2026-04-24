@@ -74,6 +74,28 @@ function getCallPeer(call, username) {
   return null;
 }
 
+function isSameCallPair(call, usernameA, usernameB) {
+  if (!call || !usernameA || !usernameB) return false;
+  return (
+    (call.caller === usernameA && call.callee === usernameB) ||
+    (call.caller === usernameB && call.callee === usernameA)
+  );
+}
+
+function getSharedActiveCall(usernameA, usernameB) {
+  const first = getUserActiveCall(usernameA);
+  if (first && isSameCallPair(first, usernameA, usernameB)) {
+    return first;
+  }
+
+  const second = getUserActiveCall(usernameB);
+  if (second && isSameCallPair(second, usernameA, usernameB)) {
+    return second;
+  }
+
+  return null;
+}
+
 function clearUserActiveCall(username, callId) {
   if (activeCallByUser.get(username) === callId) {
     activeCallByUser.delete(username);
@@ -281,7 +303,17 @@ function registerSocketHandlers(io) {
     browser.on("USER_ONLINE", (username) => {
       if (!username) return;
 
+      const alreadyTracked =
+        browser.username === username &&
+        onlineUsers.get(username)?.has(browser) &&
+        !isPresenceGraceActive(username);
+      if (alreadyTracked) {
+        browser.lastPresenceAt = Date.now();
+        return;
+      }
+
       browser.username = username;
+      browser.lastPresenceAt = Date.now();
       clearPendingOfflineTimeout(username);
 
       if (!onlineUsers.has(username)) {
@@ -673,52 +705,73 @@ function registerSocketHandlers(io) {
 
     browser.on("CALL_OFFER", async (data) => {
       const callId = data.callId || `${data.caller?.username || "call"}:${data.target}:${Date.now()}`;
+      const callerUsername = data.caller?.username;
+      const targetUsername = data.target;
+      if (!callerUsername || !targetUsername) {
+        return;
+      }
 
-      console.log(`CALL_OFFER keldi: ${data.caller?.username} → ${data.target}`);
-      console.log(`Target online mi: ${onlineUsers.has(data.target)}, socketlar: ${onlineUsers.get(data.target)?.size || 0}`);
+      console.log(`CALL_OFFER keldi: ${callerUsername} → ${targetUsername}`);
+      console.log(`Target online mi: ${onlineUsers.has(targetUsername)}, socketlar: ${onlineUsers.get(targetUsername)?.size || 0}`);
 
       // Bloklash tekshiruvi
       try {
-        const blocked = await isBlocked(data.caller.username, data.target);
+        const blocked = await isBlocked(callerUsername, targetUsername);
         if (blocked) {
-          console.log(`Qo'ng'iroq bloklangan: ${data.caller.username} → ${data.target}`);
-          emitToUser(data.caller.username, "CALL_BLOCKED", { target: data.target });
+          console.log(`Qo'ng'iroq bloklangan: ${callerUsername} → ${targetUsername}`);
+          emitToUser(callerUsername, "CALL_BLOCKED", { target: targetUsername });
           return;
         }
       } catch (err) {
         console.error("isBlocked tekshiruvida xato:", err);
       }
 
+      const existingSession = getSharedActiveCall(callerUsername, targetUsername);
+      if (existingSession && existingSession.id !== callId) {
+        existingSession.participants[callerUsername] = {
+          username: callerUsername,
+          avatar: data.caller?.avatar || existingSession.participants[callerUsername]?.avatar || null,
+          full_name: data.caller?.full_name || data.caller?.fullName || existingSession.participants[callerUsername]?.full_name || null,
+        };
+
+        emitToUser(callerUsername, "CALL_SESSION_SYNC", buildCallSessionPayload(existingSession, callerUsername));
+        emitToUser(targetUsername, "CALL_SESSION_SYNC", buildCallSessionPayload(existingSession, targetUsername));
+        console.log(`Duplicate CALL_OFFER ignored, existing session reused: ${existingSession.id}`);
+        return;
+      }
+
       const session = upsertCallSession({
         callId,
-        caller: data.caller.username,
-        callee: data.target,
+        caller: callerUsername,
+        callee: targetUsername,
         isVideo: data.isVideo,
         callerInfo: data.caller,
       });
+      session.lastOfferAt = Date.now();
+      session.lastOfferSender = callerUsername;
       session.latestOffer = data.offer;
 
-      clearReconnectTimer(session, data.caller.username);
-      clearReconnectTimer(session, data.target);
+      clearReconnectTimer(session, callerUsername);
+      clearReconnectTimer(session, targetUsername);
 
-      const delivered = emitToUser(data.target, "CALL_OFFER", {
+      const delivered = emitToUser(targetUsername, "CALL_OFFER", {
         callId,
         caller: data.caller,
         offer: data.offer,
         isVideo: data.isVideo,
         resume: Boolean(data.resume),
       });
-      console.log(`Qo'ng'iroq: ${data.caller.username} → ${data.target}, yetkazildi: ${delivered}`);
+      console.log(`Qo'ng'iroq: ${callerUsername} → ${targetUsername}, yetkazildi: ${delivered}`);
 
       // Target offline bo'lsa callerga xabar berish + push notification
       if (!delivered) {
-        const previousPending = consumePendingCallOffer(data.target);
+        const previousPending = consumePendingCallOffer(targetUsername);
         if (previousPending?.payload?.callId && previousPending.payload.callId !== callId) {
           finalizeCallSession(previousPending.payload.callId);
         }
 
         const pendingOffer = {
-          callerUsername: data.caller.username,
+          callerUsername,
           isVideo: Boolean(data.isVideo),
           createdAt: Date.now(),
           payload: {
@@ -732,22 +785,22 @@ function registerSocketHandlers(io) {
         };
 
         pendingOffer.timeout = setTimeout(() => {
-          const latestPending = pendingCallOffers.get(data.target);
+          const latestPending = pendingCallOffers.get(targetUsername);
           if (!latestPending || latestPending.payload.callId !== callId) return;
 
-          pendingCallOffers.delete(data.target);
+          pendingCallOffers.delete(targetUsername);
           finalizeCallSession(callId);
-          emitToUser(data.caller.username, "CALL_NOT_DELIVERED", { target: data.target });
-          sendPushToUser(data.target, {
-            title: data.caller.username,
+          emitToUser(callerUsername, "CALL_NOT_DELIVERED", { target: targetUsername });
+          sendPushToUser(targetUsername, {
+            title: callerUsername,
             body: data.isVideo ? "Video qo'ng'iroq" : "Audio qo'ng'iroq",
-            tag: "call-" + data.caller.username,
+            tag: "call-" + callerUsername,
           });
-          console.log(`Qo'ng'iroq yetkazilmadi (timeout): ${data.caller.username} → ${data.target}`);
+          console.log(`Qo'ng'iroq yetkazilmadi (timeout): ${callerUsername} → ${targetUsername}`);
         }, CALL_OFFER_DELIVERY_GRACE_MS);
 
-        pendingCallOffers.set(data.target, pendingOffer);
-        console.log(`Qo'ng'iroq navbatga qo'yildi: ${data.caller.username} → ${data.target}`);
+        pendingCallOffers.set(targetUsername, pendingOffer);
+        console.log(`Qo'ng'iroq navbatga qo'yildi: ${callerUsername} → ${targetUsername}`);
         return;
       }
     });

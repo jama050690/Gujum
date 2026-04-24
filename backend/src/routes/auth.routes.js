@@ -309,4 +309,15 @@ router.get("/me", (req, res) => {
   }
 });
 
+// POST /api/logout
+router.post("/logout", (_req, res) => {
+  res.clearCookie("access_token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  res.json({ message: "Logout success" });
+});
+
 export default router;

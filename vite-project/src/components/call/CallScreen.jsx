@@ -14,6 +14,7 @@ export default function CallScreen({
   onHangUp,
   onToggleMute,
   onToggleCamera,
+  onSwitchCallMode,
   isMuted,
   isCameraOff,
 }) {
@@ -234,6 +235,14 @@ export default function CallScreen({
             <i className={`fas ${isCameraOff ? "fa-video-slash" : "fa-video"} text-xl`} />
           </button>
         )}
+
+        <button
+          onClick={() => onSwitchCallMode?.(!isVideo)}
+          className="w-14 h-14 rounded-full flex items-center justify-center transition-colors bg-white/20 text-white"
+          title={isVideo ? "Audio qo'ng'iroqqa o'tish" : "Video qo'ng'iroqqa o'tish"}
+        >
+          <i className={`fas ${isVideo ? "fa-phone" : "fa-video"} text-xl`} />
+        </button>
 
         {/* Hang up */}
         <button
