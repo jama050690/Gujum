@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../models/chat_models.dart';
+import '../../models/social_models.dart';
 
 class ChatRepository {
   ChatRepository({
@@ -80,6 +81,17 @@ class ChatRepository {
 
     return (response as List<dynamic>)
         .map((item) => SearchUser.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<SimpleUser>> fetchFriends() async {
+    final response = await _apiClient.getJson(
+      '/api/friends',
+      authenticated: true,
+    );
+
+    return (response as List<dynamic>)
+        .map((item) => SimpleUser.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 

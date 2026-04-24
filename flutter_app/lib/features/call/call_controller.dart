@@ -939,6 +939,9 @@ class CallController extends ChangeNotifier {
     for (final track in stream.getAudioTracks()) {
       track.enabled = true;
     }
+    for (final track in stream.getVideoTracks()) {
+      track.enabled = true;
+    }
   }
 
   Future<void> _startIncomingRingtone() async {

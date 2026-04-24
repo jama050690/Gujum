@@ -15,7 +15,7 @@ extension _ChatPageStateBuild on _ChatPageState {
         user: auth.user,
         onOpenProfile: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsPage()),
+            MaterialPageRoute(builder: (_) => const ProfilePage()),
           );
         },
         onOpenNewGroup: () {
@@ -34,29 +34,10 @@ extension _ChatPageStateBuild on _ChatPageState {
             ),
           );
         },
-        onOpenAddFriend: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  const FriendsPage(initialTab: 2, titleKey: 'add_friend'),
-            ),
-          );
-        },
-        onOpenFriendRequests: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const FriendsPage(
-                initialTab: 1,
-                titleKey: 'friend_requests',
-              ),
-            ),
-          );
-        },
         onOpenContacts: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) =>
-                  const FriendsPage(initialTab: 0, titleKey: 'contacts'),
+              builder: (_) => const FriendsPage(titleKey: 'contacts'),
             ),
           );
         },
@@ -99,8 +80,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             onOpenNewChat: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      const FriendsPage(initialTab: 2, titleKey: 'add_friend'),
+                  builder: (_) => const FriendsPage(titleKey: 'search_users'),
                 ),
               );
             },
@@ -108,8 +88,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             onOpenContacts: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      const FriendsPage(initialTab: 0, titleKey: 'contacts'),
+                  builder: (_) => const FriendsPage(titleKey: 'contacts'),
                 ),
               );
             },
@@ -120,7 +99,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             },
             onOpenProfile: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
               );
             },
           );

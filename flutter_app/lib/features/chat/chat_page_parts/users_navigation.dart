@@ -18,14 +18,20 @@ class _UsersBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final surfaceColor = settings.isDarkMode
+        ? const Color(0xFF1D2A39)
+        : Colors.white;
+    final shadowColor = settings.isDarkMode
+        ? const Color(0x4D000000)
+        : const Color(0x140B2239);
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF1D2A39),
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x4D000000),
+            color: shadowColor,
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -92,7 +98,10 @@ class _UsersBottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : const Color(0xFFA7B7C7);
+    final color = selected
+        ? Colors.white
+        : Theme.of(context).textTheme.bodyMedium?.color?.withAlpha(180) ??
+            const Color(0xFFA7B7C7);
 
     return Material(
       color: Colors.transparent,

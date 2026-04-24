@@ -24,6 +24,7 @@ import '../settings/settings_controller.dart';
 import '../social/calls_page.dart';
 import '../social/community_page.dart';
 import '../social/friends_page.dart';
+import '../social/profile_page.dart';
 import '../social/settings_page.dart';
 import '../social/social_repository.dart';
 import 'chat_controller.dart';

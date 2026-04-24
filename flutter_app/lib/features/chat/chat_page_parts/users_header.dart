@@ -23,10 +23,20 @@ class _UsersHeader extends StatelessWidget {
 
   Future<void> _openSearchSheet(BuildContext context) async {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final sheetBackground = settings.isDarkMode
+        ? const Color(0xFF1D2A39)
+        : Colors.white;
+    final fieldFill = settings.isDarkMode
+        ? const Color(0xFF223140)
+        : const Color(0xFFF1F4F8);
+    final textColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final hintColor = settings.isDarkMode
+        ? const Color(0xFF8FA3B6)
+        : const Color(0xFF7A8B9B);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1D2A39),
+      backgroundColor: sheetBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -45,7 +55,7 @@ class _UsersHeader extends StatelessWidget {
               Text(
                 t('search'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: textColor,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -54,10 +64,10 @@ class _UsersHeader extends StatelessWidget {
                 controller: searchController,
                 autofocus: true,
                 onChanged: onChanged,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   hintText: t('search'),
-                  hintStyle: const TextStyle(color: Color(0xFF8FA3B6)),
+                  hintStyle: TextStyle(color: hintColor),
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: searchController.text.isEmpty
                       ? null
@@ -67,9 +77,9 @@ class _UsersHeader extends StatelessWidget {
                             onChanged('');
                           },
                           icon: const Icon(Icons.close_rounded),
-                        ),
+                  ),
                   filled: true,
-                  fillColor: const Color(0xFF223140),
+                  fillColor: fieldFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
@@ -91,6 +101,11 @@ class _UsersHeader extends StatelessWidget {
       currentUser?.avatar,
       settings.baseUrl,
     );
+    final titleColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final searchChipColor = settings.isDarkMode
+        ? const Color(0xFF223140)
+        : const Color(0xFFEAF0F6);
+    final searchTextColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 12),
@@ -133,7 +148,7 @@ class _UsersHeader extends StatelessWidget {
                 child: Text(
                   showArchived ? (title ?? '') : 'Bootchat',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: titleColor,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -142,12 +157,12 @@ class _UsersHeader extends StatelessWidget {
                 IconButton(
                   onPressed: () => _openSearchSheet(context),
                   icon: const Icon(Icons.search_rounded),
-                  color: Colors.white,
+                  color: titleColor,
                 ),
                 IconButton(
                   onPressed: onOpenSidebar,
                   icon: const Icon(Icons.more_vert_rounded),
-                  color: Colors.white,
+                  color: titleColor,
                 ),
               ],
             ],
@@ -157,7 +172,7 @@ class _UsersHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF223140),
+                color: searchChipColor,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -169,8 +184,8 @@ class _UsersHeader extends StatelessWidget {
                       searchController.text.trim(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: searchTextColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),

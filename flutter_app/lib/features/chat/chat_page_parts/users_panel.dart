@@ -59,15 +59,33 @@ class _UsersPanel extends StatelessWidget {
     final query = searchController.text.trim().toLowerCase();
     final connectionText =
         chat.connectionLabel == null ? null : t(chat.connectionLabel!);
-    const panelBackground = Color(0xFF17212B);
-    const activeColor = Color(0xFF253444);
+    final panelBackground = settings.isDarkMode
+        ? const Color(0xFF17212B)
+        : const Color(0xFFF5F7FB);
+    final activeColor = settings.isDarkMode
+        ? const Color(0xFF253444)
+        : const Color(0xFFDDEAF7);
+    final iconColor = settings.isDarkMode ? Colors.white70 : const Color(0xFF506070);
+    final bodyColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final dividerColor = settings.isDarkMode
+        ? const Color(0xFF223140)
+        : const Color(0xFFD8E1EC);
+    final infoChipColor = settings.isDarkMode
+        ? const Color(0xFF203244)
+        : const Color(0xFFE7EFF8);
+    final infoTextColor = settings.isDarkMode
+        ? const Color(0xFF9EB1C2)
+        : const Color(0xFF5E7388);
+    final emptyTextColor = settings.isDarkMode
+        ? const Color(0xFF8EA3B7)
+        : const Color(0xFF667B90);
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final panelTheme = Theme.of(context).copyWith(
-      iconTheme: const IconThemeData(color: Colors.white70),
-      dividerColor: const Color(0xFF223140),
+      iconTheme: IconThemeData(color: iconColor),
+      dividerColor: dividerColor,
       textTheme: Theme.of(context).textTheme.apply(
-            bodyColor: Colors.white,
-            displayColor: Colors.white,
+            bodyColor: bodyColor,
+            displayColor: bodyColor,
           ),
     );
 
@@ -132,7 +150,7 @@ class _UsersPanel extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF203244),
+                            color: infoChipColor,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Padding(
@@ -146,7 +164,7 @@ class _UsersPanel extends StatelessWidget {
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-                                    color: const Color(0xFF9EB1C2),
+                                    color: infoTextColor,
                                   ),
                             ),
                           ),
@@ -185,7 +203,7 @@ class _UsersPanel extends StatelessWidget {
                                   .textTheme
                                   .bodyLarge
                                   ?.copyWith(
-                                    color: const Color(0xFF8EA3B7),
+                                    color: emptyTextColor,
                                   ),
                             ),
                           ),
@@ -236,7 +254,9 @@ class _UsersPanel extends StatelessWidget {
                 child: FloatingActionButton.small(
                   heroTag: 'camera_fab',
                   onPressed: onOpenCamera,
-                  backgroundColor: Colors.white,
+                  backgroundColor: settings.isDarkMode
+                      ? Colors.white
+                      : const Color(0xFFE4EDF6),
                   foregroundColor: const Color(0xFF1C2B3A),
                   elevation: 8,
                   child: const Icon(Icons.photo_camera_rounded, size: 20),
