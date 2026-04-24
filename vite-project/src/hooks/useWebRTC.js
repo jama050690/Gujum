@@ -883,6 +883,10 @@ export function useWebRTC(socket, currentUser) {
 
   const startCall = useCallback(async (targetUser, video = false) => {
     if (!socket || !targetUser) return;
+    if (callStateRef.current || incomingCall) {
+      debugLog("startCall skipped because a call session is already active");
+      return;
+    }
 
     try {
       await sendOffer({
@@ -895,10 +899,14 @@ export function useWebRTC(socket, currentUser) {
       setCallError(getMediaAccessErrorMessage(err, video));
       setTimeout(() => cleanup(), 3000);
     }
-  }, [cleanup, sendOffer, socket]);
+  }, [cleanup, incomingCall, sendOffer, socket]);
 
   const acceptCall = useCallback(async () => {
     if (!incomingCall || !socket) return;
+    if (callStateRef.current && callStateRef.current !== "reconnecting") {
+      debugLog("acceptCall skipped because another call state is active");
+      return;
+    }
     if (!incomingCall.offer) {
       setCallError("Qo'ng'iroq signali hali tayyor emas. Bir ozdan keyin yana urinib ko'ring.");
       return;

@@ -42,25 +42,9 @@ function isLocalHostname(hostname = "") {
 }
 
 function getSocketTransportOptions() {
-  if (typeof window === "undefined") {
-    return {
-      transports: ["websocket", "polling"],
-      upgrade: true,
-    };
-  }
-
-  if (isLocalHostname(window.location.hostname)) {
-    return {
-      transports: ["websocket", "polling"],
-      upgrade: true,
-    };
-  }
-
-  // Production reverse proxy is not upgrading websocket connections reliably.
-  // Force polling so the client stays connected without console websocket errors.
   return {
-    transports: ["polling"],
-    upgrade: false,
+    transports: ["websocket", "polling"],
+    upgrade: true,
   };
 }
 
@@ -116,7 +100,7 @@ export function SocketProvider({ children, username }) {
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 5000,
+        timeout: 10000,
       });
 
       activeSocket = nextSocket;
@@ -153,23 +137,6 @@ export function SocketProvider({ children, username }) {
       setConnected(false);
     };
   }, [username]);
-
-  useEffect(() => {
-    if (!socket || !username || !connected) return undefined;
-
-    const sendPresence = () => {
-      if (socket.connected) {
-        socket.emit("USER_ONLINE", username);
-      }
-    };
-
-    sendPresence();
-    const interval = window.setInterval(sendPresence, 10000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [socket, username, connected]);
 
   return (
     <SocketContext.Provider value={{ socket, connected }}>
