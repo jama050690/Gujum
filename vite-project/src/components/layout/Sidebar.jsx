@@ -9,6 +9,8 @@ export default function Sidebar({
   isOpen,
   onClose,
   onProfile,
+  onAddFriend,
+  onFriendRequests,
   onNewGroup,
   onNewChannel,
   onContacts,
@@ -16,6 +18,7 @@ export default function Sidebar({
   onSettings,
   onSavedMessages,
   onAdminDashboard,
+  friendRequestCount = 0,
 }) {
   const { user, avatar, fullName, logout, isAdmin } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -139,6 +142,27 @@ export default function Sidebar({
             }}
           />
           <SidebarItem
+            icon="fa-user-plus"
+            label={tr("sidebar_add_friend", "Add Friend")}
+            iconClass={iconClass}
+            rowClass={rowClass}
+            onClick={() => {
+              onAddFriend?.();
+              onClose?.();
+            }}
+          />
+          <SidebarItem
+            icon="fa-user-clock"
+            label={tr("sidebar_friend_requests", "Friend Requests")}
+            iconClass={iconClass}
+            rowClass={rowClass}
+            badge={friendRequestCount > 0 ? friendRequestCount : null}
+            onClick={() => {
+              onFriendRequests?.();
+              onClose?.();
+            }}
+          />
+          <SidebarItem
             icon="fa-address-book"
             label={tr("sidebar_contacts", "Contacts")}
             iconClass={iconClass}
@@ -170,7 +194,7 @@ export default function Sidebar({
           />
           <SidebarItem
             icon="fa-cog"
-            label={tr("settings_title", "Settings")}
+            label={tr("sidebar_settings", "Settings")}
             iconClass={iconClass}
             rowClass={rowClass}
             onClick={() => {
@@ -181,7 +205,7 @@ export default function Sidebar({
           {isAdmin && (
             <SidebarItem
               icon="fa-chart-line"
-              label="Admin Dashboard"
+              label={tr("admin_dashboard_title", "Admin Dashboard")}
               iconClass={iconClass}
               rowClass={rowClass}
               onClick={() => {
@@ -239,15 +263,22 @@ export default function Sidebar({
   );
 }
 
-function SidebarItem({ icon, label, onClick, iconClass, rowClass }) {
+function SidebarItem({ icon, label, onClick, iconClass, rowClass, badge = null }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-5 px-7 py-4 text-left transition-colors ${rowClass}`}
+      className={`flex w-full items-center justify-between gap-5 px-7 py-4 text-left transition-colors ${rowClass}`}
     >
-      <i className={`fas ${icon} w-6 text-center ${iconClass}`} />
-      <span className="text-[15px]">{label}</span>
+      <span className="flex items-center gap-5">
+        <i className={`fas ${icon} w-6 text-center ${iconClass}`} />
+        <span className="text-[15px]">{label}</span>
+      </span>
+      {badge ? (
+        <span className="min-w-6 rounded-full bg-[#3390ec] px-2 py-0.5 text-center text-xs font-semibold text-white">
+          {badge}
+        </span>
+      ) : null}
     </button>
   );
 }

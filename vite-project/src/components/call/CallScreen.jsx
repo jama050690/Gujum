@@ -57,6 +57,13 @@ export default function CallScreen({
     if (remoteVideoRef.current.srcObject !== remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
+
+    const playPromise = remoteVideoRef.current.play?.();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((err) => {
+        console.warn("Remote video autoplay blocked:", err);
+      });
+    }
   }, [remoteStream, isVideo]);
 
   useEffect(() => {
@@ -65,31 +72,37 @@ export default function CallScreen({
       return undefined;
     }
 
-    const videoTracks = remoteStream.getVideoTracks();
-    if (videoTracks.length === 0) {
-      setHasRemoteVideoTrack(false);
-      return undefined;
-    }
-
     const syncVideoState = () => {
+      const videoTracks = remoteStream.getVideoTracks();
       setHasRemoteVideoTrack(
-        videoTracks.some((track) => track.readyState === "live" && !track.muted),
+        videoTracks.some((track) => track.readyState === "live"),
       );
     };
 
     syncVideoState();
-    videoTracks.forEach((track) => {
-      track.addEventListener("mute", syncVideoState);
-      track.addEventListener("unmute", syncVideoState);
-      track.addEventListener("ended", syncVideoState);
-    });
-
-    return () => {
-      videoTracks.forEach((track) => {
+    const bindTrackListeners = () => {
+      remoteStream.getVideoTracks().forEach((track) => {
+        track.addEventListener("mute", syncVideoState);
+        track.addEventListener("unmute", syncVideoState);
+        track.addEventListener("ended", syncVideoState);
+      });
+    };
+    const unbindTrackListeners = () => {
+      remoteStream.getVideoTracks().forEach((track) => {
         track.removeEventListener("mute", syncVideoState);
         track.removeEventListener("unmute", syncVideoState);
         track.removeEventListener("ended", syncVideoState);
       });
+    };
+
+    bindTrackListeners();
+    remoteStream.addEventListener?.("addtrack", syncVideoState);
+    remoteStream.addEventListener?.("removetrack", syncVideoState);
+
+    return () => {
+      remoteStream.removeEventListener?.("addtrack", syncVideoState);
+      remoteStream.removeEventListener?.("removetrack", syncVideoState);
+      unbindTrackListeners();
     };
   }, [remoteStream, isVideo]);
 

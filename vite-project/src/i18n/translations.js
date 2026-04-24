@@ -11,6 +11,7 @@ export const translations = {
     close: "Yopish",
     back: "Orqaga",
     add: "Qo'shish",
+    common_not_specified: "Ko'rsatilmagan",
     online: "Online",
     offline: "Offline",
     yesterday: "kecha",
@@ -153,6 +154,7 @@ export const translations = {
     modal_add_member: "A'zo qo'shish",
     modal_add_subscriber: "Obunachi qo'shish",
     modal_view_profile: "Profilni ko'rish",
+    portfolio_title: "Mening profilim",
 
     // ===== Contacts =====
     contacts_title: "Kontaktlar",
@@ -201,6 +203,7 @@ export const translations = {
 
     // ===== Settings =====
     settings_title: "Sozlamalar",
+    admin_dashboard_title: "Admin panel",
     settings_my_account: "Mening hisobim",
     settings_notifications: "Bildirishnomalar va ovozlar",
     settings_privacy: "Maxfiylik va xavfsizlik",
@@ -300,6 +303,7 @@ export const translations = {
     close: "Close",
     back: "Back",
     add: "Add",
+    common_not_specified: "Not specified",
     online: "Online",
     offline: "Offline",
     yesterday: "yesterday",
@@ -442,6 +446,7 @@ export const translations = {
     modal_add_member: "Add Member",
     modal_add_subscriber: "Add Subscriber",
     modal_view_profile: "View Profile",
+    portfolio_title: "My Profile",
 
     // ===== Contacts =====
     contacts_title: "Contacts",
@@ -490,6 +495,7 @@ export const translations = {
 
     // ===== Settings =====
     settings_title: "Settings",
+    admin_dashboard_title: "Admin Dashboard",
     settings_my_account: "My Account",
     settings_notifications: "Notifications & Sounds",
     settings_privacy: "Privacy & Security",
@@ -1133,6 +1139,7 @@ export const translations = {
     close: "Закрыть",
     back: "Назад",
     add: "Добавить",
+    common_not_specified: "Не указано",
     online: "В сети",
     offline: "Не в сети",
     yesterday: "вчера",
@@ -1271,6 +1278,7 @@ export const translations = {
     modal_add_member: "Добавить участника",
     modal_add_subscriber: "Добавить подписчика",
     modal_view_profile: "Просмотреть профиль",
+    portfolio_title: "Мой профиль",
 
     // ===== Contacts =====
     contacts_title: "Контакты",
@@ -1319,6 +1327,7 @@ export const translations = {
 
     // ===== Settings =====
     settings_title: "Настройки",
+    admin_dashboard_title: "Панель администратора",
     settings_my_account: "Мой аккаунт",
     settings_notifications: "Уведомления и звуки",
     settings_privacy: "Конфиденциальность и безопасность",

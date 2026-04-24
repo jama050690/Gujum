@@ -294,19 +294,26 @@ export function useWebRTC(socket, currentUser) {
       const incomingTrack = event.track;
       debugLog("Remote track received:", incomingTrack.kind, incomingTrack.readyState);
 
-      if (!remoteStreamRef.current) {
-        remoteStreamRef.current = new MediaStream();
+      const incomingStream = event.streams?.[0] || null;
+
+      if (incomingStream) {
+        remoteStreamRef.current = incomingStream;
+        setRemoteStream(incomingStream);
+      } else {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream();
+        }
+
+        const alreadyAdded = remoteStreamRef.current
+          .getTracks()
+          .some((track) => track.id === incomingTrack.id);
+
+        if (!alreadyAdded) {
+          remoteStreamRef.current.addTrack(incomingTrack);
+        }
+
+        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
       }
-
-      const alreadyAdded = remoteStreamRef.current
-        .getTracks()
-        .some((track) => track.id === incomingTrack.id);
-
-      if (!alreadyAdded) {
-        remoteStreamRef.current.addTrack(incomingTrack);
-      }
-
-      setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
 
       incomingTrack.onended = () => {
         if (!remoteStreamRef.current) return;
