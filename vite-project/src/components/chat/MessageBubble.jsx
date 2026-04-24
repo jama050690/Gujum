@@ -123,7 +123,7 @@ function InlineAudioPlayer({ src, isMine }) {
             : "bg-[#f6f7fb] text-gray-700 dark:bg-[#243140] dark:text-gray-200"
         }`}
       >
-        Audio fayli mavjud emas yoki buzilgan.
+        Audio topilmadi.
       </div>
     );
   }
@@ -226,7 +226,7 @@ function InlineVideoPreview({ src, onOpen }) {
   if (isChecking) {
     return (
       <div className="mt-1 rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
-        Video tekshirilmoqda...
+        Video yuklanmoqda...
       </div>
     );
   }
@@ -234,7 +234,7 @@ function InlineVideoPreview({ src, onOpen }) {
   if (isMissing || loadError) {
     return (
       <div className="mt-1 rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
-        Video fayli mavjud emas yoki buzilgan.
+        Video topilmadi.
       </div>
     );
   }
@@ -283,7 +283,7 @@ function InlineImagePreview({ src, onOpen }) {
   if (isChecking) {
     return (
       <div className="rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
-        Rasm tekshirilmoqda...
+        Rasm yuklanmoqda...
       </div>
     );
   }
@@ -291,7 +291,7 @@ function InlineImagePreview({ src, onOpen }) {
   if (isMissing || loadError) {
     return (
       <div className="rounded-2xl bg-black/5 px-4 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-white/5 dark:text-gray-300">
-        Rasm fayli mavjud emas yoki buzilgan.
+        Rasm topilmadi.
       </div>
     );
   }

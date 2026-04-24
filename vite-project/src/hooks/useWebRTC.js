@@ -142,6 +142,17 @@ function getMediaAccessErrorMessage(error, isVideo) {
   return `Qo'ng'iroqni boshlashda xato: ${error?.message || "Noma'lum xato"}`;
 }
 
+function shouldFallbackToAudio(error) {
+  return [
+    "NotReadableError",
+    "TrackStartError",
+    "AbortError",
+    "NotFoundError",
+    "DevicesNotFoundError",
+    "OverconstrainedError",
+  ].includes(error?.name);
+}
+
 export function useWebRTC(socket, currentUser) {
   const [callState, setCallState] = useState(null);
   const [remoteUser, setRemoteUser] = useState(null);
@@ -341,6 +352,25 @@ export function useWebRTC(socket, currentUser) {
     return stream;
   }, [syncLocalTrackState]);
 
+  const prepareNegotiationStream = useCallback(async (requestedVideo) => {
+    try {
+      const stream = await prepareLocalStream(requestedVideo);
+      return { stream, videoEnabled: requestedVideo };
+    } catch (error) {
+      if (!requestedVideo || !shouldFallbackToAudio(error)) {
+        throw error;
+      }
+
+      console.warn("Video source unavailable, falling back to audio call:", error);
+      const stream = await prepareLocalStream(false);
+      return {
+        stream,
+        videoEnabled: false,
+        downgradedFromVideo: true,
+      };
+    }
+  }, [prepareLocalStream]);
+
   const flushQueuedCandidates = useCallback(async (pc) => {
     const queued = [...iceCandidateQueue.current];
     iceCandidateQueue.current = [];
@@ -514,24 +544,31 @@ export function useWebRTC(socket, currentUser) {
   }, [clearReconnectTimeout, cleanup, resetPeerConnection, socket, syncRemoteTrackState]);
 
   const applyOfferAsAnswerer = useCallback(async ({ callId, caller, offer, nextIsVideo }) => {
+    const media = await prepareNegotiationStream(nextIsVideo);
+    const negotiatedVideoEnabled = media.videoEnabled;
+
     callIdRef.current = callId;
     targetUsernameRef.current = caller.username;
     isCallerRef.current = false;
-    isVideoRef.current = nextIsVideo;
+    isVideoRef.current = negotiatedVideoEnabled;
     setRemoteUser(caller);
-    setIsVideo(nextIsVideo);
+    setIsVideo(negotiatedVideoEnabled);
     setIncomingCall(null);
     setCallState("connecting");
-    setCallError(null);
+    setCallError(
+      media.downgradedFromVideo
+        ? "Kamera ishga tushmadi, audio qo'ng'iroq qabul qilindi."
+        : null,
+    );
     persistCallSession(caller, {
       callId,
       peer: caller,
-      isVideo: nextIsVideo,
+      isVideo: negotiatedVideoEnabled,
       direction: "incoming",
     });
 
-    const stream = await prepareLocalStream(nextIsVideo);
-    const pc = createPeerConnection(caller.username, nextIsVideo);
+    const stream = media.stream;
+    const pc = createPeerConnection(caller.username, negotiatedVideoEnabled);
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -547,7 +584,7 @@ export function useWebRTC(socket, currentUser) {
       callId,
       user: buildSelfInfo(currentUser),
     });
-  }, [createPeerConnection, currentUser, flushQueuedCandidates, persistCallSession, prepareLocalStream, socket]);
+  }, [createPeerConnection, currentUser, flushQueuedCandidates, persistCallSession, prepareNegotiationStream, socket]);
 
   const sendOffer = useCallback(async ({ targetUser, video = false, resume = false, callId = generateCallId() }) => {
     if (!socket || !targetUser?.username) return;
@@ -563,25 +600,32 @@ export function useWebRTC(socket, currentUser) {
     if (!resume) {
       isCallerRef.current = true;
     }
-    isVideoRef.current = video;
+    const media = await prepareNegotiationStream(video);
+    const negotiatedVideoEnabled = media.videoEnabled;
+
+    isVideoRef.current = negotiatedVideoEnabled;
     setRemoteUser(peer);
-    setIsVideo(video);
-    setCallError(null);
+    setIsVideo(negotiatedVideoEnabled);
+    setCallError(
+      media.downgradedFromVideo
+        ? "Kamera ishga tushmadi, audio qo'ng'iroqqa o'tildi."
+        : null,
+    );
     setCallState(resume ? "reconnecting" : "calling");
     persistCallSession(peer, {
       callId,
       peer,
-      isVideo: video,
+      isVideo: negotiatedVideoEnabled,
       direction: resume ? (isCallerRef.current ? "outgoing" : "incoming") : "outgoing",
     });
 
-    const stream = await prepareLocalStream(video);
-    const pc = createPeerConnection(peer.username, video);
+    const stream = media.stream;
+    const pc = createPeerConnection(peer.username, negotiatedVideoEnabled);
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     const offer = await pc.createOffer({
       offerToReceiveAudio: true,
-      offerToReceiveVideo: video,
+      offerToReceiveVideo: negotiatedVideoEnabled,
     });
     await pc.setLocalDescription(offer);
 
@@ -590,7 +634,7 @@ export function useWebRTC(socket, currentUser) {
       target: peer.username,
       caller: buildSelfInfo(currentUser),
       offer,
-      isVideo: video,
+      isVideo: negotiatedVideoEnabled,
       resume,
     });
 
@@ -612,14 +656,14 @@ export function useWebRTC(socket, currentUser) {
       socket.emit("CALL_END", {
         target: peer.username,
         duration: 0,
-        isVideo: video,
+        isVideo: negotiatedVideoEnabled,
         callerUsername: currentUser,
         callId,
         reason: "timeout",
       });
       setTimeout(() => cleanup(), 2000);
     }, 30000);
-  }, [cleanup, clearRingingTimeout, createPeerConnection, currentUser, persistCallSession, prepareLocalStream, socket]);
+  }, [cleanup, clearRingingTimeout, createPeerConnection, currentUser, persistCallSession, prepareNegotiationStream, socket]);
 
   useEffect(() => {
     if (!socket || !currentUser) return undefined;
@@ -1042,30 +1086,36 @@ export function useWebRTC(socket, currentUser) {
     }
 
     try {
-      const stream = await prepareLocalStream(nextVideoEnabled);
-      await syncPeerConnectionTracks(stream, nextVideoEnabled);
+      const media = await prepareNegotiationStream(nextVideoEnabled);
+      const negotiatedVideoEnabled = media.videoEnabled;
+      const stream = media.stream;
+      await syncPeerConnectionTracks(stream, negotiatedVideoEnabled);
 
       if (pc.signalingState !== "stable") {
         debugLog("switchCallMode skipped due to signaling state:", pc.signalingState);
         return;
       }
 
-      isVideoRef.current = nextVideoEnabled;
-      setIsVideo(nextVideoEnabled);
+      isVideoRef.current = negotiatedVideoEnabled;
+      setIsVideo(negotiatedVideoEnabled);
       setIsCameraOff(false);
       setCallState("connecting");
-      setCallError(null);
+      setCallError(
+        media.downgradedFromVideo
+          ? "Kamera ishga tushmadi, audio qo'ng'iroqda qoldi."
+          : null,
+      );
       persistCallSession(remoteUserRef.current, {
         callId: callIdRef.current,
         peer: remoteUserRef.current,
-        isVideo: nextVideoEnabled,
+        isVideo: negotiatedVideoEnabled,
         startedAt: callStartTimeRef.current,
         direction: isCallerRef.current ? "outgoing" : "incoming",
       });
 
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: nextVideoEnabled,
+        offerToReceiveVideo: negotiatedVideoEnabled,
       });
       await pc.setLocalDescription(offer);
 
@@ -1074,14 +1124,14 @@ export function useWebRTC(socket, currentUser) {
         target,
         caller: buildSelfInfo(currentUser),
         offer,
-        isVideo: nextVideoEnabled,
+        isVideo: negotiatedVideoEnabled,
         resume: true,
       });
     } catch (err) {
       console.error("Call mode switch xato:", err);
       setCallError(getMediaAccessErrorMessage(err, nextVideoEnabled));
     }
-  }, [callStateRef, currentUser, persistCallSession, prepareLocalStream, socket, syncPeerConnectionTracks]);
+  }, [callStateRef, currentUser, persistCallSession, prepareNegotiationStream, socket, syncPeerConnectionTracks]);
 
   return {
     callState,

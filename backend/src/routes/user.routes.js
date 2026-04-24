@@ -85,7 +85,8 @@ router.post("/phone-contacts", authMiddleware, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, username, avatar, full_name
+      `SELECT id, username, avatar, full_name,
+              RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9) AS matched_phone
        FROM ${USERS_TABLE}
        WHERE id != $1
          AND phone IS NOT NULL

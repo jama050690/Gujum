@@ -42,6 +42,17 @@ class SocialRepository {
         .toList();
   }
 
+  Future<List<SimpleUser>> fetchPhoneContacts(List<String> phones) async {
+    final response = await _apiClient.postJson(
+      '/api/users/phone-contacts',
+      authenticated: true,
+      body: {'phones': phones},
+    );
+    return (response as List<dynamic>)
+        .map((item) => SimpleUser.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<SimpleUser>> fetchFriends() async {
     final response = await _apiClient.getJson('/api/friends', authenticated: true);
     return (response as List<dynamic>)

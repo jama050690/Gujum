@@ -42,7 +42,7 @@ function SharedImageItem({ src }) {
   if (isChecking) {
     return (
       <div className="flex aspect-square items-center justify-center rounded-md bg-gray-100 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
-        Tekshirilmoqda
+        Yuklanmoqda
       </div>
     );
   }
@@ -50,7 +50,7 @@ function SharedImageItem({ src }) {
   if (isMissing || loadError) {
     return (
       <div className="flex aspect-square items-center justify-center rounded-md bg-gray-100 px-2 text-center text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
-        Rasm yo'q
+        Rasm topilmadi
       </div>
     );
   }
@@ -79,7 +79,7 @@ function SharedAudioItem({ src }) {
         <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
           <i className="fas fa-music text-blue-500 text-xs" />
         </div>
-        <div className="text-sm text-gray-400">Audio tekshirilmoqda...</div>
+        <div className="text-sm text-gray-400">Audio yuklanmoqda...</div>
       </div>
     );
   }
@@ -90,7 +90,7 @@ function SharedAudioItem({ src }) {
         <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
           <i className="fas fa-exclamation-triangle text-blue-500 text-xs" />
         </div>
-        <div className="text-sm text-gray-400">Audio mavjud emas yoki buzilgan</div>
+        <div className="text-sm text-gray-400">Audio topilmadi</div>
       </div>
     );
   }

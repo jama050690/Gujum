@@ -35,12 +35,14 @@ class SimpleUser {
     required this.username,
     required this.fullName,
     this.avatar,
+    this.matchedPhone,
   });
 
   final int? id;
   final String username;
   final String fullName;
   final String? avatar;
+  final String? matchedPhone;
 
   factory SimpleUser.fromJson(Map<String, dynamic> json) {
     final username = (json['username'] ?? '').toString();
@@ -49,6 +51,7 @@ class SimpleUser {
       username: username,
       fullName: (json['full_name'] ?? json['fullName'] ?? username).toString(),
       avatar: json['avatar']?.toString(),
+      matchedPhone: json['matched_phone']?.toString(),
     );
   }
 }
