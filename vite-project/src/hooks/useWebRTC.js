@@ -180,6 +180,7 @@ export function useWebRTC(socket, currentUser) {
   const callIdRef = useRef(null);
   const remoteUserRef = useRef(null);
   const callStateRef = useRef(null);
+  const offerInFlightRef = useRef(false);
 
   const syncLocalTrackState = useCallback((stream, { muted = false, cameraOff = false, videoEnabled = false } = {}) => {
     if (!stream) return;
@@ -300,6 +301,7 @@ export function useWebRTC(socket, currentUser) {
     isVideoRef.current = false;
     callStartTimeRef.current = null;
     callIdRef.current = null;
+    offerInFlightRef.current = false;
     setCallStartedAt(null);
     setLocalStream(null);
     setRemoteStream(null);
@@ -588,6 +590,10 @@ export function useWebRTC(socket, currentUser) {
 
   const sendOffer = useCallback(async ({ targetUser, video = false, resume = false, callId = generateCallId() }) => {
     if (!socket || !targetUser?.username) return;
+    if (offerInFlightRef.current) {
+      debugLog("sendOffer skipped because another offer is already in flight");
+      return;
+    }
 
     const peer = {
       username: targetUser.username,
@@ -595,74 +601,82 @@ export function useWebRTC(socket, currentUser) {
       full_name: targetUser.full_name || remoteUserRef.current?.full_name || null,
     };
 
-    callIdRef.current = callId;
-    targetUsernameRef.current = peer.username;
-    if (!resume) {
-      isCallerRef.current = true;
-    }
-    const media = await prepareNegotiationStream(video);
-    const negotiatedVideoEnabled = media.videoEnabled;
+    offerInFlightRef.current = true;
 
-    isVideoRef.current = negotiatedVideoEnabled;
-    setRemoteUser(peer);
-    setIsVideo(negotiatedVideoEnabled);
-    setCallError(
-      media.downgradedFromVideo
-        ? "Kamera ishga tushmadi, audio qo'ng'iroqqa o'tildi."
-        : null,
-    );
-    setCallState(resume ? "reconnecting" : "calling");
-    persistCallSession(peer, {
-      callId,
-      peer,
-      isVideo: negotiatedVideoEnabled,
-      direction: resume ? (isCallerRef.current ? "outgoing" : "incoming") : "outgoing",
-    });
+    try {
+      callIdRef.current = callId;
+      targetUsernameRef.current = peer.username;
+      if (!resume) {
+        isCallerRef.current = true;
+      }
+      const media = await prepareNegotiationStream(video);
+      const negotiatedVideoEnabled = media.videoEnabled;
 
-    const stream = media.stream;
-    const pc = createPeerConnection(peer.username, negotiatedVideoEnabled);
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-    const offer = await pc.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: negotiatedVideoEnabled,
-    });
-    await pc.setLocalDescription(offer);
-
-    socket.emit("CALL_OFFER", {
-      callId,
-      target: peer.username,
-      caller: buildSelfInfo(currentUser),
-      offer,
-      isVideo: negotiatedVideoEnabled,
-      resume,
-    });
-
-    if (resume) {
-      clearRingingTimeout();
-      return;
-    }
-
-    ringtoneRef.current?.stop();
-    ringtoneRef.current = playRingtone();
-    setCallState("ringing");
-
-    clearRingingTimeout();
-    ringingTimeoutRef.current = setTimeout(() => {
-      debugLog("Ringing timeout — javob berilmadi");
-      ringtoneRef.current?.stop();
-      ringtoneRef.current = null;
-      setCallError("Javob berilmadi.");
-      socket.emit("CALL_END", {
-        target: peer.username,
-        duration: 0,
-        isVideo: negotiatedVideoEnabled,
-        callerUsername: currentUser,
+      isVideoRef.current = negotiatedVideoEnabled;
+      setRemoteUser(peer);
+      setIsVideo(negotiatedVideoEnabled);
+      setCallError(
+        media.downgradedFromVideo
+          ? "Kamera ishga tushmadi, audio qo'ng'iroqqa o'tildi."
+          : null,
+      );
+      setCallState(resume ? "reconnecting" : "calling");
+      persistCallSession(peer, {
         callId,
-        reason: "timeout",
+        peer,
+        isVideo: negotiatedVideoEnabled,
+        direction: resume ? (isCallerRef.current ? "outgoing" : "incoming") : "outgoing",
       });
-      setTimeout(() => cleanup(), 2000);
-    }, 30000);
+
+      const stream = media.stream;
+      const pc = createPeerConnection(peer.username, negotiatedVideoEnabled);
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: negotiatedVideoEnabled,
+      });
+      await pc.setLocalDescription(offer);
+
+      socket.emit("CALL_OFFER", {
+        callId,
+        target: peer.username,
+        caller: buildSelfInfo(currentUser),
+        offer,
+        isVideo: negotiatedVideoEnabled,
+        resume,
+      });
+
+      if (resume) {
+        clearRingingTimeout();
+        return;
+      }
+
+      ringtoneRef.current?.stop();
+      ringtoneRef.current = playRingtone();
+      setCallState("ringing");
+
+      clearRingingTimeout();
+      ringingTimeoutRef.current = setTimeout(() => {
+        debugLog("Ringing timeout — javob berilmadi");
+        offerInFlightRef.current = false;
+        ringtoneRef.current?.stop();
+        ringtoneRef.current = null;
+        setCallError("Javob berilmadi.");
+        socket.emit("CALL_END", {
+          target: peer.username,
+          duration: 0,
+          isVideo: negotiatedVideoEnabled,
+          callerUsername: currentUser,
+          callId,
+          reason: "timeout",
+        });
+        setTimeout(() => cleanup(), 2000);
+      }, 30000);
+    } catch (error) {
+      offerInFlightRef.current = false;
+      throw error;
+    }
   }, [cleanup, clearRingingTimeout, createPeerConnection, currentUser, persistCallSession, prepareNegotiationStream, socket]);
 
   useEffect(() => {
@@ -757,6 +771,7 @@ export function useWebRTC(socket, currentUser) {
     const handleCallAnswer = async (data) => {
       try {
         if (data.callId && callIdRef.current && data.callId !== callIdRef.current) return;
+        offerInFlightRef.current = false;
 
         clearRingingTimeout();
         ringtoneRef.current?.stop();
@@ -806,6 +821,7 @@ export function useWebRTC(socket, currentUser) {
 
     const handleCallReject = (data) => {
       if (data.callId && callIdRef.current && data.callId !== callIdRef.current) return;
+      offerInFlightRef.current = false;
       clearRingingTimeout();
       ringtoneRef.current?.stop();
       ringtoneRef.current = null;
@@ -814,6 +830,7 @@ export function useWebRTC(socket, currentUser) {
 
     const handleCallEnd = (data) => {
       if (data.callId && callIdRef.current && data.callId !== callIdRef.current) return;
+      offerInFlightRef.current = false;
       clearRingingTimeout();
       clearReconnectTimeout();
       ringtoneRef.current?.stop();
@@ -823,6 +840,7 @@ export function useWebRTC(socket, currentUser) {
     };
 
     const handleCallBlocked = () => {
+      offerInFlightRef.current = false;
       clearRingingTimeout();
       ringtoneRef.current?.stop();
       ringtoneRef.current = null;
@@ -831,6 +849,7 @@ export function useWebRTC(socket, currentUser) {
     };
 
     const handleCallNotDelivered = () => {
+      offerInFlightRef.current = false;
       clearRingingTimeout();
       ringtoneRef.current?.stop();
       ringtoneRef.current = null;
@@ -1084,8 +1103,13 @@ export function useWebRTC(socket, currentUser) {
     if (!callStateRef.current || callStateRef.current === "ringing" || callStateRef.current === "calling") {
       return;
     }
+    if (offerInFlightRef.current) {
+      debugLog("switchCallMode skipped because another offer is already in flight");
+      return;
+    }
 
     try {
+      offerInFlightRef.current = true;
       const media = await prepareNegotiationStream(nextVideoEnabled);
       const negotiatedVideoEnabled = media.videoEnabled;
       const stream = media.stream;
@@ -1128,6 +1152,7 @@ export function useWebRTC(socket, currentUser) {
         resume: true,
       });
     } catch (err) {
+      offerInFlightRef.current = false;
       console.error("Call mode switch xato:", err);
       setCallError(getMediaAccessErrorMessage(err, nextVideoEnabled));
     }
