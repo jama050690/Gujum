@@ -9,8 +9,6 @@ export default function Sidebar({
   isOpen,
   onClose,
   onProfile,
-  onAddFriend,
-  onFriendRequests,
   onNewGroup,
   onNewChannel,
   onContacts,
@@ -18,7 +16,6 @@ export default function Sidebar({
   onSettings,
   onSavedMessages,
   onAdminDashboard,
-  friendRequestCount = 0,
 }) {
   const { user, avatar, fullName, logout, isAdmin } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -138,27 +135,6 @@ export default function Sidebar({
             rowClass={rowClass}
             onClick={() => {
               onNewChannel?.();
-              onClose?.();
-            }}
-          />
-          <SidebarItem
-            icon="fa-user-plus"
-            label={tr("sidebar_add_friend", "Add Friend")}
-            iconClass={iconClass}
-            rowClass={rowClass}
-            onClick={() => {
-              onAddFriend?.();
-              onClose?.();
-            }}
-          />
-          <SidebarItem
-            icon="fa-user-clock"
-            label={tr("sidebar_friend_requests", "Friend Requests")}
-            iconClass={iconClass}
-            rowClass={rowClass}
-            badge={friendRequestCount > 0 ? friendRequestCount : null}
-            onClick={() => {
-              onFriendRequests?.();
               onClose?.();
             }}
           />

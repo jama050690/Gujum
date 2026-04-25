@@ -701,42 +701,24 @@ export default function UsersPanel({ onOpenSidebar }) {
                     {globalResults
                       .filter((gr) => !filteredItems.some((fi) => fi.username === gr.username))
                       .map((u) => {
-                        const status = friendStatuses[u.username];
                         return (
                           <div
                             key={u.username}
                             className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-[#2b2b2b] transition-colors cursor-pointer"
+                            onClick={() => handleGlobalUserClick(u)}
                           >
-                            <div onClick={() => handleGlobalUserClick(u)} className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
                               <Avatar src={u.avatar} name={u.username} size={46} />
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{u.full_name || u.username}</p>
                                 <p className="text-xs text-gray-400 truncate">
-                                  {status?.status === "friends" ? t("friend_status_friend") : t("search_tap_to_chat")}
+                                  {t("search_tap_to_chat")}
                                 </p>
                               </div>
                             </div>
-                            {status?.status === "friends" ? (
-                              <span className="shrink-0 px-2.5 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full">
-                                {t("friend_status_friend")}
-                              </span>
-                            ) : status?.status === "sent" ? (
-                              <span className="shrink-0 px-2.5 py-1 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-full">
-                                {t("friend_status_sent")}
-                              </span>
-                            ) : status?.status === "received" ? (
-                              <span className="shrink-0 px-2.5 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
-                                {t("friend_status_received")}
-                              </span>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleSendFriendRequest(u.username); }}
-                                className="shrink-0 px-2.5 py-1 text-xs bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-                              >
-                                <i className="fas fa-user-plus mr-1" />
-                                {t("friend_add_button")}
-                              </button>
-                            )}
+                            <span className="shrink-0 px-2.5 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
+                              {t("search_tap_to_chat")}
+                            </span>
                           </div>
                         );
                       })}

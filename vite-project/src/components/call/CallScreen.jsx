@@ -15,6 +15,10 @@ export default function CallScreen({
   onToggleMute,
   onToggleCamera,
   onSwitchCallMode,
+  onMinimize,
+  onOpenMessages,
+  onOpenUsers,
+  canOpenMessages,
   isMuted,
   isCameraOff,
 }) {
@@ -141,6 +145,39 @@ export default function CallScreen({
       {/* Hidden audio element for remote voice */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
+      <div className="relative z-20 flex items-center justify-between px-4 pt-4">
+        <div className="flex items-center gap-2">
+          {canOpenMessages && (
+            <button
+              type="button"
+              onClick={onOpenMessages}
+              className="rounded-full bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+            >
+              <i className="fas fa-comments mr-2" />
+              Xabarlar
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenUsers}
+            className="rounded-full bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          >
+            <i className="fas fa-users mr-2" />
+            Userlar
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onMinimize}
+          className="rounded-full bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          title="Qo'ng'iroqni kichraytirish"
+        >
+          <i className="fas fa-chevron-down mr-2" />
+          Yig'ish
+        </button>
+      </div>
+
       {/* Video background */}
       {showRemoteVideo ? (
         <video
@@ -169,7 +206,7 @@ export default function CallScreen({
       )}
 
       {/* Top info */}
-      <div className="relative z-10 flex flex-col items-center pt-16 pb-8">
+      <div className="relative z-10 flex flex-col items-center pt-10 pb-8">
         {!showRemoteVideo && (
           <Avatar src={remoteUser?.avatar} name={remoteUser?.username} size={100} className="mb-4" />
         )}

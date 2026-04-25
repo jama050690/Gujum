@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useChat } from "@/context/ChatContext";
 import { useSocket } from "@/context/SocketContext";
 import { useWebRTC } from "@/hooks/useWebRTC";
-import { fetchJSON } from "@/utils/api";
 
 import UsersPanel from "@/components/chat/UsersPanel";
 import ChatPanel from "@/components/chat/ChatPanel";
@@ -22,9 +21,8 @@ import EditProfileModal from "@/components/modals/EditProfileModal";
 import ContactsModal from "@/components/modals/ContactsModal";
 import SettingsModal from "@/components/modals/SettingsModal";
 import CallsModal from "@/components/modals/CallsModal";
-import AddFriendModal from "@/components/modals/AddFriendModal";
-import FriendRequestsModal from "@/components/modals/FriendRequestsModal";
 import CommunitiesModal from "@/components/modals/CommunitiesModal";
+import Avatar from "@/components/common/Avatar";
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -48,42 +46,10 @@ export default function ChatPage() {
   const [showCommunities, setShowCommunities] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCalls, setShowCalls] = useState(false);
-  const [showAddFriend, setShowAddFriend] = useState(false);
-  const [showFriendRequests, setShowFriendRequests] = useState(false);
-  const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const [isCallMinimized, setIsCallMinimized] = useState(false);
 
   // WebRTC
   const webrtc = useWebRTC(socket, user);
-
-  // Friend request count
-  const loadFriendRequestCount = useCallback(async () => {
-    try {
-      const data = await fetchJSON("/api/friends/requests");
-      setFriendRequestCount(data.length);
-    } catch {
-      setFriendRequestCount(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) loadFriendRequestCount();
-  }, [user, loadFriendRequestCount]);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleFriendRequest = () => {
-      setFriendRequestCount((prev) => prev + 1);
-    };
-    const handleFriendAccepted = () => {
-      loadFriendRequestCount();
-    };
-    socket.on("FRIEND_REQUEST", handleFriendRequest);
-    socket.on("FRIEND_ACCEPTED", handleFriendAccepted);
-    return () => {
-      socket.off("FRIEND_REQUEST", handleFriendRequest);
-      socket.off("FRIEND_ACCEPTED", handleFriendAccepted);
-    };
-  }, [socket, loadFriendRequestCount]);
 
   const handleBack = () => {
     dispatch({ type: "CLOSE_CHAT" });
@@ -115,6 +81,25 @@ export default function ChatPage() {
 
   const handleContactSelect = (contact) => {
     dispatch({ type: "SET_ACTIVE_CHAT", payload: contact });
+  };
+
+  const hasActiveCallScreen = Boolean(webrtc.callState);
+
+  useEffect(() => {
+    if (webrtc.callState || webrtc.incomingCall) {
+      setIsCallMinimized(false);
+    }
+  }, [webrtc.callState, webrtc.incomingCall]);
+
+  const handleOpenMessagesFromCall = () => {
+    if (!activeChat) return;
+    dispatch({ type: "SET_MOBILE_VIEW", payload: "chat" });
+    setIsCallMinimized(true);
+  };
+
+  const handleOpenUsersFromCall = () => {
+    dispatch({ type: "SET_MOBILE_VIEW", payload: "users" });
+    setIsCallMinimized(true);
   };
 
   const handleOpenSavedMessages = () => {
@@ -191,8 +176,6 @@ export default function ChatPage() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onProfile={() => setShowPortfolio(true)}
-        onFriends={() => setShowContacts(true)}
-        onCommunities={() => setShowCommunities(true)}
         onNewGroup={() => setShowNewGroup(true)}
         onNewChannel={() => setShowNewChannel(true)}
         onContacts={() => setShowContacts(true)}
@@ -200,9 +183,6 @@ export default function ChatPage() {
         onSettings={() => setShowSettings(true)}
         onSavedMessages={handleOpenSavedMessages}
         onAdminDashboard={() => navigate(`/${lang}/admin`)}
-        onAddFriend={() => setShowAddFriend(true)}
-        onFriendRequests={() => setShowFriendRequests(true)}
-        friendRequestCount={friendRequestCount}
       />
 
       {/* Modals */}
@@ -238,26 +218,57 @@ export default function ChatPage() {
           handleCall(targetUser);
         }}
       />
-      <AddFriendModal isOpen={showAddFriend} onClose={() => setShowAddFriend(false)} />
-      <FriendRequestsModal isOpen={showFriendRequests} onClose={() => { setShowFriendRequests(false); loadFriendRequestCount(); }} />
 
       {/* Call Screen */}
-      <CallScreen
-        callState={webrtc.callState}
-        callError={webrtc.callError}
-        remoteUser={webrtc.remoteUser}
-        localUser={user}
-        callStartedAt={webrtc.callStartedAt}
-        isVideo={webrtc.isVideo}
-        localStream={webrtc.localStream}
-        remoteStream={webrtc.remoteStream}
-        onHangUp={webrtc.hangUp}
-        onToggleMute={webrtc.toggleMute}
-        onToggleCamera={webrtc.toggleCamera}
-        onSwitchCallMode={webrtc.switchCallMode}
-        isMuted={webrtc.isMuted}
-        isCameraOff={webrtc.isCameraOff}
-      />
+      {hasActiveCallScreen && !isCallMinimized && (
+        <CallScreen
+          callState={webrtc.callState}
+          callError={webrtc.callError}
+          remoteUser={webrtc.remoteUser}
+          localUser={user}
+          callStartedAt={webrtc.callStartedAt}
+          isVideo={webrtc.isVideo}
+          localStream={webrtc.localStream}
+          remoteStream={webrtc.remoteStream}
+          onHangUp={webrtc.hangUp}
+          onToggleMute={webrtc.toggleMute}
+          onToggleCamera={webrtc.toggleCamera}
+          onSwitchCallMode={webrtc.switchCallMode}
+          onMinimize={() => setIsCallMinimized(true)}
+          onOpenMessages={handleOpenMessagesFromCall}
+          onOpenUsers={handleOpenUsersFromCall}
+          canOpenMessages={Boolean(activeChat)}
+          isMuted={webrtc.isMuted}
+          isCameraOff={webrtc.isCameraOff}
+        />
+      )}
+
+      {hasActiveCallScreen && isCallMinimized && (
+        <button
+          type="button"
+          onClick={() => setIsCallMinimized(false)}
+          className="fixed bottom-5 right-5 z-[100] flex items-center gap-3 rounded-full bg-gray-900/95 px-4 py-3 text-left text-white shadow-2xl ring-1 ring-white/10 backdrop-blur"
+        >
+          <div className="relative">
+            <span className="absolute -inset-1 rounded-full bg-green-500/30" />
+            <Avatar
+              src={webrtc.remoteUser?.avatar}
+              name={webrtc.remoteUser?.username || "Call"}
+              size={40}
+              className="relative"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">
+              {webrtc.remoteUser?.username || "Qo'ng'iroq"}
+            </div>
+            <div className="text-xs text-white/70">
+              {webrtc.callState === "connected" ? "Qo'ng'iroq davom etmoqda" : "Qo'ng'iroq ochiq"}
+            </div>
+          </div>
+          <i className="fas fa-up-right-and-down-left-from-center text-sm text-white/70" />
+        </button>
+      )}
 
       {/* Incoming Call */}
       <IncomingCall
