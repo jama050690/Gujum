@@ -386,43 +386,78 @@ export function useWebRTC(socket, currentUser) {
     }
   }, []);
 
+  const getSenderByKind = useCallback((pc, kind) => {
+    const directSender = pc.getSenders().find((sender) => sender.track?.kind === kind);
+    if (directSender) {
+      return directSender;
+    }
+
+    const transceiverSender = pc.getTransceivers().find((transceiver) => {
+      const senderKind = transceiver.sender?.track?.kind;
+      const receiverKind = transceiver.receiver?.track?.kind;
+      return senderKind === kind || receiverKind === kind;
+    })?.sender;
+
+    return transceiverSender || null;
+  }, []);
+
   const syncPeerConnectionTracks = useCallback(async (stream, videoEnabled) => {
     const pc = pcRef.current;
     if (!pc || !stream) return;
 
-    const senders = pc.getSenders();
     const audioTrack = stream.getAudioTracks()[0] || null;
     const videoTrack = videoEnabled ? stream.getVideoTracks()[0] || null : null;
 
-    const audioSender = senders.find((sender) => sender.track?.kind === "audio");
+    const audioSender = getSenderByKind(pc, "audio");
     if (audioSender) {
       await audioSender.replaceTrack(audioTrack);
     } else if (audioTrack) {
       pc.addTrack(audioTrack, stream);
     }
 
-    const videoSenders = senders.filter((sender) => sender.track?.kind === "video");
-    if (videoTrack) {
-      if (videoSenders.length > 0) {
-        await videoSenders[0].replaceTrack(videoTrack);
-        for (const extraSender of videoSenders.slice(1)) {
+    const videoSender = getSenderByKind(pc, "video");
+    if (videoSender) {
+      await videoSender.replaceTrack(videoTrack);
+    } else if (videoTrack) {
+      pc.addTrack(videoTrack, stream);
+    } else {
+      pc.getSenders()
+        .filter((sender) => sender.track?.kind === "video")
+        .forEach(async (sender) => {
           try {
-            pc.removeTrack(extraSender);
+            await sender.replaceTrack(null);
           } catch {
             // noop
           }
-        }
-      } else {
-        pc.addTrack(videoTrack, stream);
+        });
+    }
+
+    pc.getTransceivers().forEach((transceiver) => {
+      const kind = transceiver.sender?.track?.kind || transceiver.receiver?.track?.kind;
+      if (kind === "audio") {
+        transceiver.direction = audioTrack ? "sendrecv" : "recvonly";
       }
-    } else {
-      for (const sender of videoSenders) {
-        try {
-          pc.removeTrack(sender);
-        } catch {
-          // noop
-        }
+      if (kind === "video") {
+        transceiver.direction = videoTrack ? "sendrecv" : "recvonly";
       }
+    });
+  }, [getSenderByKind]);
+
+  const seedPeerConnectionTransceivers = useCallback((pc) => {
+    const hasAudioTransceiver = pc.getTransceivers().some((transceiver) => {
+      const kind = transceiver.sender?.track?.kind || transceiver.receiver?.track?.kind;
+      return kind === "audio";
+    });
+    const hasVideoTransceiver = pc.getTransceivers().some((transceiver) => {
+      const kind = transceiver.sender?.track?.kind || transceiver.receiver?.track?.kind;
+      return kind === "video";
+    });
+
+    if (!hasAudioTransceiver) {
+      pc.addTransceiver("audio", { direction: "sendrecv" });
+    }
+    if (!hasVideoTransceiver) {
+      pc.addTransceiver("video", { direction: "recvonly" });
     }
   }, []);
 
@@ -430,6 +465,7 @@ export function useWebRTC(socket, currentUser) {
     resetPeerConnection();
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
+    seedPeerConnectionTransceivers(pc);
 
     pc.ontrack = (event) => {
       const incomingTrack = event.track;
@@ -543,7 +579,7 @@ export function useWebRTC(socket, currentUser) {
 
     pcRef.current = pc;
     return pc;
-  }, [clearReconnectTimeout, cleanup, resetPeerConnection, socket, syncRemoteTrackState]);
+  }, [clearReconnectTimeout, cleanup, resetPeerConnection, seedPeerConnectionTransceivers, socket, syncRemoteTrackState]);
 
   const applyOfferAsAnswerer = useCallback(async ({ callId, caller, offer, nextIsVideo }) => {
     const media = await prepareNegotiationStream(nextIsVideo);
@@ -569,9 +605,8 @@ export function useWebRTC(socket, currentUser) {
       direction: "incoming",
     });
 
-    const stream = media.stream;
     const pc = createPeerConnection(caller.username, negotiatedVideoEnabled);
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    await syncPeerConnectionTracks(media.stream, negotiatedVideoEnabled);
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
     remoteDescriptionSet.current = true;
@@ -586,7 +621,7 @@ export function useWebRTC(socket, currentUser) {
       callId,
       user: buildSelfInfo(currentUser),
     });
-  }, [createPeerConnection, currentUser, flushQueuedCandidates, persistCallSession, prepareNegotiationStream, socket]);
+  }, [createPeerConnection, currentUser, flushQueuedCandidates, persistCallSession, prepareNegotiationStream, socket, syncPeerConnectionTracks]);
 
   const sendOffer = useCallback(async ({ targetUser, video = false, resume = false, callId = generateCallId() }) => {
     if (!socket || !targetUser?.username) return;
@@ -628,9 +663,8 @@ export function useWebRTC(socket, currentUser) {
         direction: resume ? (isCallerRef.current ? "outgoing" : "incoming") : "outgoing",
       });
 
-      const stream = media.stream;
       const pc = createPeerConnection(peer.username, negotiatedVideoEnabled);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      await syncPeerConnectionTracks(media.stream, negotiatedVideoEnabled);
 
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -677,7 +711,7 @@ export function useWebRTC(socket, currentUser) {
       offerInFlightRef.current = false;
       throw error;
     }
-  }, [cleanup, clearRingingTimeout, createPeerConnection, currentUser, persistCallSession, prepareNegotiationStream, socket]);
+  }, [cleanup, clearRingingTimeout, createPeerConnection, currentUser, persistCallSession, prepareNegotiationStream, socket, syncPeerConnectionTracks]);
 
   useEffect(() => {
     if (!socket || !currentUser) return undefined;
