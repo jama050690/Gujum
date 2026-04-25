@@ -174,6 +174,7 @@ class CallController extends ChangeNotifier {
   bool get hasSession => _state != null;
   bool get hasIncomingCall => _incomingCall != null;
   bool get canToggleCamera => _isVideo;
+  bool get canSwitchCallMode => _state == CallSessionState.connected;
   DateTime? get connectedAt => _connectedAt;
   String? get errorKey => _errorKey;
   int get errorVersion => _errorVersion;
@@ -384,6 +385,53 @@ class CallController extends ChangeNotifier {
     _notify();
   }
 
+  Future<void> switchCallMode(bool nextVideoEnabled) async {
+    final pc = _peerConnection;
+    final target = _targetUsername ?? _remotePeer?.username;
+    if (pc == null || target == null || _callId == null || !hasSession) {
+      return;
+    }
+    if (_state == CallSessionState.calling || _state == CallSessionState.ringing) {
+      return;
+    }
+
+    try {
+      await _ensureMediaPermissions(nextVideoEnabled);
+      final media = await _prepareCallMedia(nextVideoEnabled);
+      _localStream = media.stream;
+      _isVideo = media.videoEnabled;
+      _isCameraOff = false;
+      await _configureAudioRoute(media.videoEnabled);
+      await _syncPeerConnectionTracks(media.stream, media.videoEnabled);
+
+      final offer = await pc.createOffer(_sdpOfferConstraints(media.videoEnabled));
+      await pc.setLocalDescription(offer);
+
+      _socketService.emit('CALL_OFFER', <String, dynamic>{
+        'callId': _callId,
+        'target': target,
+        'caller': <String, dynamic>{
+          'username': _authController.user?.username,
+          'fullName': _authController.user?.displayName,
+          'avatar': _authController.user?.avatar,
+        },
+        'offer': _sessionToMap(offer),
+        'isVideo': media.videoEnabled,
+        'resume': true,
+      });
+
+      if (media.downgradedFromVideo) {
+        _publishError('call_video_fallback');
+      } else {
+        _clearError();
+      }
+      _state = CallSessionState.connecting;
+      _notify();
+    } catch (error) {
+      _publishError(_errorKeyFor(error));
+    }
+  }
+
   void clearError() {
     _clearError();
     _notify();
@@ -447,6 +495,20 @@ class CallController extends ChangeNotifier {
       return;
     }
 
+    final incomingCallId = (data['callId'] ?? '').toString().trim();
+    final isResume = data['resume'] == true;
+    final isSameActiveCall =
+        hasSession && incomingCallId.isNotEmpty && incomingCallId == _callId;
+
+    if (isResume || isSameActiveCall) {
+      unawaited(_handleOfferDuringActiveCall(
+        caller: caller,
+        data: data,
+        callId: incomingCallId,
+      ));
+      return;
+    }
+
     if (hasSession || hasIncomingCall) {
       _socketService.emit('CALL_REJECT', <String, dynamic>{
         'callId': data['callId']?.toString(),
@@ -468,6 +530,60 @@ class CallController extends ChangeNotifier {
     _clearError();
     unawaited(_startIncomingRingtone());
     _notify();
+  }
+
+  Future<void> _handleOfferDuringActiveCall({
+    required CallPeer caller,
+    required Map<String, dynamic> data,
+    required String callId,
+  }) async {
+    try {
+      if (_peerConnection == null) {
+        return;
+      }
+
+      _remotePeer = caller;
+      _targetUsername = caller.username;
+      if (callId.isNotEmpty) {
+        _callId = callId;
+      }
+
+      final requestedVideo = data['isVideo'] == true;
+      final media = await _prepareCallMedia(requestedVideo);
+      _localStream = media.stream;
+      _isVideo = media.videoEnabled;
+      _isCameraOff = false;
+      await _configureAudioRoute(media.videoEnabled);
+      await _syncPeerConnectionTracks(media.stream, media.videoEnabled);
+
+      await _applyRemoteDescription(_asMap(data['offer']));
+
+      final answer = await _peerConnection!.createAnswer(_sdpAnswerConstraints);
+      await _peerConnection!.setLocalDescription(answer);
+
+      _socketService.emit('CALL_ANSWER', <String, dynamic>{
+        'callId': _callId,
+        'target': caller.username,
+        'answer': _sessionToMap(answer),
+        'isVideo': media.videoEnabled,
+        'user': <String, dynamic>{
+          'username': _authController.user?.username,
+          'full_name': _authController.user?.displayName,
+          'avatar': _authController.user?.avatar,
+        },
+      });
+
+      if (media.downgradedFromVideo) {
+        _publishError('call_video_fallback');
+      } else {
+        _clearError();
+      }
+      _state = CallSessionState.connecting;
+      _notify();
+    } catch (error) {
+      debugPrint('Active call renegotiation failed: $error');
+      _publishError(_errorKeyFor(error));
+    }
   }
 
   Future<void> _handleCallAnswer(dynamic payload) async {
@@ -732,6 +848,60 @@ class CallController extends ChangeNotifier {
     );
     _enableLocalTracks(stream);
     return stream;
+  }
+
+  Future<void> _syncPeerConnectionTracks(
+    MediaStream stream,
+    bool videoEnabled,
+  ) async {
+    final pc = _peerConnection;
+    if (pc == null) {
+      return;
+    }
+
+    final senders = await pc.getSenders();
+    final audioTrack = stream.getAudioTracks().isNotEmpty
+        ? stream.getAudioTracks().first
+        : null;
+    final videoTrack = videoEnabled && stream.getVideoTracks().isNotEmpty
+        ? stream.getVideoTracks().first
+        : null;
+
+    RTCRtpSender? audioSender;
+    final videoSenders = <RTCRtpSender>[];
+
+    for (final sender in senders) {
+      final track = sender.track;
+      if (track == null) {
+        continue;
+      }
+      if (track.kind == 'audio') {
+        audioSender = sender;
+      } else if (track.kind == 'video') {
+        videoSenders.add(sender);
+      }
+    }
+
+    if (audioSender != null) {
+      await audioSender.replaceTrack(audioTrack);
+    } else if (audioTrack != null) {
+      await pc.addTrack(audioTrack, stream);
+    }
+
+    if (videoTrack != null) {
+      if (videoSenders.isNotEmpty) {
+        await videoSenders.first.replaceTrack(videoTrack);
+        for (final sender in videoSenders.skip(1)) {
+          await pc.removeTrack(sender);
+        }
+      } else {
+        await pc.addTrack(videoTrack, stream);
+      }
+    } else {
+      for (final sender in videoSenders) {
+        await pc.removeTrack(sender);
+      }
+    }
   }
 
   Future<_PreparedCallMedia> _prepareCallMedia(bool requestedVideo) async {

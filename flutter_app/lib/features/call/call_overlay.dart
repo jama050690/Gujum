@@ -202,6 +202,15 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
 
   Timer? _ticker;
   bool _ready = false;
+  MediaStream? _lastLocalStream;
+  MediaStream? _lastRemoteStream;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.callController.removeListener(_handleControllerUpdate);
+    widget.callController.addListener(_handleControllerUpdate);
+  }
 
   @override
   void initState() {
@@ -213,22 +222,47 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   @override
   void didUpdateWidget(covariant _ActiveCallSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_ready) {
-      _localRenderer.srcObject = widget.callController.localStream;
-      _remoteRenderer.srcObject = widget.callController.remoteStream;
+    if (!identical(oldWidget.callController, widget.callController)) {
+      oldWidget.callController.removeListener(_handleControllerUpdate);
+      widget.callController.addListener(_handleControllerUpdate);
     }
+    _syncRenderers();
     _syncTicker();
   }
 
   Future<void> _initializeRenderers() async {
     await _localRenderer.initialize();
     await _remoteRenderer.initialize();
-    _localRenderer.srcObject = widget.callController.localStream;
-    _remoteRenderer.srcObject = widget.callController.remoteStream;
+    _syncRenderers();
     if (!mounted) {
       return;
     }
     setState(() => _ready = true);
+  }
+
+  void _handleControllerUpdate() {
+    if (!_ready) {
+      return;
+    }
+    _syncRenderers();
+    _syncTicker();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _syncRenderers() {
+    final localStream = widget.callController.localStream;
+    final remoteStream = widget.callController.remoteStream;
+
+    if (!identical(_lastLocalStream, localStream)) {
+      _localRenderer.srcObject = localStream;
+      _lastLocalStream = localStream;
+    }
+    if (!identical(_lastRemoteStream, remoteStream)) {
+      _remoteRenderer.srcObject = remoteStream;
+      _lastRemoteStream = remoteStream;
+    }
   }
 
   void _syncTicker() {
@@ -245,6 +279,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   @override
   void dispose() {
     _ticker?.cancel();
+    widget.callController.removeListener(_handleControllerUpdate);
     _localRenderer.srcObject = null;
     _remoteRenderer.srcObject = null;
     _localRenderer.dispose();
@@ -260,6 +295,8 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final peer = controller.remotePeer;
     final avatarUrl = AppConfig.resolveMediaUrl(peer?.avatar, settings.baseUrl);
     final status = _statusText(controller, t);
+    final hasRemoteVideo = controller.remoteStream?.getVideoTracks().isNotEmpty == true;
+    final hasLocalVideo = controller.localStream?.getVideoTracks().isNotEmpty == true;
 
     return Material(
       color: Colors.black,
@@ -281,6 +318,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
               ),
             ),
           if (controller.isVideo &&
+              hasRemoteVideo &&
               _ready &&
               controller.remoteStream != null)
             RTCVideoView(
@@ -364,6 +402,8 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                     ],
                   ),
                   if (controller.isVideo &&
+                      hasLocalVideo &&
+                      !controller.isCameraOff &&
                       _ready &&
                       controller.localStream != null)
                     Align(
@@ -398,6 +438,20 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                           unawaited(controller.toggleMute());
                         },
                       ),
+                      if (controller.canSwitchCallMode) ...[
+                        const SizedBox(width: 20),
+                        _RoundActionButton(
+                          icon: controller.isVideo
+                              ? Icons.phone_rounded
+                              : Icons.videocam_rounded,
+                          backgroundColor: Colors.white24,
+                          onPressed: () {
+                            unawaited(
+                              controller.switchCallMode(!controller.isVideo),
+                            );
+                          },
+                        ),
+                      ],
                       if (controller.canToggleCamera) ...[
                         const SizedBox(width: 20),
                         _RoundActionButton(

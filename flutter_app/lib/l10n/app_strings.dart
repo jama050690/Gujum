@@ -197,6 +197,8 @@ class AppStrings {
       'call_permission_denied':
           'Mikrofon yoki kamera uchun ruxsat berilmadi',
       'call_failed': "Qo'ng'iroqni boshlab bo'lmadi",
+      'call_video_fallback':
+          "Kamera ishga tushmadi, audio qo'ng'iroqqa o'tildi",
       'call_connection_failed': "Ulanish muvaffaqiyatsiz tugadi",
       'call_connection_lost': 'Aloqa uzildi',
       'call_busy': 'Siz allaqachon boshqa qo\'ng\'iroqdasiz',
@@ -400,6 +402,8 @@ class AppStrings {
       'call_permission_denied':
           'Microphone or camera permission was denied',
       'call_failed': 'Could not start the call',
+      'call_video_fallback':
+          'Camera could not start, switched to audio call',
       'call_connection_failed': 'Connection failed',
       'call_connection_lost': 'Connection was lost',
       'call_busy': 'You are already in another call',
