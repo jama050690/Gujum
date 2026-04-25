@@ -2,6 +2,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { playRingtone, playCallEnd } from "@/utils/sounds";
 import { getProfileData } from "@/utils/storage";
 
+const TURN_HOST = import.meta.env.VITE_TURN_HOST || "jamshiddin.uz";
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "bootchat";
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
+
 const ICE_SERVERS = {
   sdpSemantics: "unified-plan",
   bundlePolicy: "max-bundle",
@@ -9,36 +13,21 @@ const ICE_SERVERS = {
   iceCandidatePoolSize: 4,
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
-    { urls: "stun:global.stun.twilio.com:3478" },
     {
-      urls: "turn:3.77.233.184:3478",
-      username: "bootchat",
-      credential: "Bootchat2024!",
+      urls: `turn:${TURN_HOST}:3478?transport=udp`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL,
     },
     {
-      urls: "turn:3.77.233.184:3478?transport=tcp",
-      username: "bootchat",
-      credential: "Bootchat2024!",
+      urls: `turn:${TURN_HOST}:3478?transport=tcp`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL,
     },
     {
-      urls: "turn:63.183.168.37:3478?transport=udp",
-      username: "bootchat",
-      credential: "Bootchat2024!",
-    },
-    {
-      urls: "turn:63.183.168.37:3478?transport=tcp",
-      username: "bootchat",
-      credential: "Bootchat2024!",
-    },
-    {
-      urls: "turns:63.183.168.37:5349?transport=tcp",
-      username: "bootchat",
-      credential: "Bootchat2024!",
+      urls: `turns:${TURN_HOST}:5349?transport=tcp`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL,
     },
   ],
 };

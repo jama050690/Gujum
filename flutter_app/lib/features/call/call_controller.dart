@@ -76,6 +76,15 @@ class CallController extends ChangeNotifier {
     _subscription = _socketService.packets.listen(_handlePacket);
   }
 
+  static const String _turnHost =
+      String.fromEnvironment('BOOTCHAT_TURN_HOST', defaultValue: 'jamshiddin.uz');
+  static const String _turnUsername =
+      String.fromEnvironment('BOOTCHAT_TURN_USERNAME', defaultValue: 'bootchat');
+  static const String _turnCredential = String.fromEnvironment(
+    'BOOTCHAT_TURN_CREDENTIAL',
+    defaultValue: 'Bootchat2024!',
+  );
+
   static const Map<String, dynamic> _rtcConfiguration =
       <String, dynamic>{
     'sdpSemantics': 'unified-plan',
@@ -84,36 +93,21 @@ class CallController extends ChangeNotifier {
     'rtcpMuxPolicy': 'require',
     'iceServers': <Map<String, dynamic>>[
       <String, dynamic>{'urls': 'stun:stun.l.google.com:19302'},
-      <String, dynamic>{'urls': 'stun:stun1.l.google.com:19302'},
-      <String, dynamic>{'urls': 'stun:stun2.l.google.com:19302'},
-      <String, dynamic>{'urls': 'stun:stun3.l.google.com:19302'},
-      <String, dynamic>{'urls': 'stun:stun4.l.google.com:19302'},
       <String, dynamic>{'urls': 'stun:stun.cloudflare.com:3478'},
-      <String, dynamic>{'urls': 'stun:global.stun.twilio.com:3478'},
       <String, dynamic>{
-        'urls': 'turn:3.77.233.184:3478',
-        'username': 'bootchat',
-        'credential': 'Bootchat2024!',
+        'urls': 'turn:$_turnHost:3478?transport=udp',
+        'username': _turnUsername,
+        'credential': _turnCredential,
       },
       <String, dynamic>{
-        'urls': 'turn:3.77.233.184:3478?transport=tcp',
-        'username': 'bootchat',
-        'credential': 'Bootchat2024!',
+        'urls': 'turn:$_turnHost:3478?transport=tcp',
+        'username': _turnUsername,
+        'credential': _turnCredential,
       },
       <String, dynamic>{
-        'urls': 'turn:63.183.168.37:3478?transport=udp',
-        'username': 'bootchat',
-        'credential': 'Bootchat2024!',
-      },
-      <String, dynamic>{
-        'urls': 'turn:63.183.168.37:3478?transport=tcp',
-        'username': 'bootchat',
-        'credential': 'Bootchat2024!',
-      },
-      <String, dynamic>{
-        'urls': 'turns:63.183.168.37:5349?transport=tcp',
-        'username': 'bootchat',
-        'credential': 'Bootchat2024!',
+        'urls': 'turns:$_turnHost:5349?transport=tcp',
+        'username': _turnUsername,
+        'credential': _turnCredential,
       },
     ],
   };
