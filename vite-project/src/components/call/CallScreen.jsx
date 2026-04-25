@@ -5,7 +5,7 @@ import Avatar from "@/components/common/Avatar";
 export default function CallScreen({
   callState,
   callError,
-  remoteUser, // Bu aynan qarshi taraf bo'lishi shart!
+  remoteUser,
   localUser,
   callStartedAt,
   isVideo,
@@ -28,7 +28,7 @@ export default function CallScreen({
   const [duration, setDuration] = useState(0);
   const [hasRemoteVideoTrack, setHasRemoteVideoTrack] = useState(false);
 
-  // 1. Local video (O'zingizning kichik oynangiz)
+  // 1. Local video (Sizning kamerangiz)
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -71,7 +71,6 @@ export default function CallScreen({
 
     updateVideoTrackStatus();
     
-    // Track qo'shilganda yoki holati o'zgarganda yangilash
     remoteStream.onaddtrack = updateVideoTrackStatus;
     remoteStream.onremovetrack = updateVideoTrackStatus;
     remoteStream.getVideoTracks().forEach(track => {
@@ -85,7 +84,7 @@ export default function CallScreen({
     };
   }, [remoteStream, isVideo]);
 
-  // 4. Timer
+  // 4. Qo'ng'iroq vaqti taymeri
   useEffect(() => {
     if (callState !== "connected" || !callStartedAt) {
       setDuration(0);
@@ -103,9 +102,10 @@ export default function CallScreen({
 
   return (
     <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col overflow-hidden">
+      {/* Ovoz uchun yashirin element */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
-      {/* Header Controls */}
+      {/* Yuqori qism: Xabarlar, Userlar va Yig'ish */}
       <div className="relative z-20 flex items-center justify-between px-4 pt-4">
         <div className="flex items-center gap-2">
           {canOpenMessages && (
@@ -114,7 +114,7 @@ export default function CallScreen({
             </button>
           )}
           <button onClick={onOpenUsers} className="rounded-full bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">
-            <i className="fas fa-users mr-2" /> Foydalanuvchilar
+            <i className="fas fa-users mr-2" /> Userlar
           </button>
         </div>
         <button onClick={onMinimize} className="rounded-full bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20">
@@ -122,14 +122,14 @@ export default function CallScreen({
         </button>
       </div>
 
-      {/* MAIN VIEW (Qarshi taraf) */}
+      {/* ASOSIY OYNA (Qarshi taraf) */}
       <div className="absolute inset-0 z-0">
         {showRemoteVideo ? (
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            muted // Audio alohida elementda bo'lgani uchun
+            muted 
             className="h-full w-full object-cover"
           />
         ) : (
@@ -148,7 +148,7 @@ export default function CallScreen({
         )}
       </div>
 
-      {/* PIP VIEW (Sizning kichik oynangiz) */}
+      {/* PIP (Sizning kichik oynangiz - faqat video rejimida) */}
       {isVideo && localStream && (
         <div className="absolute top-20 right-4 z-30 w-32 h-44 md:w-40 md:h-56 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black">
           <div className="absolute left-2 top-2 z-10 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">Siz</div>
@@ -162,23 +162,44 @@ export default function CallScreen({
         </div>
       )}
 
-      {/* Bottom Controls */}
+      {/* PASTDAGI BOSHQARUV TUGMALARI */}
       <div className="relative z-20 mt-auto pb-12 flex justify-center gap-6 bg-gradient-to-t from-black/60 to-transparent pt-10">
-        <button onClick={onToggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center ${isMuted ? "bg-white text-gray-900" : "bg-white/10 text-white"}`}>
+        
+        {/* Mikrofonni o'chirish/yoqish */}
+        <button 
+          onClick={onToggleMute} 
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isMuted ? "bg-white text-gray-900" : "bg-white/10 text-white hover:bg-white/20"}`}
+        >
           <i className={`fas ${isMuted ? "fa-microphone-slash" : "fa-microphone"} text-xl`} />
         </button>
 
+        {/* REJIMNI ALMASHTIRISH (Video <-> Audio) */}
+        <button 
+          onClick={() => onSwitchCallMode?.(!isVideo)} 
+          className="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-all"
+          title={isVideo ? "Audio rejimga o'tish" : "Video rejimga o'tish"}
+        >
+          <i className={`fas ${isVideo ? "fa-phone" : "fa-video"} text-xl`} />
+        </button>
+
+        {/* Kamerani yoqish/o'chirish (Faqat video rejimida) */}
         {isVideo && (
-          <button onClick={onToggleCamera} className={`w-14 h-14 rounded-full flex items-center justify-center ${isCameraOff ? "bg-white text-gray-900" : "bg-white/10 text-white"}`}>
+          <button 
+            onClick={onToggleCamera} 
+            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isCameraOff ? "bg-white text-gray-900" : "bg-white/10 text-white hover:bg-white/20"}`}
+          >
             <i className={`fas ${isCameraOff ? "fa-video-slash" : "fa-video"} text-xl`} />
           </button>
         )}
 
-        <button onClick={onHangUp} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg">
+        {/* Go'shakni qo'yish */}
+        <button 
+          onClick={onHangUp} 
+          className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90"
+        >
           <i className="fas fa-phone-slash text-2xl" />
         </button>
       </div>
     </div>
   );
 }
-
