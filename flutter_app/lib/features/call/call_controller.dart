@@ -55,6 +55,18 @@ class IncomingCallData {
   final bool isVideo;
 }
 
+class _PreparedCallMedia {
+  const _PreparedCallMedia({
+    required this.stream,
+    required this.videoEnabled,
+    this.downgradedFromVideo = false,
+  });
+
+  final MediaStream stream;
+  final bool videoEnabled;
+  final bool downgradedFromVideo;
+}
+
 class CallController extends ChangeNotifier {
   CallController({
     required SocketService socketService,
@@ -201,16 +213,18 @@ class CallController extends ChangeNotifier {
 
     try {
       await _ensureMediaPermissions(video);
-      final stream = await _prepareLocalStream(video);
+      final media = await _prepareCallMedia(video);
+      final stream = media.stream;
       _localStream = stream;
-      await _configureAudioRoute(video);
+      _isVideo = media.videoEnabled;
+      await _configureAudioRoute(media.videoEnabled);
 
       final pc = await _createPeerConnection(peer.username);
       for (final track in stream.getTracks()) {
         await pc.addTrack(track, stream);
       }
 
-      final offer = await pc.createOffer(_sdpOfferConstraints(video));
+      final offer = await pc.createOffer(_sdpOfferConstraints(media.videoEnabled));
       await pc.setLocalDescription(offer);
       debugPrint('Call offer created and set locally.');
 
@@ -223,10 +237,13 @@ class CallController extends ChangeNotifier {
           'avatar': currentUser.avatar,
         },
         'offer': _sessionToMap(offer),
-        'isVideo': video,
+        'isVideo': media.videoEnabled,
       });
 
       _state = CallSessionState.ringing;
+      if (media.downgradedFromVideo) {
+        _publishError('call_video_fallback');
+      }
       _startRingingTimeout();
       _notify();
     } catch (error) {
@@ -262,9 +279,11 @@ class CallController extends ChangeNotifier {
 
     try {
       await _ensureMediaPermissions(incoming.isVideo);
-      final stream = await _prepareLocalStream(incoming.isVideo);
+      final media = await _prepareCallMedia(incoming.isVideo);
+      final stream = media.stream;
       _localStream = stream;
-      await _configureAudioRoute(incoming.isVideo);
+      _isVideo = media.videoEnabled;
+      await _configureAudioRoute(media.videoEnabled);
 
       final pc = await _createPeerConnection(incoming.caller.username);
       for (final track in stream.getTracks()) {
@@ -281,6 +300,7 @@ class CallController extends ChangeNotifier {
         'callId': incoming.callId,
         'target': incoming.caller.username,
         'answer': _sessionToMap(answer),
+        'isVideo': media.videoEnabled,
         'user': <String, dynamic>{
           'username': _authController.user?.username,
           'full_name': _authController.user?.displayName,
@@ -714,6 +734,30 @@ class CallController extends ChangeNotifier {
     return stream;
   }
 
+  Future<_PreparedCallMedia> _prepareCallMedia(bool requestedVideo) async {
+    try {
+      final stream = await _prepareLocalStream(requestedVideo);
+      return _PreparedCallMedia(
+        stream: stream,
+        videoEnabled: requestedVideo,
+      );
+    } catch (error) {
+      if (!requestedVideo || !_shouldFallbackToAudio(error)) {
+        rethrow;
+      }
+
+      debugPrint(
+        'Video media unavailable, falling back to audio call: $error',
+      );
+      final audioOnlyStream = await _prepareLocalStream(false);
+      return _PreparedCallMedia(
+        stream: audioOnlyStream,
+        videoEnabled: false,
+        downgradedFromVideo: true,
+      );
+    }
+  }
+
   Future<void> _ensureMediaPermissions(bool video) async {
     if (kIsWeb) {
       return;
@@ -916,6 +960,16 @@ class CallController extends ChangeNotifier {
       return 'call_permission_denied';
     }
     return 'call_failed';
+  }
+
+  bool _shouldFallbackToAudio(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('notreadable') ||
+        message.contains('trackstart') ||
+        message.contains('could not start video source') ||
+        message.contains('camera') ||
+        message.contains('videodevice') ||
+        message.contains('abort');
   }
 
   void _publishError(String key) {
