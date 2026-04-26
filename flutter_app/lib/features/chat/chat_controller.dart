@@ -60,20 +60,22 @@ class ChatController extends ChangeNotifier {
   String? get connectionLabel => _connectionLabel;
   bool get isConnected => _socketService.isConnected;
 
-  // --- QO'NG'IROQ METODLARI ---
+  // --- QO'NG'IROQ VA OVOZ METODLARI (Loglarga moslandi) ---
   Future<void> startCall({bool video = false}) async {
     final currentUser = _authController.user;
     final targetUser = _activeChat;
     if (currentUser == null || targetUser == null) return;
 
     try {
+      // Gudoq (Dialing tone)
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.play(AssetSource('sounds/dialing.mp3'));
     } catch (e) {
-      debugPrint("Audio play error: $e");
+      debugPrint("Gudoq xatosi: $e");
     }
 
-    _socketService.emit('CALL_REQUEST', {
+    // Logingizda CALL_OFFER ishlatilyapti
+    _socketService.emit('CALL_OFFER', {
       'caller': currentUser.username,
       'receiver': targetUser.username,
       'isVideo': video,
@@ -84,25 +86,67 @@ class ChatController extends ChangeNotifier {
 
   Future<void> stopRingtone() async {
     await _audioPlayer.stop();
+    notifyListeners();
   }
 
-  // --- SEARCH USERS (XATONI TUZATISH) ---
+  // --- SOCKET PACKETLARINI TAYYORLASH (Server Loglariga Mos) ---
+  void _handleSocketPacket(SocketPacket packet) {
+    debugPrint("SERVERDAN KELGAN EVENT: ${packet.event}");
+
+    switch (packet.event) {
+      // 1. Qo'ng'iroq kelganda (Ringtone)
+      case 'CALL_OFFER':
+      case 'INCOMING_CALL':
+        debugPrint("Qo'ng'iroq keldi, ringtone qo'yilmoqda...");
+        _audioPlayer.setReleaseMode(ReleaseMode.loop);
+        _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+        break;
+
+      // 2. Qo'ng'iroq to'xtaganda
+      case 'CALL_ACCEPTED':
+      case 'CALL_ANSWERED':
+      case 'CALL_REJECTED':
+      case 'CALL_ENDED':
+        debugPrint("Qo'ng'iroq yakunlandi/javob berildi, ovoz o'chmoqda.");
+        stopRingtone();
+        break;
+
+      case 'NEW_MESSAGE':
+        final payload = Map<String, dynamic>.from(packet.payload as Map);
+        final message = ChatMessage.fromApi(payload);
+        _consumeIncomingMessage(message, payload);
+        _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
+        break;
+
+      case 'ONLINE_USERS_LIST':
+        final users = (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
+        _onlineUsers = users.where((e) => e['online'] == true).map((e) => e['username'].toString()).toSet();
+        _lastActiveUsers = {for (var e in users) e['username'].toString(): _parseLastActive(e['lastActive'])};
+        break;
+
+      case 'connect':
+        _connectionLabel = 'connected';
+        break;
+      case 'disconnect':
+        _connectionLabel = 'disconnected';
+        break;
+    }
+    notifyListeners();
+  }
+
+  // --- LOYIHADAGI BOSHQA METODLAR (Xatolarsiz) ---
   Future<List<SearchUser>> searchUsers(String query) async {
     if (query.trim().isEmpty) return const [];
     _searching = true;
     notifyListeners();
     try {
-      final currentUsername = _authController.user?.username;
-      final results = await _chatRepository.searchUsers(query.trim());
-      if (currentUsername == null || currentUsername.isEmpty) return results;
-      return results.where((item) => item.username != currentUsername).toList(growable: false);
+      return await _chatRepository.searchUsers(query.trim());
     } finally {
       _searching = false;
       notifyListeners();
     }
   }
 
-  // --- CHAT BOSHQARUVI ---
   void closeChat() {
     _activeChat = null;
     _messages = const [];
@@ -110,20 +154,15 @@ class ChatController extends ChangeNotifier {
   }
 
   Future<void> startChatWith(SearchUser user) async {
-    if (user.username == _authController.user?.username) return;
     await openChat(InboxItem(
       username: user.username,
       fullName: user.fullName,
       avatar: user.avatar,
       lastActive: null,
       lastMessage: '',
-      lastMessageAt: DateTime.now(), // XATONI TUZATISH: Majburiy parametr berildi
+      lastMessageAt: DateTime.now(),
       unreadCount: 0,
     ));
-  }
-
-  void markChatUnread(String username, {int count = 1}) {
-    _updateInboxPreview(peer: username, unreadIncrement: count);
   }
 
   Future<void> clearChatHistory(String username) async {
@@ -134,16 +173,11 @@ class ChatController extends ChangeNotifier {
 
   Future<void> deleteChat(String username) async {
     await _chatRepository.deleteChat(username);
-    removeChat(username);
-  }
-
-  void removeChat(String username) {
-    _inbox = _inbox.where((item) => item.username != username).toList();
+    _inbox = _inbox.where((e) => e.username != username).toList();
     if (_activeChat?.username == username) closeChat();
     notifyListeners();
   }
 
-  // --- XABARLAR VA MEDIA ---
   Future<bool> sendMessage({
     String? receiver,
     String message = '',
@@ -164,25 +198,11 @@ class ChatController extends ChangeNotifier {
       'audio': audio,
       'video': video,
       'replyTo': replyTo,
-      'avatar': currentUser.avatar,
     });
     return true;
   }
 
-  Future<ChatMessage?> updateActiveMessage({required int id, required String message}) async {
-    final updated = await _chatRepository.updateMessage(id: id, message: message);
-    _messages = _messages.map((m) => m.id == id ? updated : m).toList();
-    notifyListeners();
-    return updated;
-  }
-
-  Future<void> deleteActiveMessage(int id) async {
-    await _chatRepository.deleteMessage(id);
-    _messages = _messages.where((m) => m.id != id).toList();
-    notifyListeners();
-  }
-
-  // Media Uploads
+  // --- UPLOAD METODLARI ---
   Future<String> uploadMedia(String path) => _chatRepository.uploadMedia(path);
   Future<String> uploadPickedMedia(PlatformFile file) => _chatRepository.uploadPickedMedia(file);
   Future<String> uploadXFileMedia(XFile file) => _chatRepository.uploadXFileMedia(file);
@@ -193,17 +213,14 @@ class ChatController extends ChangeNotifier {
   Future<String> uploadPickedVideo(PlatformFile file) => _chatRepository.uploadPickedVideo(file);
   Future<String> uploadXFileVideo(XFile file) => _chatRepository.uploadXFileVideo(file);
 
-  // --- ASOSIY MANTIQ ---
-  Future<void> bootstrap() => _syncSession(force: true);
-
+  // --- INBOX VA OPENCHAT ---
   Future<void> loadInbox() async {
     final user = _authController.user;
     if (user == null) return;
     _loadingInbox = true;
     notifyListeners();
     try {
-      _inbox = (await _chatRepository.fetchInbox(user.username))
-          .where((item) => item.username != user.username).toList();
+      _inbox = await _chatRepository.fetchInbox(user.username);
     } finally {
       _loadingInbox = false;
       notifyListeners();
@@ -225,40 +242,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-void _handleSocketPacket(SocketPacket packet) {
-    // Debug uchun: Serverdan nima kelayotganini ko'rib turamiz
-    debugPrint("SERVERDAN PACKET KELDI: ${packet.event}");
-
-    switch (packet.event) {
-      // 1. Serverdagi CALL_OFFER eventini tutib olamiz
-      case 'CALL_OFFER': 
-      case 'INCOMING_CALL': // Har ehtimolga qarshi ikkalasi ham tursin
-        debugPrint("QO'NG'IROC KELDI! Ovozni yoqaman...");
-        _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
-        break;
-
-      // 2. Qo'ng'iroq javob berilganda yoki rad etilganda to'xtatish
-      case 'CALL_ANSWERED':
-      case 'CALL_ACCEPTED':
-      case 'CALL_REJECTED':
-      case 'CALL_ENDED':
-        debugPrint("Qo'ng'iroq to'xtadi. Ovozni o'chiraman.");
-        stopRingtone();
-        break;
-
-      case 'NEW_MESSAGE':
-        final payload = Map<String, dynamic>.from(packet.payload as Map);
-        final message = ChatMessage.fromApi(payload);
-        _consumeIncomingMessage(message, payload);
-        _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
-        break;
-        
-      // ... qolgan case-lar
-    }
-    notifyListeners();
-  }
-
   void _consumeIncomingMessage(ChatMessage message, Map<String, dynamic> raw) {
     final currentUser = _authController.user;
     if (currentUser == null) return;
@@ -271,7 +254,7 @@ void _handleSocketPacket(SocketPacket packet) {
 
   void _updateInboxPreview({required String peer, String? preview, DateTime? at, int unreadIncrement = 0, int? unreadCount}) {
     final current = List<InboxItem>.from(_inbox);
-    final index = current.indexWhere((item) => item.username == peer);
+    final index = current.indexWhere((e) => e.username == peer);
     if (index >= 0) {
       current[index] = current[index].copyWith(
         lastMessage: preview ?? current[index].lastMessage,
@@ -302,5 +285,11 @@ void _handleSocketPacket(SocketPacket packet) {
     _settingsController.removeListener(_handleDependencyChange);
     _socketSub.cancel();
     super.dispose();
+  }
+
+  DateTime? _parseLastActive(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
+    return DateTime.tryParse(value.toString())?.toLocal();
   }
 }
