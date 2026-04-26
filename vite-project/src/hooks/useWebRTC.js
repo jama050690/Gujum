@@ -39,7 +39,7 @@ export function useWebRTC(socket, currentUser) {
   const remoteDescSet = useRef(false);
   const callIdRef = useRef(null);
   const targetUserRef = useRef(null);
-  const localStreamRef = useRef(null); // Local streamni refda saqlash muhim
+  const localStreamRef = useRef(null);
 
   const cleanup = useCallback(() => {
     if (pcRef.current) {
@@ -86,7 +86,7 @@ export function useWebRTC(socket, currentUser) {
             setCallStartedAt(prev => prev || Date.now());
         }
         if (pc.iceConnectionState === 'failed') {
-            setCallError("Tarmoq ulanishida xatolik (ICE Failed)");
+            setCallError("Ulanish muvaffaqiyatsiz tugadi");
         }
     };
 
@@ -112,7 +112,13 @@ export function useWebRTC(socket, currentUser) {
     socket.on("CALL_ANSWER", async (data) => {
       try {
         if (!pcRef.current) return;
-        // Signaling state barqaror bo'lguncha kutish
+        
+        // --- MUHIM: Signaling state tekshiruvi ---
+        if (pcRef.current.signalingState === "stable") {
+            console.log("Ulanish allaqachon barqaror, ANSWER e'tiborsiz qoldirildi.");
+            return;
+        }
+
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         remoteDescSet.current = true;
         
@@ -182,7 +188,7 @@ export function useWebRTC(socket, currentUser) {
             }
         });
     } catch (e) {
-        setCallError("Media qurilmalariga ruxsat berilmadi");
+        setCallError("Media ruxsati rad etildi");
         console.error(e);
     }
   }, [socket, currentUser, createPeerConnection, cleanup]);
@@ -220,7 +226,7 @@ export function useWebRTC(socket, currentUser) {
         });
         setIncomingCall(null);
     } catch (e) {
-        console.error("Qabul qilishda xato:", e);
+        console.error("Qabul qilish xatosi:", e);
         socket.emit("CALL_REJECT", { target: incomingCall.caller.username });
         cleanup();
     }
@@ -242,6 +248,7 @@ export function useWebRTC(socket, currentUser) {
             }
             
             localStreamRef.current.addTrack(videoTrack);
+            // State-ni majburan yangilash
             setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
             setIsVideo(true);
             setIsCameraOff(false);
