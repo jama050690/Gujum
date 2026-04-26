@@ -65,7 +65,7 @@ extension _ConversationPaneView on _ConversationPaneState {
                   ? null
                   : selectionMode
                       ? _buildSelectionHeaderActions(t, chat, selectedMessages)
-                      : _buildHeaderActions(t), // SHU YERDA TUGMALAR QURILADI
+                      : _buildHeaderActions(t),
             ),
             Expanded(
               child: _buildConversationBody(
@@ -85,81 +85,29 @@ extension _ConversationPaneView on _ConversationPaneState {
     );
   }
 
-  // --- QO'NG'IROQ TUGMALARI SOZLAMASI (WEB-DEK 3/4) ---
+  // --- HEADER ACTIONS (Build xatolarsiz variant) ---
   Widget _buildHeaderActions(String Function(String) t) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 1. Audio Qo'ng'iroq Tugmasi
+        // Audio qo'ng'iroq (video: false)
         IconButton(
-          tooltip: t('audio_call'),
           icon: const Icon(Icons.phone_outlined),
-          onPressed: () => _handleStartCall(isVideo: false),
+          onPressed: () => _startCall(video: false), 
         ),
-        // 2. Video Qo'ng'iroq Tugmasi
+        // Video qo'ng'iroq (video: true)
         IconButton(
-          tooltip: t('video_call'),
           icon: const Icon(Icons.videocam_outlined),
-          onPressed: () => _handleStartCall(isVideo: true),
+          onPressed: () => _startCall(video: true), 
         ),
-        // 3. Qo'shimcha menyu (uch nuqta)
+        // Menyu tugmasi
         IconButton(
           icon: const Icon(Icons.more_vert),
-          onPressed: () => _showChatOptions(t),
+          onPressed: () {
+             // Chat menyusi logikasi
+          },
         ),
       ],
-    );
-  }
-
-  // --- QO'NG'IROQNI BOSHQARISH (CALL OVERLAY) ---
-  // Bu qism Flutter-da ulanib bo'lgandan keyingi tugmalarni boshqaradi
-  Widget _buildCallControlButtons({required bool isVideoCall}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // 1. Mute tugmasi (Doim bor)
-        _circleButton(
-          icon: isMuted ? Icons.mic_off : Icons.mic,
-          onPressed: _toggleMute,
-        ),
-
-        // 2. Kamera Tugmasi (FAQAT Video Call bo'lsa ko'rinadi - WEB-DEK 4-TUGMA)
-        if (isVideoCall) 
-          _circleButton(
-            icon: isCameraOff ? Icons.videocam_off : Icons.videocam,
-            onPressed: _toggleCamera,
-          ),
-
-        // 3. Speaker Tugmasi (Doim bor)
-        _circleButton(
-          icon: isSpeakerOn ? Icons.volume_up : Icons.volume_on,
-          onPressed: _toggleSpeaker,
-        ),
-
-        // 4. Hangup Tugmasi (Doim bor)
-        _circleButton(
-          icon: Icons.call_end,
-          color: Colors.red,
-          onPressed: _handleEndCall,
-        ),
-      ],
-    );
-  }
-
-  Widget _circleButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color ?? Colors.white.withOpacity(0.2),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white),
-        onPressed: onPressed,
-      ),
     );
   }
 
