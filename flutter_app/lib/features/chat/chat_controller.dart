@@ -225,23 +225,36 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  void _handleSocketPacket(SocketPacket packet) {
+void _handleSocketPacket(SocketPacket packet) {
+    // Debug uchun: Serverdan nima kelayotganini ko'rib turamiz
+    debugPrint("SERVERDAN PACKET KELDI: ${packet.event}");
+
     switch (packet.event) {
+      // 1. Serverdagi CALL_OFFER eventini tutib olamiz
+      case 'CALL_OFFER': 
+      case 'INCOMING_CALL': // Har ehtimolga qarshi ikkalasi ham tursin
+        debugPrint("QO'NG'IROC KELDI! Ovozni yoqaman...");
+        _audioPlayer.setReleaseMode(ReleaseMode.loop);
+        _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+        break;
+
+      // 2. Qo'ng'iroq javob berilganda yoki rad etilganda to'xtatish
+      case 'CALL_ANSWERED':
+      case 'CALL_ACCEPTED':
+      case 'CALL_REJECTED':
+      case 'CALL_ENDED':
+        debugPrint("Qo'ng'iroq to'xtadi. Ovozni o'chiraman.");
+        stopRingtone();
+        break;
+
       case 'NEW_MESSAGE':
         final payload = Map<String, dynamic>.from(packet.payload as Map);
         final message = ChatMessage.fromApi(payload);
         _consumeIncomingMessage(message, payload);
         _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
         break;
-      case 'INCOMING_CALL':
-        _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
-        break;
-      case 'CALL_ACCEPTED':
-      case 'CALL_REJECTED':
-      case 'CALL_ENDED':
-        stopRingtone();
-        break;
+        
+      // ... qolgan case-lar
     }
     notifyListeners();
   }
