@@ -113,31 +113,59 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
           RTCVideoView(_remote, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
         else
           Center(child: Text(peer?.displayName ?? '', style: const TextStyle(color: Colors.white, fontSize: 24))),
+        
         if (ctrl.isVideo && !ctrl.isCameraOff && _ready)
           Positioned(top: 50, right: 20, width: 120, height: 180, child: RTCVideoView(_local, mirror: true, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
         
-        Positioned(bottom: 40, left: 0, right: 0, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _RoundActionButton(icon: ctrl.isMuted ? Icons.mic_off : Icons.mic, backgroundColor: Colors.white12, onPressed: () => ctrl.toggleMute()),
-          const SizedBox(width: 16),
-          
-          _RoundActionButton(
-            icon: Icons.phone_enabled, 
-            backgroundColor: !ctrl.isVideo ? Colors.white : Colors.white12, 
-            iconColor: !ctrl.isVideo ? Colors.black : Colors.white, 
-            onPressed: () => ctrl.switchCallMode(false)
-          ),
-          const SizedBox(width: 16),
-          
-          _RoundActionButton(
-            icon: Icons.videocam, 
-            backgroundColor: ctrl.isVideo ? Colors.white : Colors.white12, 
-            iconColor: ctrl.isVideo ? Colors.black : Colors.white, 
-            onPressed: () => ctrl.switchCallMode(true)
-          ),
-          const SizedBox(width: 16),
-          
-          _RoundActionButton(icon: Icons.call_end, backgroundColor: Colors.red, onPressed: () => ctrl.hangUp()),
-        ])),
+        Positioned(bottom: 40, left: 0, right: 0, 
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center, 
+            children: [
+              // 1. MIKROFON (Har doim bor)
+              _RoundActionButton(
+                icon: ctrl.isMuted ? Icons.mic_off : Icons.mic, 
+                backgroundColor: ctrl.isMuted ? Colors.white : Colors.white12, 
+                iconColor: ctrl.isMuted ? Colors.black : Colors.white,
+                onPressed: () => ctrl.toggleMute()
+              ),
+              const SizedBox(width: 16),
+              
+              // --- DINAMIK TUGMALAR ---
+              if (ctrl.isVideo) ...[
+                // Video rejimda: Audioga o'tish tugmasi
+                _RoundActionButton(
+                  icon: Icons.phone_enabled, 
+                  backgroundColor: Colors.white12, 
+                  onPressed: () => ctrl.switchCallMode(false)
+                ),
+                const SizedBox(width: 16),
+                // Video rejimda: Kamerani yopish tugmasi
+                _RoundActionButton(
+                  icon: ctrl.isCameraOff ? Icons.videocam_off : Icons.videocam, 
+                  backgroundColor: ctrl.isCameraOff ? Colors.white : Colors.white12, 
+                  iconColor: ctrl.isCameraOff ? Colors.black : Colors.white,
+                  onPressed: () => ctrl.toggleCamera()
+                ),
+              ] else ...[
+                // Audio rejimda: Faqat videoga o'tish tugmasi (jami 3 ta tugma bo'lishi uchun)
+                _RoundActionButton(
+                  icon: Icons.videocam, 
+                  backgroundColor: Colors.white12, 
+                  onPressed: () => ctrl.switchCallMode(true)
+                ),
+              ],
+              
+              const SizedBox(width: 16),
+              
+              // 4. YAKUNLASH (Har doim bor)
+              _RoundActionButton(
+                icon: Icons.call_end, 
+                backgroundColor: Colors.red, 
+                onPressed: () => ctrl.hangUp()
+              ),
+            ]
+          )
+        ),
       ]),
     );
   }

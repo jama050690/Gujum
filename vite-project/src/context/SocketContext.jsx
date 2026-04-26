@@ -11,7 +11,6 @@ const DEFAULT_SOCKET_PATHS = [
 
 const SocketContext = createContext(null);
 
-// Pathlarni tozalash funksiyasi (o'zgarishsiz qoldi)
 function normalizeSocketPath(path = "") {
   const trimmed = String(path || "").trim();
   if (!trimmed) return "";
@@ -36,8 +35,6 @@ function getSocketPaths() {
 export function SocketProvider({ children, username }) {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
-  
-  // Socketni refda saqlash ulanishlarni boshqarish uchun qulayroq
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -48,11 +45,10 @@ export function SocketProvider({ children, username }) {
     const socketPaths = getSocketPaths();
     
     let isDisposed = false;
-    let currentPathIndex = 0;
 
     const cleanup = (s) => {
       if (!s) return;
-      s.removeAllListeners(); // Barcha listenerlarni o'chirish
+      s.removeAllListeners();
       s.disconnect();
     };
 
@@ -60,23 +56,23 @@ export function SocketProvider({ children, username }) {
       if (isDisposed || index >= socketPaths.length) return;
 
       const path = socketPaths[index];
-      
-      // Agar avvalgi socket bo'lsa, tozalaymiz
       if (socketRef.current) cleanup(socketRef.current);
 
       const newSocket = io(socketOrigin, {
         path: path,
         withCredentials: true,
-        transports: ["websocket", "polling"], // Avval websocket, bo'lmasa polling
+        transports: ["websocket", "polling"],
         reconnection: true,
-        reconnectionAttempts: 5, // Har bir path uchun limit qo'yamiz
-        timeout: 10000,
+        reconnectionAttempts: 10, // Ko'paytirildi
+        reconnectionDelay: 2000,
+        timeout: 20000,
       });
 
       socketRef.current = newSocket;
 
       newSocket.on("connect", () => {
         if (isDisposed) return;
+        console.log("✅ Socket ulandi:", newSocket.id);
         setConnected(true);
         setSocket(newSocket);
         newSocket.emit("USER_ONLINE", username);
@@ -84,27 +80,38 @@ export function SocketProvider({ children, username }) {
 
       newSocket.on("connect_error", (err) => {
         if (isDisposed) return;
-        console.warn(`Socket ulanishda xato (Path: ${path}):`, err.message);
+        console.warn(`⚠️ Socket ulanish xatosi (Path: ${path}):`, err.message);
         
-        // Agar birinchi path xato bersa, keyingisiga o'tamiz
         if (!newSocket.connected && index < socketPaths.length - 1) {
           cleanup(newSocket);
           connect(index + 1);
         }
       });
 
+      // --- WEBRTC SIGNALING LISTENERLARINI SHU YERGA QO'SHAMIZ ---
+      // Bu logikalar Calling ulanishi uchun shart!
+      
+      newSocket.on("CALL_OFFER", (data) => {
+          console.log("📞 Kiruvchi qo'ng'iroq:", data.from);
+          // Bu yerda Event yoki State orqali CallScreen-ni ochish kerak
+      });
+
+      newSocket.on("ICE_CANDIDATE", (data) => {
+          // Tarmoq yo'llarini almashish
+          window.dispatchEvent(new CustomEvent("webRTC_ice_candidate", { detail: data }));
+      });
+
       newSocket.on("disconnect", (reason) => {
+        console.log("❌ Socket uzildi:", reason);
         setConnected(false);
-        // Agar server o'zi uzib yuborsa (io server disconnect), qayta ulanishga urinadi
-        if (reason === "io server disconnect") {
+        if (reason === "io server disconnect" || reason === "transport close") {
           newSocket.connect();
         }
       });
     };
 
-    connect(currentPathIndex);
+    connect(0);
 
-    // Notifications
     registerServiceWorker().then(() => {
       subscribeToPush(username).catch(err => console.error("Push xatosi:", err));
     });
