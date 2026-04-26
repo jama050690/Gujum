@@ -1,602 +1,159 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
-
 import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../settings/settings_controller.dart';
 import 'call_controller.dart';
 
 class CallOverlayHost extends StatefulWidget {
-  const CallOverlayHost({
-    super.key,
-    required this.child,
-  });
-
+  const CallOverlayHost({super.key, required this.child});
   final Widget child;
-
-  @override
-  State<CallOverlayHost> createState() => _CallOverlayHostState();
+  @override State<CallOverlayHost> createState() => _CallOverlayHostState();
 }
 
 class _CallOverlayHostState extends State<CallOverlayHost> {
   CallController? _controller;
   int _lastErrorVersion = 0;
 
-  @override
-  void didChangeDependencies() {
+  @override void didChangeDependencies() {
     super.didChangeDependencies();
-    final nextController = context.read<CallController?>();
-    if (!identical(_controller, nextController)) {
-      _controller?.removeListener(_handleControllerChanged);
-      _controller = nextController;
-      _controller?.addListener(_handleControllerChanged);
+    final next = context.read<CallController?>();
+    if (!identical(_controller, next)) {
+      _controller?.removeListener(_onChanged);
+      _controller = next;
+      _controller?.addListener(_onChanged);
     }
   }
 
-  @override
-  void dispose() {
-    _controller?.removeListener(_handleControllerChanged);
-    super.dispose();
+  void _onChanged() {
+    if (!mounted || _controller?.errorKey == null || _controller?.errorVersion == _lastErrorVersion) return;
+    _lastErrorVersion = _controller!.errorVersion;
+    final msg = AppStrings.text(context.read<SettingsController>().localeCode, _controller!.errorKey!);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  void _handleControllerChanged() {
-    if (!mounted) {
-      return;
-    }
+  @override void dispose() { _controller?.removeListener(_onChanged); super.dispose(); }
 
-    final controller = _controller;
-    if (controller == null ||
-        controller.errorKey == null ||
-        controller.errorVersion == _lastErrorVersion) {
-      return;
-    }
-
-    _lastErrorVersion = controller.errorVersion;
-    final settings = context.read<SettingsController>();
-    final message = AppStrings.text(settings.localeCode, controller.errorKey!);
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
     final controller = context.watch<CallController?>();
-    if (controller == null) {
-      return widget.child;
-    }
-
+    if (controller == null) return widget.child;
     return PopScope(
       canPop: !controller.hasSession && !controller.hasIncomingCall,
-      child: Stack(
-        children: [
-          widget.child,
-          if (controller.hasIncomingCall)
-            Positioned.fill(
-              child: _IncomingCallSheet(callController: controller),
-            ),
-          if (controller.hasSession)
-            Positioned.fill(
-              child: _ActiveCallSheet(callController: controller),
-            ),
-        ],
-      ),
+      child: Stack(children: [
+        widget.child,
+        if (controller.hasIncomingCall) Positioned.fill(child: _IncomingCallSheet(callController: controller)),
+        if (controller.hasSession) Positioned.fill(child: _ActiveCallSheet(callController: controller)),
+      ]),
     );
   }
 }
 
 class _IncomingCallSheet extends StatelessWidget {
-  const _IncomingCallSheet({
-    required this.callController,
-  });
-
+  const _IncomingCallSheet({required this.callController});
   final CallController callController;
-
-  @override
-  Widget build(BuildContext context) {
-    final incoming = callController.incomingCall;
+  @override Widget build(BuildContext context) {
+    final incoming = callController.incomingCall!;
     final settings = context.watch<SettingsController>();
-    String t(String key) => AppStrings.text(settings.localeCode, key);
-    if (incoming == null) {
-      return const SizedBox.shrink();
-    }
-
-    final avatarUrl =
-        AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
-
+    final avatar = AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
     return ColoredBox(
-      color: Colors.black.withAlpha(180),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            width: 340,
-            margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: settings.isDarkMode
-                  ? const Color(0xFF16202A)
-                  : const Color(0xFFF7FAFD),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(45),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CallAvatar(
-                  label: incoming.caller.displayName,
-                  imageUrl: avatarUrl,
-                  radius: 46,
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  incoming.caller.displayName,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${t('call_incoming')} - ${t(incoming.isVideo ? 'call_video' : 'call_audio')}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: settings.isDarkMode
-                            ? Colors.white70
-                            : Colors.black54,
-                      ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _RoundActionButton(
-                      icon: Icons.call_end_rounded,
-                      backgroundColor: const Color(0xFFE35555),
-                      onPressed: callController.rejectIncomingCall,
-                    ),
-                    const SizedBox(width: 24),
-                    _RoundActionButton(
-                      icon: incoming.isVideo
-                          ? Icons.videocam_rounded
-                          : Icons.call_rounded,
-                      backgroundColor: const Color(0xFF39A96B),
-                      onPressed: () {
-                        unawaited(callController.acceptIncomingCall());
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      color: Colors.black.withAlpha(200),
+      child: Center(child: Container(
+        width: 320, padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(color: settings.isDarkMode ? const Color(0xFF1C2733) : Colors.white, borderRadius: BorderRadius.circular(32)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          CircleAvatar(radius: 48, backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null),
+          const SizedBox(height: 20),
+          Text(incoming.caller.displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 32),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _RoundActionButton(icon: Icons.call_end, backgroundColor: Colors.red, onPressed: () => callController.rejectIncomingCall()),
+            _RoundActionButton(icon: incoming.isVideo ? Icons.videocam : Icons.call, backgroundColor: Colors.green, onPressed: () => unawaited(callController.acceptIncomingCall())),
+          ]),
+        ]),
+      )),
     );
   }
 }
 
 class _ActiveCallSheet extends StatefulWidget {
-  const _ActiveCallSheet({
-    required this.callController,
-  });
-
+  const _ActiveCallSheet({required this.callController});
   final CallController callController;
-
-  @override
-  State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
+  @override State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
 }
 
 class _ActiveCallSheetState extends State<_ActiveCallSheet> {
-  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-
-  Timer? _ticker;
+  final _local = RTCVideoRenderer();
+  final _remote = RTCVideoRenderer();
   bool _ready = false;
-  MediaStream? _lastLocalStream;
-  MediaStream? _lastRemoteStream;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    widget.callController.removeListener(_handleControllerUpdate);
-    widget.callController.addListener(_handleControllerUpdate);
+  @override void initState() { super.initState(); _init(); widget.callController.addListener(_update); }
+  @override void dispose() { widget.callController.removeListener(_update); _local.dispose(); _remote.dispose(); super.dispose(); }
+
+  Future<void> _init() async {
+    await _local.initialize(); await _remote.initialize();
+    if (mounted) setState(() => _ready = true); _sync();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeRenderers();
-    _syncTicker();
+  void _update() { _sync(); if (mounted) setState(() {}); }
+  void _sync() {
+    if (!_ready) return;
+    _local.srcObject = widget.callController.localStream;
+    _remote.srcObject = widget.callController.remoteStream;
   }
 
-  @override
-  void didUpdateWidget(covariant _ActiveCallSheet oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.callController, widget.callController)) {
-      oldWidget.callController.removeListener(_handleControllerUpdate);
-      widget.callController.addListener(_handleControllerUpdate);
-    }
-    _syncRenderers();
-    _syncTicker();
-  }
-
-  Future<void> _initializeRenderers() async {
-    await _localRenderer.initialize();
-    await _remoteRenderer.initialize();
-    _syncRenderers();
-    if (!mounted) {
-      return;
-    }
-    setState(() => _ready = true);
-  }
-
-  void _handleControllerUpdate() {
-    if (!_ready) {
-      return;
-    }
-    _syncRenderers();
-    _syncTicker();
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _syncRenderers() {
-    final localStream = widget.callController.localStream;
-    final remoteStream = widget.callController.remoteStream;
-
-    if (!identical(_lastLocalStream, localStream)) {
-      _localRenderer.srcObject = localStream;
-      _lastLocalStream = localStream;
-    }
-    if (!identical(_lastRemoteStream, remoteStream)) {
-      _remoteRenderer.srcObject = remoteStream;
-      _lastRemoteStream = remoteStream;
-    }
-  }
-
-  void _syncTicker() {
-    _ticker?.cancel();
-    if (widget.callController.state == CallSessionState.connected) {
-      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    widget.callController.removeListener(_handleControllerUpdate);
-    _localRenderer.srcObject = null;
-    _remoteRenderer.srcObject = null;
-    _localRenderer.dispose();
-    _remoteRenderer.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<SettingsController>();
-    String t(String key) => AppStrings.text(settings.localeCode, key);
-    final controller = widget.callController;
-    final peer = controller.remotePeer;
-    final avatarUrl = AppConfig.resolveMediaUrl(peer?.avatar, settings.baseUrl);
-    final status = _statusText(controller, t);
-    final hasRemoteVideo = controller.remoteStream?.getVideoTracks().isNotEmpty == true;
-    final hasLocalVideo = controller.localStream?.getVideoTracks().isNotEmpty == true;
-
-    return Material(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_ready && controller.remoteStream != null)
-            Positioned(
-              left: 0,
-              top: 0,
-              width: 1,
-              height: 1,
-              child: Opacity(
-                opacity: 0,
-                child: RTCVideoView(
-                  _remoteRenderer,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                ),
-              ),
-            ),
-          if (controller.isVideo &&
-              hasRemoteVideo &&
-              _ready &&
-              controller.remoteStream != null)
-            RTCVideoView(
-              _remoteRenderer,
-              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-            )
-          else
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF1E3344),
-                    Color(0xFF0B1620),
-                  ],
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _CallAvatar(
-                      label: peer?.displayName ?? '',
-                      imageUrl: avatarUrl,
-                      radius: 52,
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      peer?.displayName ?? '',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      status,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              peer?.displayName ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              status,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(color: Colors.white70),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (controller.isVideo &&
-                      hasLocalVideo &&
-                      !controller.isCameraOff &&
-                      _ready &&
-                      controller.localStream != null)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        width: 112,
-                        height: 168,
-                        margin: const EdgeInsets.only(top: 16),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: RTCVideoView(
-                          _localRenderer,
-                          mirror: true,
-                          objectFit:
-                              RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _RoundActionButton(
-                        icon: controller.isMuted
-                            ? Icons.mic_off_rounded
-                            : Icons.mic_none_rounded,
-                        backgroundColor: Colors.white24,
-                        onPressed: () {
-                          unawaited(controller.toggleMute());
-                        },
-                      ),
-                      if (controller.canSwitchCallMode) ...[
-                        const SizedBox(width: 20),
-                        _RoundActionButton(
-                          icon: controller.isVideo
-                              ? Icons.phone_rounded
-                              : Icons.videocam_rounded,
-                          backgroundColor: Colors.white24,
-                          onPressed: () {
-                            unawaited(
-                              controller.switchCallMode(!controller.isVideo),
-                            );
-                          },
-                        ),
-                      ],
-                      if (controller.canToggleCamera) ...[
-                        const SizedBox(width: 20),
-                        _RoundActionButton(
-                          icon: controller.isCameraOff
-                              ? Icons.videocam_off_rounded
-                              : Icons.videocam_rounded,
-                          backgroundColor: Colors.white24,
-                          onPressed: () {
-                            unawaited(controller.toggleCamera());
-                          },
-                        ),
-                      ],
-                      const SizedBox(width: 20),
-                      _RoundActionButton(
-                        icon: Icons.call_end_rounded,
-                        backgroundColor: const Color(0xFFE35555),
-                        onPressed: () {
-                          unawaited(controller.hangUp());
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+  @override Widget build(BuildContext context) {
+    final ctrl = widget.callController;
+    final peer = ctrl.remotePeer;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        if (ctrl.isVideo && ctrl.remoteStream != null && _ready)
+          RTCVideoView(_remote, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
+        else
+          Center(child: Text(peer?.displayName ?? '', style: const TextStyle(color: Colors.white, fontSize: 24))),
+        if (ctrl.isVideo && !ctrl.isCameraOff && _ready)
+          Positioned(top: 50, right: 20, width: 120, height: 180, child: RTCVideoView(_local, mirror: true, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
+        
+        Positioned(bottom: 40, left: 0, right: 0, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          _RoundActionButton(icon: ctrl.isMuted ? Icons.mic_off : Icons.mic, backgroundColor: Colors.white12, onPressed: () => ctrl.toggleMute()),
+          const SizedBox(width: 16),
+          
+          _RoundActionButton(
+            icon: Icons.phone_enabled, 
+            backgroundColor: !ctrl.isVideo ? Colors.white : Colors.white12, 
+            iconColor: !ctrl.isVideo ? Colors.black : Colors.white, 
+            onPressed: () => ctrl.switchCallMode(false)
           ),
-        ],
-      ),
+          const SizedBox(width: 16),
+          
+          _RoundActionButton(
+            icon: Icons.videocam, 
+            backgroundColor: ctrl.isVideo ? Colors.white : Colors.white12, 
+            iconColor: ctrl.isVideo ? Colors.black : Colors.white, 
+            onPressed: () => ctrl.switchCallMode(true)
+          ),
+          const SizedBox(width: 16),
+          
+          _RoundActionButton(icon: Icons.call_end, backgroundColor: Colors.red, onPressed: () => ctrl.hangUp()),
+        ])),
+      ]),
     );
-  }
-
-  String _statusText(
-    CallController controller,
-    String Function(String key) t,
-  ) {
-    if (controller.state == CallSessionState.connected &&
-        controller.connectedAt != null) {
-      final elapsed =
-          DateTime.now().difference(controller.connectedAt!).inSeconds;
-      return _formatDuration(elapsed);
-    }
-
-    switch (controller.state) {
-      case CallSessionState.calling:
-      case CallSessionState.ringing:
-        return t('call_ringing');
-      case CallSessionState.connecting:
-        return t('call_connecting');
-      case CallSessionState.connected:
-        return t('call_connected');
-      case null:
-        return '';
-    }
-  }
-
-  String _formatDuration(int seconds) {
-    final hours = seconds ~/ 3600;
-    final minutes = (seconds % 3600) ~/ 60;
-    final remainder = seconds % 60;
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${remainder.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${remainder.toString().padLeft(2, '0')}';
   }
 }
 
 class _RoundActionButton extends StatelessWidget {
-  const _RoundActionButton({
-    required this.icon,
-    required this.backgroundColor,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final Color backgroundColor;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Ink(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.white, size: 28),
-        ),
+  const _RoundActionButton({required this.icon, required this.backgroundColor, required this.onPressed, this.iconColor = Colors.white});
+  final IconData icon; final Color backgroundColor; final Color iconColor; final VoidCallback onPressed;
+  @override Widget build(BuildContext context) {
+    return Container(
+      width: 60, height: 60, 
+      decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+      child: IconButton(
+        icon: Icon(icon, color: iconColor, size: 28), 
+        onPressed: onPressed
       ),
     );
-  }
-}
-
-class _CallAvatar extends StatelessWidget {
-  const _CallAvatar({
-    required this.label,
-    required this.imageUrl,
-    required this.radius,
-  });
-
-  final String label;
-  final String imageUrl;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = _initials(label);
-    final hasImage = imageUrl.isNotEmpty;
-
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: const Color(0xFF4A7A9E),
-      backgroundImage: hasImage ? NetworkImage(imageUrl) : null,
-      child: hasImage
-          ? null
-          : Text(
-              initials,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: radius * 0.55,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-    );
-  }
-
-  String _initials(String value) {
-    final parts = value
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList(growable: false);
-    if (parts.isEmpty) {
-      return '?';
-    }
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-        .toUpperCase();
   }
 }

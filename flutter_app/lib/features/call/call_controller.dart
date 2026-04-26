@@ -1,54 +1,28 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../../core/network/socket_service.dart';
 import '../auth/auth_controller.dart';
 
-enum CallSessionState {
-  calling,
-  ringing,
-  connecting,
-  connected,
-}
+enum CallSessionState { calling, ringing, connecting, connected }
 
 class CallPeer {
-  const CallPeer({
-    required this.username,
-    required this.displayName,
-    this.avatar,
-  });
-
+  const CallPeer({required this.username, required this.displayName, this.avatar});
   final String username;
   final String displayName;
   final String? avatar;
 
   factory CallPeer.fromMap(Map<String, dynamic> json) {
     final username = (json['username'] ?? '').toString();
-    final displayName = (json['fullName'] ??
-            json['full_name'] ??
-            json['displayName'] ??
-            username)
-        .toString();
-    return CallPeer(
-      username: username,
-      displayName: displayName.isEmpty ? username : displayName,
-      avatar: json['avatar']?.toString(),
-    );
+    final displayName = (json['fullName'] ?? json['full_name'] ?? json['displayName'] ?? username).toString();
+    return CallPeer(username: username, displayName: displayName.isEmpty ? username : displayName, avatar: json['avatar']?.toString());
   }
 }
 
 class IncomingCallData {
-  const IncomingCallData({
-    required this.callId,
-    required this.caller,
-    required this.offer,
-    required this.isVideo,
-  });
-
+  const IncomingCallData({required this.callId, required this.caller, required this.offer, required this.isVideo});
   final String callId;
   final CallPeer caller;
   final Map<String, dynamic> offer;
@@ -56,77 +30,33 @@ class IncomingCallData {
 }
 
 class _PreparedCallMedia {
-  const _PreparedCallMedia({
-    required this.stream,
-    required this.videoEnabled,
-    this.downgradedFromVideo = false,
-  });
-
+  const _PreparedCallMedia({required this.stream, required this.videoEnabled});
   final MediaStream stream;
   final bool videoEnabled;
-  final bool downgradedFromVideo;
 }
 
 class CallController extends ChangeNotifier {
-  CallController({
-    required SocketService socketService,
-    required AuthController authController,
-  })  : _socketService = socketService,
+  CallController({required SocketService socketService, required AuthController authController})
+      : _socketService = socketService,
         _authController = authController {
     _subscription = _socketService.packets.listen(_handlePacket);
   }
 
-  static const String _turnHost =
-      String.fromEnvironment('BOOTCHAT_TURN_HOST', defaultValue: 'jamshiddin.uz');
-  static const String _turnUsername =
-      String.fromEnvironment('BOOTCHAT_TURN_USERNAME', defaultValue: 'bootchat');
-  static const String _turnCredential = String.fromEnvironment(
-    'BOOTCHAT_TURN_CREDENTIAL',
-    defaultValue: 'Bootchat2024!',
-  );
+  static const String _turnHost = 'jamshiddin.uz';
+  static const String _turnUsername = 'jama';
+  static const String _turnCredential = '12345';
 
-  static const Map<String, dynamic> _rtcConfiguration =
-      <String, dynamic>{
+  final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
-    'iceCandidatePoolSize': 4,
-    'bundlePolicy': 'max-bundle',
-    'rtcpMuxPolicy': 'require',
-    'iceServers': <Map<String, dynamic>>[
-      <String, dynamic>{'urls': 'stun:stun.l.google.com:19302'},
-      <String, dynamic>{'urls': 'stun:stun.cloudflare.com:3478'},
-      <String, dynamic>{
-        'urls': 'turn:$_turnHost:3478?transport=udp',
-        'username': _turnUsername,
-        'credential': _turnCredential,
-      },
-      <String, dynamic>{
-        'urls': 'turn:$_turnHost:3478?transport=tcp',
-        'username': _turnUsername,
-        'credential': _turnCredential,
-      },
-      <String, dynamic>{
-        'urls': 'turns:$_turnHost:5349?transport=tcp',
-        'username': _turnUsername,
-        'credential': _turnCredential,
-      },
+    'iceServers': [
+      {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'turn:$_turnHost:3478?transport=udp', 'username': _turnUsername, 'credential': _turnCredential},
+      {'urls': 'turn:$_turnHost:3478?transport=tcp', 'username': _turnUsername, 'credential': _turnCredential},
     ],
-  };
-  static const Duration _socketRecoveryGrace = Duration(seconds: 50);
-  static const Duration _peerDisconnectGrace = Duration(seconds: 12);
-  static const MethodChannel _callAudioChannel =
-      MethodChannel('bootchat/call_audio');
-  static const Map<String, dynamic> _sdpAnswerConstraints =
-      <String, dynamic>{
-    'mandatory': <String, dynamic>{
-      'OfferToReceiveAudio': true,
-      'OfferToReceiveVideo': true,
-    },
-    'optional': <dynamic>[],
   };
 
   final SocketService _socketService;
   final AuthController _authController;
-
   late final StreamSubscription<SocketPacket> _subscription;
 
   RTCPeerConnection? _peerConnection;
@@ -136,9 +66,6 @@ class CallController extends ChangeNotifier {
 
   Timer? _ringingTimeout;
   Timer? _clearErrorTimer;
-  Timer? _socketRecoveryTimer;
-  Timer? _peerDisconnectTimer;
-
   CallSessionState? _state;
   CallPeer? _remotePeer;
   IncomingCallData? _incomingCall;
@@ -148,11 +75,9 @@ class CallController extends ChangeNotifier {
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _disposed = false;
-  bool _isAwaitingSocketRecovery = false;
 
   String? _callId;
   String? _targetUsername;
-  String? _initiatorUsername;
   DateTime? _connectedAt;
   String? _errorKey;
   int _errorVersion = 0;
@@ -167,1151 +92,196 @@ class CallController extends ChangeNotifier {
   bool get isCameraOff => _isCameraOff;
   bool get hasSession => _state != null;
   bool get hasIncomingCall => _incomingCall != null;
-  bool get canToggleCamera => _isVideo;
-  bool get canSwitchCallMode => _state == CallSessionState.connected;
   DateTime? get connectedAt => _connectedAt;
   String? get errorKey => _errorKey;
   int get errorVersion => _errorVersion;
 
-  Future<void> startCall(
-    CallPeer peer, {
-    required bool video,
-  }) async {
-    debugPrint('Call start requested: ${peer.username} (video=$video)');
-    if (hasSession || hasIncomingCall) {
-      _publishError('call_busy');
-      return;
-    }
+  static const MethodChannel _callAudioChannel = MethodChannel('bootchat/call_audio');
 
-    final currentUser = _authController.user;
-    if (currentUser == null) {
-      _publishError('call_failed');
-      return;
-    }
-    if (!_socketService.isConnected) {
-      _publishError('call_not_connected');
-      return;
-    }
-
-    _clearError();
+  Future<void> startCall(CallPeer peer, {required bool video}) async {
+    if (hasSession || hasIncomingCall) return;
+    _resetInternalState();
     _remotePeer = peer;
-    _callId = _buildCallId(currentUser.username, peer.username);
+    _callId = '${_authController.user?.username}-${peer.username}-${DateTime.now().millisecondsSinceEpoch}';
     _targetUsername = peer.username;
-    _initiatorUsername = currentUser.username;
     _state = CallSessionState.calling;
-    _incomingCall = null;
     _isVideo = video;
-    _isMuted = false;
-    _isCameraOff = false;
-    _connectedAt = null;
     _notify();
-
     try {
       await _ensureMediaPermissions(video);
       final media = await _prepareCallMedia(video);
-      final stream = media.stream;
-      _localStream = stream;
+      _localStream = media.stream;
       _isVideo = media.videoEnabled;
       await _configureAudioRoute(media.videoEnabled);
-
       final pc = await _createPeerConnection(peer.username);
-      for (final track in stream.getTracks()) {
-        await pc.addTrack(track, stream);
-      }
-
-      final offer = await pc.createOffer(_sdpOfferConstraints(media.videoEnabled));
+      for (final track in _localStream!.getTracks()) { await pc.addTrack(track, _localStream!); }
+      final offer = await pc.createOffer({'mandatory': {'OfferToReceiveAudio': true, 'OfferToReceiveVideo': true}});
       await pc.setLocalDescription(offer);
-      debugPrint('Call offer created and set locally.');
-
-      _socketService.emit('CALL_OFFER', <String, dynamic>{
-        'callId': _callId,
-        'target': peer.username,
-        'caller': <String, dynamic>{
-          'username': currentUser.username,
-          'fullName': currentUser.displayName,
-          'avatar': currentUser.avatar,
-        },
-        'offer': _sessionToMap(offer),
-        'isVideo': media.videoEnabled,
+      _socketService.emit('CALL_OFFER', {
+        'callId': _callId, 'target': peer.username,
+        'caller': {'username': _authController.user?.username, 'fullName': _authController.user?.displayName, 'avatar': _authController.user?.avatar},
+        'offer': {'sdp': offer.sdp, 'type': offer.type}, 'isVideo': _isVideo,
       });
-
       _state = CallSessionState.ringing;
-      if (media.downgradedFromVideo) {
-        _publishError('call_video_fallback');
-      }
       _startRingingTimeout();
       _notify();
-    } catch (error) {
-      await _resetSession();
-      _publishError(_errorKeyFor(error));
-    }
+    } catch (e) { await hangUp(); _publishError('call_failed'); }
+  }
+
+  Future<void> switchCallMode(bool toVideo) async {
+    if (_peerConnection == null || !hasSession) return;
+    try {
+      await _ensureMediaPermissions(toVideo);
+      final media = await _prepareCallMedia(toVideo);
+      _localStream?.getTracks().forEach((t) => t.stop());
+      _localStream = media.stream;
+      _isVideo = media.videoEnabled;
+      _isCameraOff = false;
+      await _configureAudioRoute(_isVideo);
+      final senders = await _peerConnection!.getSenders();
+      final vTrack = _isVideo ? _localStream!.getVideoTracks().first : null;
+      for (var s in senders) { if (s.track?.kind == 'video') await s.replaceTrack(vTrack); }
+      _socketService.emit('SWITCH_CALL_MODE', {'callId': _callId, 'target': _targetUsername, 'isVideo': _isVideo});
+      _notify();
+    } catch (e) { _publishError('mode_switch_failed'); }
   }
 
   Future<void> acceptIncomingCall() async {
-    final incoming = _incomingCall;
-    if (incoming == null) {
-      return;
-    }
-    debugPrint('Accepting incoming call from ${incoming.caller.username}');
-    if (!_socketService.isConnected) {
-      _publishError('call_not_connected');
-      return;
-    }
-
-    _clearError();
+    if (_incomingCall == null) return;
+    final incoming = _incomingCall!;
     await _stopIncomingRingtone();
     _remotePeer = incoming.caller;
     _callId = incoming.callId;
     _targetUsername = incoming.caller.username;
-    _initiatorUsername = incoming.caller.username;
     _state = CallSessionState.connecting;
-    _incomingCall = null;
     _isVideo = incoming.isVideo;
-    _isMuted = false;
-    _isCameraOff = false;
-    _connectedAt = null;
+    _incomingCall = null;
     _notify();
-
     try {
       await _ensureMediaPermissions(incoming.isVideo);
       final media = await _prepareCallMedia(incoming.isVideo);
-      final stream = media.stream;
-      _localStream = stream;
+      _localStream = media.stream;
       _isVideo = media.videoEnabled;
       await _configureAudioRoute(media.videoEnabled);
-
       final pc = await _createPeerConnection(incoming.caller.username);
-      for (final track in stream.getTracks()) {
-        await pc.addTrack(track, stream);
-      }
-
-      await _applyRemoteDescription(incoming.offer);
-
-      final answer = await pc.createAnswer(_sdpAnswerConstraints);
+      for (final track in _localStream!.getTracks()) { await pc.addTrack(track, _localStream!); }
+      await pc.setRemoteDescription(RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']));
+      _remoteDescriptionReady = true;
+      for (var c in _pendingCandidates) { await pc.addCandidate(c); }
+      _pendingCandidates.clear();
+      final answer = await pc.createAnswer({'mandatory': {'OfferToReceiveAudio': true, 'OfferToReceiveVideo': true}});
       await pc.setLocalDescription(answer);
-      debugPrint('Call answer created and set locally.');
-
-      _socketService.emit('CALL_ANSWER', <String, dynamic>{
-        'callId': incoming.callId,
-        'target': incoming.caller.username,
-        'answer': _sessionToMap(answer),
-        'isVideo': media.videoEnabled,
-        'user': <String, dynamic>{
-          'username': _authController.user?.username,
-          'full_name': _authController.user?.displayName,
-          'avatar': _authController.user?.avatar,
-        },
+      _socketService.emit('CALL_ANSWER', {
+        'callId': _callId, 'target': _targetUsername, 'answer': {'sdp': answer.sdp, 'type': answer.type},
+        'isVideo': _isVideo, 'user': {'username': _authController.user?.username, 'full_name': _authController.user?.displayName, 'avatar': _authController.user?.avatar}
       });
-
       _notify();
-    } catch (error) {
-      _socketService.emit('CALL_REJECT', <String, dynamic>{
-        'callId': incoming.callId,
-        'target': incoming.caller.username,
-        'isVideo': incoming.isVideo,
-      });
-      await _resetSession();
-      _publishError(_errorKeyFor(error));
-    }
+    } catch (e) { rejectIncomingCall(); }
   }
 
   void rejectIncomingCall() {
-    final incoming = _incomingCall;
-    if (incoming == null) {
-      return;
-    }
-
-    _socketService.emit('CALL_REJECT', <String, dynamic>{
-      'callId': incoming.callId,
-      'target': incoming.caller.username,
-      'isVideo': incoming.isVideo,
-    });
-    unawaited(_stopIncomingRingtone());
+    if (_incomingCall != null) { _socketService.emit('CALL_REJECT', {'callId': _incomingCall!.callId, 'target': _incomingCall!.caller.username}); }
+    _stopIncomingRingtone();
     _incomingCall = null;
-    _remotePeer = null;
     _notify();
   }
 
   Future<void> hangUp() async {
-    final target = _targetUsername;
-    if (target != null && (hasSession || hasIncomingCall)) {
-      final duration = _connectedAt == null
-          ? 0
-          : DateTime.now().difference(_connectedAt!).inSeconds;
-      _socketService.emit('CALL_END', <String, dynamic>{
-        'callId': _callId,
-        'target': target,
-        'duration': duration,
-        'isVideo': _isVideo,
-        'callerUsername':
-            _initiatorUsername ?? _authController.user?.username ?? target,
-      });
-    }
+    if (_targetUsername != null) { _socketService.emit('CALL_END', {'callId': _callId, 'target': _targetUsername}); }
     await _resetSession();
   }
 
   Future<void> toggleMute() async {
-    final stream = _localStream;
-    if (stream == null) {
-      return;
-    }
-
+    if (_localStream == null) return;
     _isMuted = !_isMuted;
-    for (final track in stream.getAudioTracks()) {
-      track.enabled = !_isMuted;
-    }
+    for (var t in _localStream!.getAudioTracks()) { t.enabled = !_isMuted; }
     _notify();
   }
 
   Future<void> toggleCamera() async {
-    if (!_isVideo) {
-      return;
-    }
-    final stream = _localStream;
-    if (stream == null) {
-      return;
-    }
-
+    if (_localStream == null || !_isVideo) return;
     _isCameraOff = !_isCameraOff;
-    for (final track in stream.getVideoTracks()) {
-      track.enabled = !_isCameraOff;
-    }
+    for (var t in _localStream!.getVideoTracks()) { t.enabled = !_isCameraOff; }
     _notify();
   }
 
-  Future<void> switchCallMode(bool nextVideoEnabled) async {
-    final pc = _peerConnection;
-    final target = _targetUsername ?? _remotePeer?.username;
-    if (pc == null || target == null || _callId == null || !hasSession) {
-      return;
-    }
-    if (_state == CallSessionState.calling || _state == CallSessionState.ringing) {
-      return;
-    }
-
-    try {
-      await _ensureMediaPermissions(nextVideoEnabled);
-      final media = await _prepareCallMedia(nextVideoEnabled);
-      _localStream = media.stream;
-      _isVideo = media.videoEnabled;
-      _isCameraOff = false;
-      await _configureAudioRoute(media.videoEnabled);
-      await _syncPeerConnectionTracks(media.stream, media.videoEnabled);
-
-      final offer = await pc.createOffer(_sdpOfferConstraints(media.videoEnabled));
-      await pc.setLocalDescription(offer);
-
-      _socketService.emit('CALL_OFFER', <String, dynamic>{
-        'callId': _callId,
-        'target': target,
-        'caller': <String, dynamic>{
-          'username': _authController.user?.username,
-          'fullName': _authController.user?.displayName,
-          'avatar': _authController.user?.avatar,
-        },
-        'offer': _sessionToMap(offer),
-        'isVideo': media.videoEnabled,
-        'resume': true,
-      });
-
-      if (media.downgradedFromVideo) {
-        _publishError('call_video_fallback');
-      } else {
-        _clearError();
-      }
-      _state = CallSessionState.connecting;
-      _notify();
-    } catch (error) {
-      _publishError(_errorKeyFor(error));
-    }
-  }
-
-  void clearError() {
-    _clearError();
-    _notify();
-  }
+  // --- INTERNAL HANDLERS (Missing in your last copy) ---
 
   void _handlePacket(SocketPacket packet) {
+    final Map<String, dynamic> data = packet.payload is Map ? Map<String, dynamic>.from(packet.payload) : {};
     switch (packet.event) {
-      case 'CALL_OFFER':
-        _handleCallOffer(packet.payload);
-        break;
-      case 'CALL_ANSWER':
-        unawaited(_handleCallAnswer(packet.payload));
-        break;
-      case 'ICE_CANDIDATE':
-        unawaited(_handleIceCandidate(packet.payload));
-        break;
-      case 'CALL_REJECT':
-        if (_matchesActiveCall(_asMap(packet.payload)['callId'])) {
-          unawaited(_handleRemoteEnded('call_rejected'));
-        }
-        break;
-      case 'CALL_END':
-        if (_matchesActiveCall(_asMap(packet.payload)['callId'])) {
-          unawaited(_handleRemoteEnded());
-        }
-        break;
-      case 'CALL_BLOCKED':
-        _cancelSocketRecovery();
-        unawaited(_handleRemoteEnded('call_blocked'));
-        break;
-      case 'CALL_NOT_DELIVERED':
-        _cancelSocketRecovery();
-        unawaited(_handleCallNotDelivered());
-        break;
-      case 'CALL_SESSION_SYNC':
-        _handleCallSessionSync(packet.payload);
-        break;
-      case 'CALL_PARTICIPANT_RECONNECTING':
-        _handleParticipantReconnecting(packet.payload);
-        break;
-      case 'CALL_PARTICIPANT_REJOINED':
-        _handleParticipantRejoined(packet.payload);
-        break;
-      case 'connect':
-        _handleSocketConnected();
-        break;
-      case 'disconnect':
-      case 'connect_error':
-      case 'error':
-        if (hasSession || hasIncomingCall) {
-          _scheduleSocketRecovery();
-        }
-        break;
+      case 'CALL_OFFER': _handleCallOffer(data); break;
+      case 'CALL_ANSWER': _handleCallAnswer(data); break;
+      case 'ICE_CANDIDATE': _handleIceCandidate(data); break;
+      case 'SWITCH_CALL_MODE': if (data['callId'] == _callId) { _isVideo = data['isVideo'] == true; _notify(); } break;
+      case 'CALL_END': case 'CALL_REJECT': _handleRemoteEnded(); break;
     }
   }
 
-  void _handleCallOffer(dynamic payload) {
-    final data = _asMap(payload);
-    final caller = CallPeer.fromMap(_asMap(data['caller']));
-    if (caller.username.isEmpty) {
-      return;
-    }
-
-    final incomingCallId = (data['callId'] ?? '').toString().trim();
-    final isResume = data['resume'] == true;
-    final isSameActiveCall =
-        hasSession && incomingCallId.isNotEmpty && incomingCallId == _callId;
-
-    if (isResume || isSameActiveCall) {
-      unawaited(_handleOfferDuringActiveCall(
-        caller: caller,
-        data: data,
-        callId: incomingCallId,
-      ));
-      return;
-    }
-
-    if (hasSession || hasIncomingCall) {
-      _socketService.emit('CALL_REJECT', <String, dynamic>{
-        'callId': data['callId']?.toString(),
-        'target': caller.username,
-        'isVideo': data['isVideo'] == true,
-      });
-      return;
-    }
-
-    final callId = (data['callId'] ?? '').toString().trim();
+  void _handleCallOffer(Map<String, dynamic> data) {
+    if (hasSession) return;
     _incomingCall = IncomingCallData(
-      callId: callId.isEmpty
-          ? _buildCallId(caller.username, _authController.user?.username ?? 'call')
-          : callId,
-      caller: caller,
-      offer: _asMap(data['offer']),
-      isVideo: data['isVideo'] == true,
+      callId: data['callId'] ?? '', 
+      caller: CallPeer.fromMap(data['caller'] is Map ? Map<String, dynamic>.from(data['caller']) : {}), 
+      offer: Map<String, dynamic>.from(data['offer'] ?? {}), 
+      isVideo: data['isVideo'] == true
     );
-    _clearError();
-    unawaited(_startIncomingRingtone());
+    _startIncomingRingtone();
     _notify();
   }
 
-  Future<void> _handleOfferDuringActiveCall({
-    required CallPeer caller,
-    required Map<String, dynamic> data,
-    required String callId,
-  }) async {
-    try {
-      if (_peerConnection == null) {
-        return;
-      }
+  Future<void> _handleCallAnswer(Map<String, dynamic> data) async {
+    if (_peerConnection == null) return;
+    final answer = Map<String, dynamic>.from(data['answer'] ?? {});
+    await _peerConnection!.setRemoteDescription(RTCSessionDescription(answer['sdp'], answer['type']));
+    _remoteDescriptionReady = true;
+    for (var c in _pendingCandidates) { await _peerConnection!.addCandidate(c); }
+    _pendingCandidates.clear();
+  }
 
-      _remotePeer = caller;
-      _targetUsername = caller.username;
-      if (callId.isNotEmpty) {
-        _callId = callId;
-      }
-
-      final requestedVideo = data['isVideo'] == true;
-      final media = await _prepareCallMedia(requestedVideo);
-      _localStream = media.stream;
-      _isVideo = media.videoEnabled;
-      _isCameraOff = false;
-      await _configureAudioRoute(media.videoEnabled);
-      await _syncPeerConnectionTracks(media.stream, media.videoEnabled);
-
-      await _applyRemoteDescription(_asMap(data['offer']));
-
-      final answer = await _peerConnection!.createAnswer(_sdpAnswerConstraints);
-      await _peerConnection!.setLocalDescription(answer);
-
-      _socketService.emit('CALL_ANSWER', <String, dynamic>{
-        'callId': _callId,
-        'target': caller.username,
-        'answer': _sessionToMap(answer),
-        'isVideo': media.videoEnabled,
-        'user': <String, dynamic>{
-          'username': _authController.user?.username,
-          'full_name': _authController.user?.displayName,
-          'avatar': _authController.user?.avatar,
-        },
-      });
-
-      if (media.downgradedFromVideo) {
-        _publishError('call_video_fallback');
-      } else {
-        _clearError();
-      }
-      _state = CallSessionState.connecting;
-      _notify();
-    } catch (error) {
-      debugPrint('Active call renegotiation failed: $error');
-      _publishError(_errorKeyFor(error));
+  Future<void> _handleIceCandidate(Map<String, dynamic> data) async {
+    final cand = Map<String, dynamic>.from(data['candidate'] ?? {});
+    final c = RTCIceCandidate(cand['candidate'], cand['sdpMid'], cand['sdpMLineIndex']);
+    if (_remoteDescriptionReady) { 
+      await _peerConnection?.addCandidate(c); 
+    } else { 
+      _pendingCandidates.add(c); 
     }
   }
 
-  Future<void> _handleCallAnswer(dynamic payload) async {
-    if (_peerConnection == null) {
-      return;
-    }
-
-    final data = _asMap(payload);
-    if (!_matchesActiveCall(data['callId'])) {
-      return;
-    }
-    final answer = _asMap(data['answer']);
-    if (answer.isEmpty) {
-      return;
-    }
-
-    _clearRingingTimeout();
-    debugPrint('Received call answer.');
-    await _applyRemoteDescription(answer);
-  }
-
-  Future<void> _handleIceCandidate(dynamic payload) async {
-    final data = _asMap(payload);
-    if (!_matchesActiveCall(data['callId'])) {
-      return;
-    }
-    final candidateData = _asMap(data['candidate']);
-    final candidate = _candidateFromMap(candidateData);
-    if (candidate == null) {
-      return;
-    }
-
-    final pc = _peerConnection;
-    if (pc != null && _remoteDescriptionReady) {
-      await pc.addCandidate(candidate);
-      return;
-    }
-    _pendingCandidates.add(candidate);
-  }
-
-  Future<void> _handleCallNotDelivered() async {
-    if (!hasSession) {
-      return;
-    }
-
-    final target = _targetUsername;
-    if (target != null) {
-      _socketService.emit('CALL_END', <String, dynamic>{
-        'callId': _callId,
-        'target': target,
-        'duration': 0,
-        'isVideo': _isVideo,
-        'callerUsername':
-            _initiatorUsername ?? _authController.user?.username ?? target,
-      });
-    }
-    await _resetSession();
-    _publishError('call_not_delivered');
-  }
-
-  Future<void> _handleRemoteEnded([String? errorKey]) async {
-    _cancelSocketRecovery();
-    _cancelPeerDisconnectTimer();
-    await _resetSession();
-    if (errorKey != null) {
-      _publishError(errorKey);
-    }
-  }
-
-  void _handleSocketConnected() {
-    _cancelSocketRecovery();
-
-    final username = _authController.user?.username;
-    final activeCallId = _callId ?? _incomingCall?.callId;
-    if (username == null ||
-        username.isEmpty ||
-        (activeCallId == null && !hasSession && !hasIncomingCall)) {
-      return;
-    }
-
-    _socketService.emit('CALL_SESSION_SYNC_REQUEST', <String, dynamic>{
-      'username': username,
-      'callId': activeCallId,
-    });
-  }
-
-  void _handleCallSessionSync(dynamic payload) {
-    final data = _asMap(payload);
-    final syncedCallId = data['callId']?.toString().trim();
-    if (syncedCallId == null || syncedCallId.isEmpty) {
-      return;
-    }
-
-    final peer = CallPeer.fromMap(_asMap(data['peer']));
-    if (peer.username.isNotEmpty) {
-      _remotePeer = peer;
-      _targetUsername = peer.username;
-    }
-
-    _callId = syncedCallId;
-    _isVideo = data['isVideo'] == true;
-    final startedAt = _parseTimestamp(data['startedAt']);
-    _connectedAt ??= startedAt;
-
-    switch ((data['status'] ?? '').toString()) {
-      case 'connected':
-        _state = CallSessionState.connected;
-        break;
-      case 'ringing':
-      default:
-        _state ??= CallSessionState.connecting;
-        break;
-    }
-
-    _clearError();
-    _cancelSocketRecovery();
-    _cancelPeerDisconnectTimer();
-    _notify();
-  }
-
-  void _handleParticipantReconnecting(dynamic payload) {
-    final data = _asMap(payload);
-    if (!_matchesActiveCall(data['callId'])) {
-      return;
-    }
-    _schedulePeerDisconnectTimer();
-  }
-
-  void _handleParticipantRejoined(dynamic payload) {
-    final data = _asMap(payload);
-    if (!_matchesActiveCall(data['callId'])) {
-      return;
-    }
-    _cancelPeerDisconnectTimer();
-    _clearError();
-    _notify();
-  }
-
-  Future<RTCPeerConnection> _createPeerConnection(
-    String targetUsername,
-  ) async {
+  Future<RTCPeerConnection> _createPeerConnection(String target) async {
     final pc = await createPeerConnection(_rtcConfiguration);
-    debugPrint('PeerConnection created for $targetUsername');
-
-    pc.onTrack = (RTCTrackEvent event) async {
-      debugPrint(
-        'Remote track received: kind=${event.track.kind}, '
-        'id=${event.track.id}, streams=${event.streams.length}',
-      );
-      event.track.enabled = true;
-      final stream = _remoteStream ??
-          await createLocalMediaStream('bootchat-remote-$targetUsername');
-
-      final sameKindTracks = stream
-          .getTracks()
-          .where((track) => track.kind == event.track.kind)
-          .toList(growable: false);
-      for (final track in sameKindTracks) {
-        if (track.id != event.track.id) {
-          await stream.removeTrack(track);
-        }
-      }
-
-      final alreadyAdded =
-          stream.getTracks().any((track) => track.id == event.track.id);
-      if (!alreadyAdded) {
-        await stream.addTrack(event.track);
-      }
-
-      _enableRemoteTracks(stream);
-      _remoteStream = stream;
-      debugPrint(
-        'Remote stream updated: '
-        'audio=${stream.getAudioTracks().length}, '
-        'video=${stream.getVideoTracks().length}',
-      );
-      _markConnected();
-      _notify();
+    pc.onTrack = (event) { if (event.streams.isNotEmpty) { _remoteStream = event.streams.first; _notify(); } };
+    pc.onIceCandidate = (c) {
+      _socketService.emit('ICE_CANDIDATE', {'callId': _callId, 'target': target, 'candidate': {'candidate': c.candidate, 'sdpMid': c.sdpMid, 'sdpMLineIndex': c.sdpMLineIndex}});
     };
-
-    pc.onAddStream = (MediaStream stream) {
-      _enableRemoteTracks(stream);
-      _remoteStream = stream;
-      _markConnected();
-      _notify();
+    pc.onConnectionState = (s) {
+      if (s == RTCPeerConnectionState.RTCPeerConnectionStateConnected) { _markConnected(); }
+      else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) { hangUp(); }
     };
-
-    pc.onIceCandidate = (RTCIceCandidate candidate) {
-      if (candidate.candidate == null || candidate.candidate!.isEmpty) {
-        return;
-      }
-      _socketService.emit('ICE_CANDIDATE', <String, dynamic>{
-        'callId': _callId,
-        'target': targetUsername,
-        'candidate': _candidateToMap(candidate),
-      });
-    };
-
-    pc.onIceConnectionState = (RTCIceConnectionState state) {
-      debugPrint('ICE connection state: $state');
-      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
-          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
-        _cancelPeerDisconnectTimer();
-        _markConnected();
-        _notify();
-        return;
-      }
-
-      if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
-        _schedulePeerDisconnectTimer();
-        return;
-      }
-
-      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-        unawaited(_handleRemoteEnded('call_connection_failed'));
-      }
-    };
-
-    pc.onConnectionState = (RTCPeerConnectionState state) {
-      debugPrint('Peer connection state: $state');
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        _cancelPeerDisconnectTimer();
-        _markConnected();
-        _notify();
-        return;
-      }
-
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
-        _schedulePeerDisconnectTimer();
-        return;
-      }
-
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-        unawaited(_handleRemoteEnded('call_connection_failed'));
-      }
-    };
-
     _peerConnection = pc;
     return pc;
   }
 
-  Future<MediaStream> _prepareLocalStream(bool video) async {
-    final current = _localStream;
-    final hasAudio = current?.getAudioTracks().any((track) => track.enabled) ?? false;
-    final hasVideo = current?.getVideoTracks().any((track) => track.enabled) ?? false;
-
-    if (current != null && hasAudio && (!video || hasVideo)) {
-      _enableLocalTracks(current);
-      return current;
-    }
-
-    if (current != null) {
-      for (final track in current.getTracks()) {
-        track.stop();
-      }
-      current.dispose();
-      _localStream = null;
-    }
-
-    final stream = await navigator.mediaDevices.getUserMedia(
-      _mediaConstraints(video),
-    );
-    _enableLocalTracks(stream);
-    return stream;
-  }
-
-  Future<void> _syncPeerConnectionTracks(
-    MediaStream stream,
-    bool videoEnabled,
-  ) async {
-    final pc = _peerConnection;
-    if (pc == null) {
-      return;
-    }
-
-    final senders = await pc.getSenders();
-    final audioTrack = stream.getAudioTracks().isNotEmpty
-        ? stream.getAudioTracks().first
-        : null;
-    final videoTrack = videoEnabled && stream.getVideoTracks().isNotEmpty
-        ? stream.getVideoTracks().first
-        : null;
-
-    RTCRtpSender? audioSender;
-    final videoSenders = <RTCRtpSender>[];
-
-    for (final sender in senders) {
-      final track = sender.track;
-      if (track == null) {
-        continue;
-      }
-      if (track.kind == 'audio') {
-        audioSender = sender;
-      } else if (track.kind == 'video') {
-        videoSenders.add(sender);
-      }
-    }
-
-    if (audioSender != null) {
-      await audioSender.replaceTrack(audioTrack);
-    } else if (audioTrack != null) {
-      await pc.addTrack(audioTrack, stream);
-    }
-
-    if (videoTrack != null) {
-      if (videoSenders.isNotEmpty) {
-        await videoSenders.first.replaceTrack(videoTrack);
-        for (final sender in videoSenders.skip(1)) {
-          await pc.removeTrack(sender);
-        }
-      } else {
-        await pc.addTrack(videoTrack, stream);
-      }
-    } else {
-      for (final sender in videoSenders) {
-        await pc.removeTrack(sender);
-      }
-    }
-  }
-
-  Future<_PreparedCallMedia> _prepareCallMedia(bool requestedVideo) async {
-    try {
-      final stream = await _prepareLocalStream(requestedVideo);
-      return _PreparedCallMedia(
-        stream: stream,
-        videoEnabled: requestedVideo,
-      );
-    } catch (error) {
-      if (!requestedVideo || !_shouldFallbackToAudio(error)) {
-        rethrow;
-      }
-
-      debugPrint(
-        'Video media unavailable, falling back to audio call: $error',
-      );
-      final audioOnlyStream = await _prepareLocalStream(false);
-      return _PreparedCallMedia(
-        stream: audioOnlyStream,
-        videoEnabled: false,
-        downgradedFromVideo: true,
-      );
-    }
-  }
-
-  Future<void> _ensureMediaPermissions(bool video) async {
-    if (kIsWeb) {
-      return;
-    }
-
-    final permissions = <Permission>[
-      Permission.microphone,
-      if (video) Permission.camera,
-    ];
-
-    final results = await permissions.request();
-    final denied = results.entries.where((entry) => !entry.value.isGranted);
-    if (denied.isNotEmpty) {
-      throw PlatformException(
-        code: 'permission-denied',
-        message: 'Microphone/camera permission denied',
-      );
-    }
-  }
-
-  void _markConnected() {
-    _clearRingingTimeout();
-    unawaited(_stopIncomingRingtone());
-    _cancelSocketRecovery();
-    _cancelPeerDisconnectTimer();
-    _connectedAt ??= DateTime.now();
-    _state = CallSessionState.connected;
-  }
-
-  Future<void> _applyRemoteDescription(Map<String, dynamic> session) async {
-    final pc = _peerConnection;
-    final description = _sessionFromMap(session);
-    if (pc == null || description == null) {
-      return;
-    }
-
-    await pc.setRemoteDescription(description);
-    _remoteDescriptionReady = true;
-
-    while (_pendingCandidates.isNotEmpty) {
-      await pc.addCandidate(_pendingCandidates.removeAt(0));
-    }
-  }
-
-  void _startRingingTimeout() {
-    _clearRingingTimeout();
-    _ringingTimeout = Timer(const Duration(seconds: 30), () async {
-      final target = _targetUsername;
-      if (target != null) {
-        _socketService.emit('CALL_END', <String, dynamic>{
-          'callId': _callId,
-          'target': target,
-          'duration': 0,
-          'isVideo': _isVideo,
-          'callerUsername':
-              _initiatorUsername ?? _authController.user?.username ?? target,
-        });
-      }
-      await _resetSession();
-      _publishError('call_not_delivered');
-    });
-  }
-
   Future<void> _resetSession() async {
-    _clearRingingTimeout();
-    await _stopIncomingRingtone();
-    _cancelSocketRecovery();
-    _cancelPeerDisconnectTimer();
-    _pendingCandidates.clear();
-    _remoteDescriptionReady = false;
-    await _restoreAudioRoute();
-
-    final pc = _peerConnection;
-    _peerConnection = null;
-    await pc?.close();
-
-    final localStream = _localStream;
-    _localStream = null;
-    if (localStream != null) {
-      for (final track in localStream.getTracks()) {
-        track.stop();
-      }
-      localStream.dispose();
-    }
-
-    final remoteStream = _remoteStream;
-    _remoteStream = null;
-    remoteStream?.dispose();
-
-    _state = null;
-    _remotePeer = null;
-    _incomingCall = null;
-    _callId = null;
-    _targetUsername = null;
-    _initiatorUsername = null;
-    _connectedAt = null;
-    _isVideo = false;
-    _isMuted = false;
-    _isCameraOff = false;
-    _isAwaitingSocketRecovery = false;
-    _notify();
+    _ringingTimeout?.cancel(); await _stopIncomingRingtone(); await _peerConnection?.close();
+    _peerConnection = null; _localStream?.getTracks().forEach((t) => t.stop());
+    _localStream = null; _remoteStream = null; _state = null; _notify();
   }
 
-  Map<String, dynamic> _mediaConstraints(bool video) {
-    return <String, dynamic>{
-      'audio': <String, dynamic>{
-        'echoCancellation': true,
-        'noiseSuppression': true,
-        'autoGainControl': true,
-        'channelCount': 1,
-        'googEchoCancellation': true,
-        'googNoiseSuppression': true,
-        'googAutoGainControl': true,
-        'googHighpassFilter': true,
-      },
-      'video': video
-          ? <String, dynamic>{
-              'facingMode': 'user',
-            }
-          : false,
-    };
+  void _markConnected() { _stopIncomingRingtone(); _connectedAt = DateTime.now(); _state = CallSessionState.connected; _notify(); }
+  void _notify() { if (!_disposed) notifyListeners(); }
+  void _publishError(String k) { _errorKey = k; _errorVersion++; _notify(); _clearErrorTimer?.cancel(); _clearErrorTimer = Timer(const Duration(seconds: 3), () { _errorKey = null; _notify(); }); }
+  void _handleRemoteEnded() => _resetSession();
+  void _startRingingTimeout() { _ringingTimeout?.cancel(); _ringingTimeout = Timer(const Duration(seconds: 30), () => hangUp()); }
+  Future<void> _startIncomingRingtone() async { try { await _callAudioChannel.invokeMethod('startIncomingRingtone'); } catch (_) {} }
+  Future<void> _stopIncomingRingtone() async { try { await _callAudioChannel.invokeMethod('stopIncomingRingtone'); } catch (_) {} }
+  Future<void> _configureAudioRoute(bool v) async { try { await Helper.setSpeakerphoneOn(v); } catch (_) {} }
+  Future<void> _ensureMediaPermissions(bool v) async { await Permission.microphone.request(); if (v) await Permission.camera.request(); }
+  void _resetInternalState() { _incomingCall = null; _connectedAt = null; _pendingCandidates.clear(); _remoteDescriptionReady = false; }
+  Future<_PreparedCallMedia> _prepareCallMedia(bool v) async {
+    final s = await navigator.mediaDevices.getUserMedia({'audio': {'echoCancellation': true}, 'video': v ? {'facingMode': 'user'} : false});
+    return _PreparedCallMedia(stream: s, videoEnabled: v);
   }
-
-  Map<String, dynamic> _sdpOfferConstraints(bool video) {
-    return <String, dynamic>{
-      'mandatory': <String, dynamic>{
-        'OfferToReceiveAudio': true,
-        'OfferToReceiveVideo': video,
-      },
-      'optional': <dynamic>[],
-    };
-  }
-
-  Map<String, dynamic> _sessionToMap(RTCSessionDescription description) {
-    return <String, dynamic>{
-      'sdp': description.sdp,
-      'type': description.type,
-    };
-  }
-
-  RTCSessionDescription? _sessionFromMap(Map<String, dynamic> json) {
-    final sdp = json['sdp']?.toString();
-    final type = json['type']?.toString();
-    if (sdp == null || sdp.isEmpty || type == null || type.isEmpty) {
-      return null;
-    }
-    return RTCSessionDescription(sdp, type);
-  }
-
-  Map<String, dynamic> _candidateToMap(RTCIceCandidate candidate) {
-    return <String, dynamic>{
-      'candidate': candidate.candidate,
-      'sdpMid': candidate.sdpMid,
-      'sdpMLineIndex': candidate.sdpMLineIndex,
-    };
-  }
-
-  RTCIceCandidate? _candidateFromMap(Map<String, dynamic> json) {
-    final candidate = json['candidate']?.toString();
-    if (candidate == null || candidate.isEmpty) {
-      return null;
-    }
-    return RTCIceCandidate(
-      candidate,
-      json['sdpMid']?.toString(),
-      json['sdpMLineIndex'] is int
-          ? json['sdpMLineIndex'] as int
-          : int.tryParse('${json['sdpMLineIndex'] ?? ''}'),
-    );
-  }
-
-  Map<String, dynamic> _asMap(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      return value;
-    }
-    if (value is Map) {
-      return Map<String, dynamic>.from(value);
-    }
-    return const <String, dynamic>{};
-  }
-
-  String _buildCallId(String caller, String callee) {
-    return '$caller:$callee:${DateTime.now().microsecondsSinceEpoch}';
-  }
-
-  bool _matchesActiveCall(dynamic value) {
-    final current = _callId ?? _incomingCall?.callId;
-    final incoming = value?.toString().trim();
-    if (current == null || current.isEmpty) {
-      return incoming == null || incoming.isEmpty;
-    }
-    return incoming == null || incoming.isEmpty || incoming == current;
-  }
-
-  String _errorKeyFor(Object error) {
-    final message = error.toString().toLowerCase();
-    if (message.contains('notallowed') ||
-        message.contains('permission') ||
-        message.contains('denied')) {
-      return 'call_permission_denied';
-    }
-    return 'call_failed';
-  }
-
-  bool _shouldFallbackToAudio(Object error) {
-    final message = error.toString().toLowerCase();
-    return message.contains('notreadable') ||
-        message.contains('trackstart') ||
-        message.contains('could not start video source') ||
-        message.contains('camera') ||
-        message.contains('videodevice') ||
-        message.contains('abort');
-  }
-
-  void _publishError(String key) {
-    _clearErrorTimer?.cancel();
-    _errorKey = key;
-    _errorVersion += 1;
-    _notify();
-    _clearErrorTimer = Timer(const Duration(seconds: 4), () {
-      _clearError();
-      _notify();
-    });
-  }
-
-  void _clearError() {
-    _clearErrorTimer?.cancel();
-    _clearErrorTimer = null;
-    _errorKey = null;
-  }
-
-  void _clearRingingTimeout() {
-    _ringingTimeout?.cancel();
-    _ringingTimeout = null;
-  }
-
-  void _scheduleSocketRecovery() {
-    if (_isAwaitingSocketRecovery) {
-      return;
-    }
-    _isAwaitingSocketRecovery = true;
-    _socketRecoveryTimer?.cancel();
-    _socketRecoveryTimer = Timer(_socketRecoveryGrace, () {
-      _isAwaitingSocketRecovery = false;
-      unawaited(_handleRemoteEnded('call_connection_lost'));
-    });
-  }
-
-  void _cancelSocketRecovery() {
-    _isAwaitingSocketRecovery = false;
-    _socketRecoveryTimer?.cancel();
-    _socketRecoveryTimer = null;
-  }
-
-  void _schedulePeerDisconnectTimer() {
-    _peerDisconnectTimer?.cancel();
-    _peerDisconnectTimer = Timer(_peerDisconnectGrace, () {
-      unawaited(_handleRemoteEnded('call_connection_lost'));
-    });
-  }
-
-  void _cancelPeerDisconnectTimer() {
-    _peerDisconnectTimer?.cancel();
-    _peerDisconnectTimer = null;
-  }
-
-  DateTime? _parseTimestamp(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is int) {
-      return DateTime.fromMillisecondsSinceEpoch(value);
-    }
-
-    return DateTime.tryParse(value.toString());
-  }
-
-  void _notify() {
-    if (!_disposed) {
-      notifyListeners();
-    }
-  }
-
-  void _enableLocalTracks(MediaStream stream) {
-    for (final track in stream.getAudioTracks()) {
-      track.enabled = true;
-    }
-    for (final track in stream.getVideoTracks()) {
-      track.enabled = true;
-    }
-  }
-
-  void _enableRemoteTracks(MediaStream stream) {
-    for (final track in stream.getAudioTracks()) {
-      track.enabled = true;
-    }
-    for (final track in stream.getVideoTracks()) {
-      track.enabled = true;
-    }
-  }
-
-  Future<void> _startIncomingRingtone() async {
-    if (kIsWeb) {
-      return;
-    }
-    try {
-      await _callAudioChannel.invokeMethod<void>('startIncomingRingtone');
-    } catch (_) {
-      // Incoming call UI should still work even if the platform ringtone fails.
-    }
-  }
-
-  Future<void> _stopIncomingRingtone() async {
-    if (kIsWeb) {
-      return;
-    }
-    try {
-      await _callAudioChannel.invokeMethod<void>('stopIncomingRingtone');
-    } catch (_) {
-      // Ignore cleanup failures to avoid breaking call teardown.
-    }
-  }
-
-  Future<void> _configureAudioRoute(bool video) async {
-    if (kIsWeb) {
-      return;
-    }
-
-    try {
-      await _callAudioChannel.invokeMethod<void>(
-        'activateCallAudio',
-        <String, dynamic>{
-          'speakerOn': true,
-          'video': video,
-        },
-      );
-    } catch (_) {
-      // Fall back to flutter_webrtc helper below.
-    }
-
-    try {
-      await Helper.setSpeakerphoneOn(true);
-    } catch (_) {
-      // Keep the call alive even if the platform refuses audio route changes.
-    }
-  }
-
-  Future<void> _restoreAudioRoute() async {
-    if (kIsWeb) {
-      return;
-    }
-
-    try {
-      await _callAudioChannel.invokeMethod<void>('restoreAudioRoute');
-    } catch (_) {
-      // Fall back to flutter_webrtc helper below.
-    }
-
-    try {
-      await Helper.setSpeakerphoneOn(false);
-    } catch (_) {
-      // Ignore cleanup failures during teardown.
-    }
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _clearRingingTimeout();
-    _clearErrorTimer?.cancel();
-    _socketRecoveryTimer?.cancel();
-    _peerDisconnectTimer?.cancel();
-    _subscription.cancel();
-    unawaited(_stopIncomingRingtone());
-    unawaited(_restoreAudioRoute());
-    final pc = _peerConnection;
-    _peerConnection = null;
-    pc?.close();
-    final localStream = _localStream;
-    _localStream = null;
-    if (localStream != null) {
-      for (final track in localStream.getTracks()) {
-        track.stop();
-      }
-      localStream.dispose();
-    }
-    final remoteStream = _remoteStream;
-    _remoteStream = null;
-    remoteStream?.dispose();
-    super.dispose();
-  }
+  @override void dispose() { _disposed = true; _subscription.cancel(); _resetSession(); super.dispose(); }
 }

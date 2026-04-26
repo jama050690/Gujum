@@ -4,7 +4,6 @@ import Avatar from "@/components/common/Avatar";
 
 export default function CallScreen({
   callState,
-  callError,
   remoteUser,
   localUser,
   callStartedAt,
@@ -28,38 +27,58 @@ export default function CallScreen({
   const [duration, setDuration] = useState(0);
   const [hasRemoteVideoTrack, setHasRemoteVideoTrack] = useState(false);
 
+  // 1. Local Video ulanishi
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
+    if (localVideoRef.current && localStream && !isCameraOff) {
       localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.muted = true;
     }
-  }, [localStream]);
+  }, [localStream, isCameraOff, isVideo]);
 
+  // 2. Remote Audio ulanishi
   useEffect(() => {
-    if (!remoteAudioRef.current || !remoteStream) return;
-    if (remoteAudioRef.current.srcObject !== remoteStream) {
+    if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(e => console.warn("Audio play error:", e));
     }
-    remoteAudioRef.current.play().catch(e => console.warn("Audio play error:", e));
   }, [remoteStream]);
 
+  // 3. Remote Video ulanishi va Tracklarni kuzatish
   useEffect(() => {
     if (!remoteStream) {
       setHasRemoteVideoTrack(false);
       return;
     }
-    const updateTrack = () => {
-      const active = remoteStream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
-      setHasRemoteVideoTrack(active);
-      if (active && remoteVideoRef.current && isVideo) {
-        remoteVideoRef.current.srcObject = remoteStream;
+
+    const checkTracks = () => {
+      const videoTracks = remoteStream.getVideoTracks();
+      const hasActiveVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
+      setHasRemoteVideoTrack(hasActiveVideo);
+
+      if (hasActiveVideo && remoteVideoRef.current && isVideo) {
+        // Muhim: Agar srcObject allaqachon biriktirilgan bo'lsa, qayta biriktirmaymiz (miltillashni oldini oladi)
+        if (remoteVideoRef.current.srcObject !== remoteStream) {
+          remoteVideoRef.current.srcObject = remoteStream;
+        }
       }
     };
-    updateTrack();
-    remoteStream.onaddtrack = updateTrack;
-    remoteStream.onremovetrack = updateTrack;
+
+    checkTracks();
+    
+    // Remote tomondan track qo'shilsa yoki o'chirilsa sezish
+    remoteStream.onaddtrack = checkTracks;
+    remoteStream.onremovetrack = checkTracks;
+    
+    // Interval orqali tekshirib turish (ba'zida onaddtrack ishlamay qolishi mumkin)
+    const trackInterval = setInterval(checkTracks, 1000);
+
+    return () => {
+      remoteStream.onaddtrack = null;
+      remoteStream.onremovetrack = null;
+      clearInterval(trackInterval);
+    };
   }, [remoteStream, isVideo]);
 
+  // 4. Qo'ng'iroq davomiyligi (Taymer)
   useEffect(() => {
     if (callState !== "connected" || !callStartedAt) {
       setDuration(0);
@@ -74,75 +93,120 @@ export default function CallScreen({
   if (!callState) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col overflow-hidden text-white font-sans">
+    <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col overflow-hidden text-white font-sans select-none">
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Header */}
-      <div className="relative z-20 flex items-center justify-between px-4 pt-4">
-        <div className="flex items-center gap-2">
+      <div className="relative z-20 flex items-center justify-between px-6 pt-6">
+        <div className="flex items-center gap-3">
           {canOpenMessages && (
-            <button onClick={onOpenMessages} className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20 transition-all">
-              <i className="fas fa-comments mr-2" /> Xabarlar
+            <button onClick={onOpenMessages} className="rounded-full bg-white/10 p-3 hover:bg-white/20 transition-all active:scale-90">
+              <i className="fas fa-comments text-lg" />
             </button>
           )}
-          <button onClick={onOpenUsers} className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20 transition-all">
-            <i className="fas fa-users mr-2" /> Userlar
+          <button onClick={onOpenUsers} className="rounded-full bg-white/10 p-3 hover:bg-white/20 transition-all active:scale-90">
+            <i className="fas fa-users text-lg" />
           </button>
         </div>
-        <button onClick={onMinimize} className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20 transition-all">
-          <i className="fas fa-chevron-down mr-2" /> Yig'ish
+        
+        <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-blue-400 font-bold mb-1">
+                {callState === "connected" ? "Aloqada" : "Ulanmoqda..."}
+            </p>
+            {callState === "connected" && (
+                <p className="text-xl font-mono font-medium drop-shadow-lg">
+                    {formatCallDuration(duration)}
+                </p>
+            )}
+        </div>
+
+        <button onClick={onMinimize} className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20 transition-all flex items-center gap-2 border border-white/5 active:scale-95">
+          <i className="fas fa-compress-alt" /> <span>Yig'ish</span>
         </button>
       </div>
 
-      {/* Main View */}
-      <div className="absolute inset-0 z-0">
+      {/* Main View Area */}
+      <div className="absolute inset-0 z-0 bg-black">
         {isVideo && hasRemoteVideoTrack ? (
-          <video ref={remoteVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+          <video 
+            ref={remoteVideoRef} 
+            autoPlay 
+            playsInline 
+            className="h-full w-full object-cover transition-opacity duration-500" 
+          />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-6 bg-gradient-to-b from-gray-800 to-gray-900">
-            <Avatar src={remoteUser?.avatar} name={remoteUser?.username || "?"} size={120} />
-            <div className="text-center">
-              <h2 className="text-2xl font-bold">{remoteUser?.username || "Noma'lum"}</h2>
-              <p className="text-gray-400 mt-2">
-                {callState === "connected" ? formatCallDuration(duration) : "Ulanmoqda..."}
-              </p>
+          <div className="flex h-full w-full flex-col items-center justify-center gap-8 bg-gradient-to-b from-gray-800 to-gray-950">
+            <div className="relative">
+                <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full animate-pulse"></div>
+                <Avatar src={remoteUser?.avatar} name={remoteUser?.username || "?"} size={160} className="relative z-10 border-4 border-white/10 shadow-2xl" />
+            </div>
+            <div className="text-center z-10 px-6">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{remoteUser?.full_name || remoteUser?.username || "Noma'lum"}</h2>
+              <p className="text-gray-400 text-lg mt-2">@{remoteUser?.username}</p>
+              {callState !== "connected" && (
+                <div className="mt-6 flex items-center justify-center gap-2 text-blue-400 font-medium italic">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '400ms'}}></span>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* PiP (Small Window) */}
+      {/* Local Video Preview (PiP) */}
       {isVideo && localStream && (
-        <div className="absolute top-20 right-4 z-30 w-32 h-44 md:w-40 md:h-56 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black">
+        <div className={`absolute top-24 right-6 z-30 w-32 h-44 md:w-48 md:h-64 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-gray-900 transition-all duration-300 transform ${isCameraOff ? 'scale-90 opacity-80' : 'scale-100 opacity-100'}`}>
           {!isCameraOff ? (
-            <video ref={localVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
+            <video ref={localVideoRef} autoPlay playsInline muted className="h-full w-full object-cover -scale-x-100" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gray-800">
-              <Avatar src={localUser?.avatar} name={localUser?.username} size={50} />
+              <Avatar src={localUser?.avatar} name={localUser?.username} size={60} />
             </div>
           )}
         </div>
       )}
 
-      {/* Controls */}
-      <div className="relative z-20 mt-auto pb-12 flex justify-center gap-6 bg-gradient-to-t from-black/80 to-transparent pt-12">
-        <button onClick={onToggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isMuted ? "bg-white text-gray-900" : "bg-white/10 text-white hover:bg-white/20"}`}>
+      {/* Bottom Controls */}
+      <div className="relative z-20 mt-auto pb-12 flex justify-center items-center gap-4 md:gap-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-24 px-4">
+        
+        {/* Mikrofon */}
+        <button 
+            onClick={onToggleMute} 
+            className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${isMuted ? "bg-red-500 text-white" : "bg-white/10 text-white hover:bg-white/20 border border-white/10"}`}
+            title={isMuted ? "Ovozni yoqish" : "Ovozni o'chirish"}
+        >
           <i className={`fas ${isMuted ? "fa-microphone-slash" : "fa-microphone"} text-xl`} />
         </button>
 
-        {/* REJIMNI ALMASHTIRISH TUGMASI (DOIM KO'RINADI) */}
-        <button onClick={() => onSwitchCallMode?.(!isVideo)} className="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-all border border-white/10">
-          <i className={`fas ${isVideo ? "fa-phone" : "fa-video"} text-xl`} />
+        {/* Audio/Video rejimiga o'tish */}
+        <button 
+            onClick={() => onSwitchCallMode?.(!isVideo)} 
+            className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-all border border-white/10 shadow-lg active:scale-90"
+            title={isVideo ? "Audio rejimga o'tish" : "Video rejimga o'tish"}
+        >
+            <i className={`fas ${isVideo ? "fa-phone-alt" : "fa-video"} text-xl`} />
         </button>
 
+        {/* Kamerani yoqish/o'chirish (faqat video rejimida) */}
         {isVideo && (
-          <button onClick={onToggleCamera} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isCameraOff ? "bg-white text-gray-900" : "bg-white/10 text-white hover:bg-white/20"}`}>
-            <i className={`fas ${isCameraOff ? "fa-video-slash" : "fa-video"} text-xl`} />
-          </button>
+            <button 
+                onClick={onToggleCamera} 
+                className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${isCameraOff ? "bg-red-500 text-white" : "bg-white/10 text-white hover:bg-white/20 border border-white/10"}`}
+                title={isCameraOff ? "Kamerani yoqish" : "Kamerani o'chirish"}
+            >
+                <i className={`fas ${isCameraOff ? "fa-video-slash" : "fa-video"} text-xl`} />
+            </button>
         )}
 
-        <button onClick={onHangUp} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90">
-          <i className="fas fa-phone-slash text-2xl" />
+        {/* Yakunlash */}
+        <button 
+            onClick={onHangUp} 
+            className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-2xl transition-all active:scale-75 ring-4 ring-red-600/20"
+            title="Qo'ng'iroqni tugatish"
+        >
+          <i className="fas fa-phone-slash text-2xl md:text-3xl" />
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import { registerServiceWorker, subscribeToPush } from "@/utils/notifications";
 import { getBaseUrl } from "@/utils/api";
@@ -11,133 +11,107 @@ const DEFAULT_SOCKET_PATHS = [
 
 const SocketContext = createContext(null);
 
+// Pathlarni tozalash funksiyasi (o'zgarishsiz qoldi)
 function normalizeSocketPath(path = "") {
   const trimmed = String(path || "").trim();
   if (!trimmed) return "";
-
   if (/^https?:\/\//i.test(trimmed)) {
     try {
       return new URL(trimmed).pathname.replace(/\/+$/, "") || "/";
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   }
-
   const normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return normalized.replace(/\/+$/, "") || "/";
 }
 
 function getSocketPaths() {
   const configuredPath = normalizeSocketPath(import.meta.env.VITE_SOCKET_PATH || "");
-
   return [
     ...new Set(
-      [configuredPath, ...DEFAULT_SOCKET_PATHS.map(normalizeSocketPath)].filter(Boolean),
+      [configuredPath, ...DEFAULT_SOCKET_PATHS.map(normalizeSocketPath)].filter(Boolean)
     ),
   ];
-}
-
-function isLocalHostname(hostname = "") {
-  return hostname === "localhost" || hostname === "127.0.0.1";
-}
-
-function getSocketTransportOptions(baseUrl) {
-  const origin = getSocketOrigin(baseUrl);
-  const hostname = origin ? new URL(origin).hostname : window.location.hostname;
-  const preferWebSocketOnly = !isLocalHostname(hostname);
-
-  return {
-    transports: preferWebSocketOnly ? ["websocket"] : ["websocket", "polling"],
-    upgrade: !preferWebSocketOnly,
-  };
-}
-
-function getSocketOrigin(baseUrl) {
-  if (!baseUrl) return undefined;
-  if (!baseUrl.startsWith("http")) return undefined;
-
-  try {
-    return new URL(baseUrl).origin;
-  } catch {
-    return undefined;
-  }
 }
 
 export function SocketProvider({ children, username }) {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
+  
+  // Socketni refda saqlash ulanishlarni boshqarish uchun qulayroq
+  const socketRef = useRef(null);
 
   useEffect(() => {
     if (!username) return;
 
     const baseUrl = getBaseUrl();
-    const socketOrigin = getSocketOrigin(baseUrl);
-    const transportOptions = getSocketTransportOptions(baseUrl);
+    const socketOrigin = baseUrl ? new URL(baseUrl).origin : window.location.origin;
     const socketPaths = getSocketPaths();
-    let activeSocket = null;
-    let disposed = false;
+    
+    let isDisposed = false;
+    let currentPathIndex = 0;
 
-    const cleanupSocket = (target) => {
-      if (!target) return;
-      target.off("connect");
-      target.off("connect_error");
-      target.off("disconnect");
-      target.disconnect();
+    const cleanup = (s) => {
+      if (!s) return;
+      s.removeAllListeners(); // Barcha listenerlarni o'chirish
+      s.disconnect();
     };
 
-    const connectWithPath = (pathIndex = 0) => {
-      if (disposed || pathIndex >= socketPaths.length) {
-        setConnected(false);
-        setSocket(null);
-        return;
-      }
+    const connect = (index) => {
+      if (isDisposed || index >= socketPaths.length) return;
 
-      const currentPath = socketPaths[pathIndex];
-      let connectedOnce = false;
+      const path = socketPaths[index];
+      
+      // Agar avvalgi socket bo'lsa, tozalaymiz
+      if (socketRef.current) cleanup(socketRef.current);
 
-      const nextSocket = io(socketOrigin, {
-        path: currentPath,
+      const newSocket = io(socketOrigin, {
+        path: path,
         withCredentials: true,
-        transports: transportOptions.transports,
-        upgrade: transportOptions.upgrade,
-        rememberUpgrade: transportOptions.transports.length === 1,
+        transports: ["websocket", "polling"], // Avval websocket, bo'lmasa polling
         reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1500,
-        reconnectionDelayMax: 8000,
-        timeout: 15000,
+        reconnectionAttempts: 5, // Har bir path uchun limit qo'yamiz
+        timeout: 10000,
       });
 
-      activeSocket = nextSocket;
-      setSocket(nextSocket);
+      socketRef.current = newSocket;
 
-      nextSocket.on("connect", () => {
-        connectedOnce = true;
+      newSocket.on("connect", () => {
+        if (isDisposed) return;
         setConnected(true);
-        nextSocket.emit("USER_ONLINE", username);
+        setSocket(newSocket);
+        newSocket.emit("USER_ONLINE", username);
       });
 
-      nextSocket.on("connect_error", () => {
-        if (disposed || connectedOnce || activeSocket !== nextSocket) return;
-        cleanupSocket(nextSocket);
-        connectWithPath(pathIndex + 1);
+      newSocket.on("connect_error", (err) => {
+        if (isDisposed) return;
+        console.warn(`Socket ulanishda xato (Path: ${path}):`, err.message);
+        
+        // Agar birinchi path xato bersa, keyingisiga o'tamiz
+        if (!newSocket.connected && index < socketPaths.length - 1) {
+          cleanup(newSocket);
+          connect(index + 1);
+        }
       });
 
-      nextSocket.on("disconnect", () => {
+      newSocket.on("disconnect", (reason) => {
         setConnected(false);
+        // Agar server o'zi uzib yuborsa (io server disconnect), qayta ulanishga urinadi
+        if (reason === "io server disconnect") {
+          newSocket.connect();
+        }
       });
     };
 
-    connectWithPath();
+    connect(currentPathIndex);
 
-    // Service Worker va Push Notification ro'yxatdan o'tkazish
+    // Notifications
     registerServiceWorker().then(() => {
-      subscribeToPush(username);
+      subscribeToPush(username).catch(err => console.error("Push xatosi:", err));
     });
 
     return () => {
-      disposed = true;
-      cleanupSocket(activeSocket);
+      isDisposed = true;
+      cleanup(socketRef.current);
       setSocket(null);
       setConnected(false);
     };
