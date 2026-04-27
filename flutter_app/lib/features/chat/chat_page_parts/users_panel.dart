@@ -55,30 +55,26 @@ class _UsersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final query = searchController.text.trim().toLowerCase();
     final connectionText =
         chat.connectionLabel == null ? null : t(chat.connectionLabel!);
-    final panelBackground = settings.isDarkMode
-        ? const Color(0xFF17212B)
-        : Colors.white;
-    final activeColor = settings.isDarkMode
-        ? const Color(0xFF253444)
-        : const Color(0xFFE7F1FB);
-    final iconColor = settings.isDarkMode ? Colors.white70 : const Color(0xFF506070);
-    final bodyColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
-    final dividerColor = settings.isDarkMode
-        ? const Color(0xFF223140)
-        : const Color(0xFFE3EAF2);
-    final infoChipColor = settings.isDarkMode
-        ? const Color(0xFF203244)
-        : const Color(0xFFE7EFF8);
-    final infoTextColor = settings.isDarkMode
-        ? const Color(0xFF9EB1C2)
-        : const Color(0xFF5E7388);
-    final emptyTextColor = settings.isDarkMode
-        ? const Color(0xFF8EA3B7)
-        : const Color(0xFF667B90);
+    final panelBackground =
+        settings.isDarkMode ? const Color(0xFF17212B) : Colors.white;
+    final activeColor =
+        settings.isDarkMode ? const Color(0xFF253444) : const Color(0xFFE7F1FB);
+    final iconColor =
+        settings.isDarkMode ? Colors.white70 : const Color(0xFF506070);
+    final bodyColor =
+        settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final dividerColor =
+        settings.isDarkMode ? const Color(0xFF223140) : const Color(0xFFE3EAF2);
+    final infoChipColor =
+        settings.isDarkMode ? const Color(0xFF203244) : const Color(0xFFE7EFF8);
+    final infoTextColor =
+        settings.isDarkMode ? const Color(0xFF9EB1C2) : const Color(0xFF5E7388);
+    final emptyTextColor =
+        settings.isDarkMode ? const Color(0xFF8EA3B7) : const Color(0xFF667B90);
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final panelTheme = Theme.of(context).copyWith(
       iconTheme: IconThemeData(color: iconColor),
@@ -89,7 +85,11 @@ class _UsersPanel extends StatelessWidget {
           ),
     );
 
-    final items = [...chat.inbox]..sort((a, b) {
+    final currentUsername = currentUser?.username;
+    final items = chat.inbox
+        .where((item) => item.username != currentUsername)
+        .toList(growable: false)
+      ..sort((a, b) {
         final aPinned = pinnedChats.contains(a.username);
         final bPinned = pinnedChats.contains(b.username);
         if (aPinned != bPinned) {
@@ -118,7 +118,9 @@ class _UsersPanel extends StatelessWidget {
 
     final seenUsernames = filteredItems.map((item) => item.username).toSet();
     final extraResults = globalResults
-        .where((item) => !seenUsernames.contains(item.username))
+        .where((item) =>
+            item.username != currentUsername &&
+            !seenUsernames.contains(item.username))
         .toList(growable: false);
 
     return Theme(
@@ -185,7 +187,8 @@ class _UsersPanel extends StatelessWidget {
                             lastActive: chat.lastActiveFor(item.username),
                             isPinned: pinnedChats.contains(item.username),
                             isMuted: mutedChats.contains(item.username),
-                            isActive: chat.activeChat?.username == item.username,
+                            isActive:
+                                chat.activeChat?.username == item.username,
                             onTap: () => onOpenChat(item),
                             onLongPress: () => onShowChatActions(item),
                           ),
@@ -217,7 +220,8 @@ class _UsersPanel extends StatelessWidget {
                             lastActive: chat.lastActiveFor(item.username),
                             isPinned: pinnedChats.contains(item.username),
                             isMuted: mutedChats.contains(item.username),
-                            isActive: chat.activeChat?.username == item.username,
+                            isActive:
+                                chat.activeChat?.username == item.username,
                             onTap: () => onOpenChat(item),
                             onLongPress: () => onShowChatActions(item),
                           ),
@@ -227,8 +231,7 @@ class _UsersPanel extends StatelessWidget {
                           const Padding(
                             padding: EdgeInsets.all(16),
                             child: Center(
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           ),
                         if (!loadingGlobalSearch && extraResults.isNotEmpty)
