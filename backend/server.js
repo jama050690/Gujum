@@ -23,14 +23,15 @@ function ensureUploadsDir() {
 const httpServer = http.createServer(app);
 
 // SOCKET.IO SOZLAMASI (Nginx bilan mos kelishi uchun)
-const io = new Server(httpServer, {
-  path: "/api/bootchat/socket.io/",
-  cors: {
-    origin: true, // Har qanday saytdan ulanishga ruxsat
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  allowEIO3: true
+socket.on("ICE_CANDIDATE", (data) => {
+  // data: { target: 'urinov', candidate: {...}, callId: '...' }
+  const targetSocket = users[data.target]; // Target socketni topish
+  if (targetSocket) {
+    io.to(targetSocket).emit("ICE_CANDIDATE", {
+      candidate: data.candidate,
+      callId: data.callId
+    });
+  }
 });
 
 // Socket handlerlarni ulaymiz

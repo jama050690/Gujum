@@ -10,13 +10,12 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     {
-      urls: `turn:${TURN_HOST}:3478`,
+      urls: `turns:${TURN_HOST}:5349`, // 'turn' emas 'turns' va port 5349
       username: TURN_USERNAME,
       credential: TURN_CREDENTIAL,
     }
   ],
-  // BU QATORNI QO'SHING:
-  iceTransportPolicy: "relay" 
+  iceTransportPolicy: "relay"
 };
 
 export function useWebRTC(socket, currentUser) {
