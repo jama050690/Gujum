@@ -1,20 +1,24 @@
 import { useEffect } from "react";
-import { initAudio } from "@/utils/sounds";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LanguageProvider, SUPPORTED_LANGS, useLanguage } from "@/context/LanguageContext";
 import { SocketProvider } from "@/context/SocketContext";
 import { ChatProvider } from "@/context/ChatContext";
+import { initAudio } from "@/utils/sounds";
+
+// Sahifalar
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ChatPage from "@/pages/ChatPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 
+// Himoyalangan marshrut (Faqat login qilganlar uchun)
 function ProtectedRoute({ children }) {
   const { isAuthenticated, user } = useAuth();
   const { lang } = useLanguage();
+  
   if (!isAuthenticated) return <Navigate to={`/${lang}/login`} replace />;
 
   return (
@@ -26,22 +30,29 @@ function ProtectedRoute({ children }) {
   );
 }
 
+// Admin marshrut
 function AdminRoute({ children }) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { lang } = useLanguage();
+  
   if (!isAuthenticated) return <Navigate to={`/${lang}/login`} replace />;
   if (!isAdmin) return <Navigate to={`/${lang}`} replace />;
+  
   return children;
 }
 
+// Ochiq marshrut (Login qilganlar bu yerga kira olmaydi)
 function PublicRoute({ children }) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { lang } = useLanguage();
-  if (isAuthenticated) return <Navigate to={isAdmin ? `/${lang}/admin` : `/${lang}`} replace />;
+  
+  if (isAuthenticated) {
+    return <Navigate to={isAdmin ? `/${lang}/admin` : `/${lang}`} replace />;
+  }
   return children;
 }
 
-// URL'dagi til prefiksini LanguageContext bilan sinxronlash (/en, /uz, /ru ...)
+// Til prefiksini sinxronlash layouts
 function LanguageLayout() {
   const { lang } = useParams();
   const { changeLanguage } = useLanguage();
@@ -59,20 +70,28 @@ function LanguageLayout() {
   return <Outlet />;
 }
 
-// Eski URL'larni /:lang/ prefiksiga yo'naltirish
+// Tilga yo'naltirish yordamchisi
 function LangRedirect({ to }) {
   const { lang } = useLanguage();
   return <Navigate to={`/${lang}${to}`} replace />;
 }
 
 export default function App() {
-  // Initialize audio context on first user interaction to enable sounds
+  // --- AUDIO INITIALIZATION ---
+  // Foydalanuvchi birinchi marta ekranga tekkanda ovoz tizimi ishga tushadi
   useEffect(() => {
-    const handleInteraction = () => {
-      initAudio();
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-      window.removeEventListener("touchstart", handleInteraction);
+    const handleInteraction = async () => {
+      try {
+        await initAudio();
+        console.log("✅ AudioContext faollashtirildi");
+        
+        // Eventlarni tozalash
+        window.removeEventListener("click", handleInteraction);
+        window.removeEventListener("keydown", handleInteraction);
+        window.removeEventListener("touchstart", handleInteraction);
+      } catch (error) {
+        console.error("Audio init error:", error);
+      }
     };
 
     window.addEventListener("click", handleInteraction);
@@ -92,7 +111,7 @@ export default function App() {
         <LanguageProvider>
           <ThemeProvider>
             <Routes>
-              {/* Til prefiksli route'lar: /en, /uz, /ru/login ... */}
+              {/* Asosiy til prefiksli marshrutlar */}
               <Route path="/:lang" element={<LanguageLayout />}>
                 <Route path="login" element={<PublicRoute><LoginPage /></PublicRoute>} />
                 <Route path="signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
@@ -101,7 +120,7 @@ export default function App() {
                 <Route index element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               </Route>
 
-              {/* Eski URL'lar — avtomatik tilga yo'naltirish */}
+              {/* Prefikssiz kelgan eski URL'larni avtomatik yo'naltirish */}
               <Route path="/login" element={<LangRedirect to="/login" />} />
               <Route path="/signup" element={<LangRedirect to="/signup" />} />
               <Route path="/forgot-password" element={<LangRedirect to="/forgot-password" />} />
