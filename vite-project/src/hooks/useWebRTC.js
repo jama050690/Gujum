@@ -14,6 +14,8 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
+  // Ulanishni majburan TURN orqali tekshirish uchun (ixtiyoriy)
+  // iceTransportPolicy: "relay" 
 };
 
 export function useWebRTC(socket, currentUser) {
@@ -46,6 +48,9 @@ export function useWebRTC(socket, currentUser) {
   const cleanup = useCallback(() => {
     stopRingtone();
     if (pcRef.current) {
+        pcRef.current.onicecandidate = null;
+        pcRef.current.ontrack = null;
+        pcRef.current.oniceconnectionstatechange = null;
         pcRef.current.close();
         pcRef.current = null;
     }
@@ -62,13 +67,16 @@ export function useWebRTC(socket, currentUser) {
     setCallStartedAt(null);
     setCallError(null);
     targetUserRef.current = null;
+    callIdRef.current = null;
   }, [stopRingtone]);
 
   const createPeerConnection = useCallback((target) => {
+    if (pcRef.current) return pcRef.current;
+
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
+      if (event.candidate && socket && callIdRef.current) {
         socket.emit("ICE_CANDIDATE", {
           target,
           candidate: event.candidate,
@@ -78,6 +86,7 @@ export function useWebRTC(socket, currentUser) {
     };
 
     pc.ontrack = (event) => {
+      console.log("Remote track keldi:", event.streams[0]);
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
       }
@@ -90,8 +99,8 @@ export function useWebRTC(socket, currentUser) {
             setCallState('connected');
             setCallStartedAt(prev => prev || Date.now());
         }
-        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-            setCallError("Aloqa uzildi");
+        if (pc.iceConnectionState === 'failed') {
+            setCallError("Ulanish muvaffaqiyatsiz");
             cleanup();
         }
     };
@@ -100,13 +109,14 @@ export function useWebRTC(socket, currentUser) {
     return pc;
   }, [socket, stopRingtone, cleanup]);
 
+  // Socket tinglovchilari
   useEffect(() => {
     if (!socket) return;
 
-    // MUHIM: ICE_CANDIDATE tinglovchisi qo'shildi
-    socket.on("ICE_CANDIDATE", async (data) => {
+    // ICE Candidate qabul qilish (ENG MUHIMI)
+    const handleIceCandidate = async (data) => {
         try {
-            if (pcRef.current) {
+            if (pcRef.current && data.candidate) {
                 const candidate = new RTCIceCandidate(data.candidate);
                 if (remoteDescSet.current) {
                     await pcRef.current.addIceCandidate(candidate);
@@ -117,8 +127,26 @@ export function useWebRTC(socket, currentUser) {
         } catch (e) {
             console.error("ICE Candidate qo'shishda xato:", e);
         }
-    });
+    };
 
+    const handleCallAnswer = async (data) => {
+        stopRingtone();
+        try {
+          if (!pcRef.current) return;
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          remoteDescSet.current = true;
+          
+          // Navbatdagi ICE larni qo'shish
+          while (iceQueue.current.length > 0) {
+            const cand = iceQueue.current.shift();
+            await pcRef.current.addIceCandidate(cand);
+          }
+        } catch (e) { console.error("CALL_ANSWER xatosi:", e); }
+    };
+
+    socket.on("ICE_CANDIDATE", handleIceCandidate);
+    socket.on("CALL_ANSWER", handleCallAnswer);
+    
     socket.on("CALL_OFFER", async (data) => {
       if (callState && callState !== "incoming") {
           socket.emit("CALL_REJECT", { target: data.caller.username, reason: "busy" });
@@ -130,25 +158,8 @@ export function useWebRTC(socket, currentUser) {
       setRemoteUser(data.caller);
       setIncomingCall(data);
       setCallState("incoming");
-      
       stopRingtone();
       ringtoneRef.current = playRingtone();
-    });
-
-    socket.on("CALL_ANSWER", async (data) => {
-      stopRingtone();
-      try {
-        if (!pcRef.current) return;
-        
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-        remoteDescSet.current = true;
-        
-        // Navbatda turgan ICE nomzodlarni qo'shish
-        while (iceQueue.current.length > 0) {
-          const cand = iceQueue.current.shift();
-          await pcRef.current.addIceCandidate(cand);
-        }
-      } catch (e) { console.error("CALL_ANSWER xatosi:", e); }
     });
 
     socket.on("CALL_END", () => {
@@ -163,9 +174,9 @@ export function useWebRTC(socket, currentUser) {
     });
 
     return () => {
+      socket.off("ICE_CANDIDATE", handleIceCandidate);
+      socket.off("CALL_ANSWER", handleCallAnswer);
       socket.off("CALL_OFFER");
-      socket.off("CALL_ANSWER");
-      socket.off("ICE_CANDIDATE");
       socket.off("CALL_END");
       socket.off("CALL_REJECT");
     };
@@ -229,6 +240,7 @@ export function useWebRTC(socket, currentUser) {
         await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
         remoteDescSet.current = true;
 
+        // Navbatdagi ICE larni qo'shish
         while (iceQueue.current.length > 0) {
             const cand = iceQueue.current.shift();
             await pc.addIceCandidate(cand);
