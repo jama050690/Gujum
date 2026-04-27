@@ -60,7 +60,6 @@ class ChatController extends ChangeNotifier {
   bool get isConnected => _socketService.isConnected;
 
   // --- KOMPILYATSIYA XATOLARINI TUZATUVCHI METODLAR ---
-
   Future<void> bootstrap() => _syncSession(force: true);
 
   DateTime? lastActiveFor(String username) => _lastActiveUsers[username];
@@ -121,7 +120,6 @@ class ChatController extends ChangeNotifier {
   }
 
   // --- XABARLAR VA MEDIA ---
-
   Future<void> deleteActiveMessage(int id) async {
     await _chatRepository.deleteMessage(id);
     _messages = _messages.where((item) => item.id != id).toList();
@@ -191,19 +189,37 @@ class ChatController extends ChangeNotifier {
     switch (packet.event) {
       case 'CALL_OFFER':
       case 'INCOMING_CALL':
+        debugPrint("DEBUG: Qo'ng'iroq signali keldi");
         _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+        
+        // WEB UCHUN AUDIO CONTEXT RESUME (Eng muhim joyi!)
+        _audioPlayer.resume().then((_) {
+          _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+          debugPrint("DEBUG: Ringtone chalyapti");
+        }).catchError((e) {
+          debugPrint("DEBUG: Audio uyg'otishda xato: $e");
+        });
         break;
+
       case 'CALL_ACCEPTED':
       case 'CALL_ENDED':
+      case 'CALL_REJECT':
+      case 'CALL_END':
         _audioPlayer.stop();
+        debugPrint("DEBUG: Ovoz to'xtatildi");
         break;
+
       case 'NEW_MESSAGE':
         final payload = Map<String, dynamic>.from(packet.payload as Map);
         final message = ChatMessage.fromApi(payload);
         _consumeIncomingMessage(message, payload);
-        _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
+        
+        // Xabar kelganda ham audio uyg'otamiz
+        _audioPlayer.resume().then((_) {
+          _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
+        });
         break;
+
       case 'ONLINE_USERS_LIST':
         final users = (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
         _onlineUsers = users.where((e) => e['online'] == true).map((e) => e['username'].toString()).toSet();
@@ -214,7 +230,6 @@ class ChatController extends ChangeNotifier {
   }
 
   // --- INBOX VA SYNC ---
-
   Future<void> loadInbox() async {
     final user = _authController.user;
     if (user == null) return;
