@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { playRingtone, playCallEnd } from "@/utils/sounds";
 
 const TURN_HOST = import.meta.env.VITE_TURN_HOST || "jamshiddin.uz";
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "bootchat";
@@ -40,8 +41,17 @@ export function useWebRTC(socket, currentUser) {
   const callIdRef = useRef(null);
   const targetUserRef = useRef(null);
   const localStreamRef = useRef(null);
+  const ringtoneRef = useRef(null); // Gudok uchun ref
+
+  const stopRingtone = useCallback(() => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.stop();
+      ringtoneRef.current = null;
+    }
+  }, []);
 
   const cleanup = useCallback(() => {
+    stopRingtone();
     if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -58,7 +68,7 @@ export function useWebRTC(socket, currentUser) {
     setIncomingCall(null);
     setCallStartedAt(null);
     setCallError(null);
-  }, []);
+  }, [stopRingtone]);
 
   const createPeerConnection = useCallback((target) => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -80,19 +90,32 @@ export function useWebRTC(socket, currentUser) {
     };
 
     pc.oniceconnectionstatechange = () => {
-        console.log("ICE Connection State:", pc.iceConnectionState);
         if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+            stopRingtone(); // Ulanish bo'lganda gudokni to'xtatamiz
             setCallState('connected');
             setCallStartedAt(prev => prev || Date.now());
         }
         if (pc.iceConnectionState === 'failed') {
-            setCallError("Ulanish muvaffaqiyatsiz tugadi");
+            setCallError("Ulanish muvaffaqiyatsiz");
+            cleanup();
         }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [socket]);
+  }, [socket, stopRingtone, cleanup]);
+
+  // REFRESH dan himoya qilish
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (callState && callState !== "idle") {
+        e.preventDefault();
+        e.returnValue = "Qo'ng'iroq davom etmoqda, sahifani yangilash aloqani uzadi!";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [callState]);
 
   useEffect(() => {
     if (!socket) return;
@@ -107,17 +130,18 @@ export function useWebRTC(socket, currentUser) {
       setIsVideo(data.isVideo);
       setRemoteUser(data.caller);
       setIncomingCall(data);
+      setCallState("incoming");
+      
+      // Kiruvchi qo'ng'iroq gudogi
+      stopRingtone();
+      ringtoneRef.current = playRingtone();
     });
 
     socket.on("CALL_ANSWER", async (data) => {
+      stopRingtone(); // Javob berilganda gudokni o'chirish
       try {
         if (!pcRef.current) return;
-        
-        // --- MUHIM: Signaling state tekshiruvi ---
-        if (pcRef.current.signalingState === "stable") {
-            console.log("Ulanish allaqachon barqaror, ANSWER e'tiborsiz qoldirildi.");
-            return;
-        }
+        if (pcRef.current.signalingState === "stable") return;
 
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         remoteDescSet.current = true;
@@ -129,18 +153,13 @@ export function useWebRTC(socket, currentUser) {
       } catch (e) { console.error("CALL_ANSWER xatosi:", e); }
     });
 
-    socket.on("ICE_CANDIDATE", async (data) => {
-      try {
-        if (pcRef.current && remoteDescSet.current) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } else {
-          iceQueue.current.push(data.candidate);
-        }
-      } catch (e) { console.warn("ICE Candidate qo'shish xatosi:", e); }
+    socket.on("CALL_END", () => {
+        playCallEnd();
+        cleanup();
     });
 
-    socket.on("CALL_END", cleanup);
     socket.on("CALL_REJECT", () => {
+        stopRingtone();
         setCallError("Rad etildi");
         setTimeout(cleanup, 2000);
     });
@@ -152,14 +171,13 @@ export function useWebRTC(socket, currentUser) {
       socket.off("CALL_END");
       socket.off("CALL_REJECT");
     };
-  }, [socket, callState, cleanup]);
+  }, [socket, callState, cleanup, stopRingtone]);
 
   const startCall = useCallback(async (targetUser, video = false) => {
     try {
         cleanup();
         const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: video
+            audio: true, video: video
         });
         
         localStreamRef.current = stream;
@@ -170,6 +188,10 @@ export function useWebRTC(socket, currentUser) {
         targetUserRef.current = targetUser.username;
         callIdRef.current = Math.random().toString(36).substring(7);
 
+        // Chiquvchi qo'ng'iroq gudogi (Tuuu-tuuu)
+        stopRingtone();
+        ringtoneRef.current = playRingtone();
+
         const pc = createPeerConnection(targetUser.username);
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
@@ -178,8 +200,7 @@ export function useWebRTC(socket, currentUser) {
 
         socket.emit("CALL_OFFER", {
             target: targetUser.username,
-            offer,
-            isVideo: video,
+            offer, isVideo: video,
             callId: callIdRef.current,
             caller: { 
                 username: currentUser, 
@@ -188,17 +209,17 @@ export function useWebRTC(socket, currentUser) {
             }
         });
     } catch (e) {
-        setCallError("Media ruxsati rad etildi");
-        console.error(e);
+        setCallError("Media ruxsati berilmadi");
+        cleanup();
     }
-  }, [socket, currentUser, createPeerConnection, cleanup]);
+  }, [socket, currentUser, createPeerConnection, cleanup, stopRingtone]);
 
   const acceptCall = useCallback(async () => {
+    stopRingtone();
     if (!incomingCall) return;
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: incomingCall.isVideo
+            audio: true, video: incomingCall.isVideo
         });
 
         localStreamRef.current = stream;
@@ -221,57 +242,14 @@ export function useWebRTC(socket, currentUser) {
 
         socket.emit("CALL_ANSWER", {
             target: incomingCall.caller.username,
-            answer,
-            callId: callIdRef.current
+            answer, callId: callIdRef.current
         });
         setIncomingCall(null);
     } catch (e) {
-        console.error("Qabul qilish xatosi:", e);
         socket.emit("CALL_REJECT", { target: incomingCall.caller.username });
         cleanup();
     }
-  }, [incomingCall, createPeerConnection, socket, cleanup]);
-
-  const switchCallMode = async (toVideo) => {
-    if (!pcRef.current || !localStreamRef.current) return;
-
-    try {
-        if (toVideo) {
-            const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            const videoTrack = newStream.getVideoTracks()[0];
-            
-            const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
-            if (sender) {
-                await sender.replaceTrack(videoTrack);
-            } else {
-                pcRef.current.addTrack(videoTrack, localStreamRef.current);
-            }
-            
-            localStreamRef.current.addTrack(videoTrack);
-            // State-ni majburan yangilash
-            setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-            setIsVideo(true);
-            setIsCameraOff(false);
-        } else {
-            localStreamRef.current.getVideoTracks().forEach(t => {
-                t.stop();
-                localStreamRef.current.removeTrack(t);
-            });
-            setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-            setIsVideo(false);
-        }
-        socket.emit("CALL_MODE_SWITCH", { target: targetUserRef.current, isVideo: toVideo });
-    } catch (e) {
-        console.error("Rejim almashtirish xatosi:", e);
-    }
-  };
-
-  const hangUp = useCallback(() => {
-    if (targetUserRef.current) {
-        socket.emit("CALL_END", { target: targetUserRef.current, callId: callIdRef.current });
-    }
-    cleanup();
-  }, [socket, cleanup]);
+  }, [incomingCall, createPeerConnection, socket, cleanup, stopRingtone]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -293,10 +271,17 @@ export function useWebRTC(socket, currentUser) {
     }
   };
 
+  const hangUp = useCallback(() => {
+    if (targetUserRef.current) {
+        socket.emit("CALL_END", { target: targetUserRef.current, callId: callIdRef.current });
+    }
+    cleanup();
+  }, [socket, cleanup]);
+
   return {
     callState, callError, remoteUser, isVideo, isMuted, isCameraOff,
     localStream, remoteStream, incomingCall, callStartedAt,
-    startCall, acceptCall, hangUp, toggleMute, toggleCamera, switchCallMode,
+    startCall, acceptCall, hangUp, toggleMute, toggleCamera,
     rejectCall: () => {
         if (incomingCall) socket.emit("CALL_REJECT", { target: incomingCall.caller.username });
         cleanup();
