@@ -5,6 +5,7 @@ const TURN_HOST = import.meta.env.VITE_TURN_HOST || "jamshiddin.uz";
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "bootchat";
 const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
 
+// MANA SHU YERDA:
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -14,8 +15,6 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
-  // Ulanishni majburan TURN orqali tekshirish uchun (ixtiyoriy)
-  // iceTransportPolicy: "relay" 
 };
 
 export function useWebRTC(socket, currentUser) {
