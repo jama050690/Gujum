@@ -805,29 +805,28 @@ function registerSocketHandlers(io) {
       }
     });
 
-    browser.on("CALL_ANSWER", (data) => {
-      const activeCall = activeCalls.get(data.callId);
-      if (activeCall) {
-        activeCall.status = "connected";
-        activeCall.connectedAt = activeCall.connectedAt || Date.now();
-        if (data.user?.username) {
-          activeCall.participants[data.user.username] = {
-            username: data.user.username,
-            avatar: data.user.avatar || null,
-            full_name: data.user.full_name || null,
-          };
-        }
-        clearReconnectTimer(activeCall, data.target);
-        clearReconnectTimer(activeCall, browser.username);
-      }
+  browser.on("CALL_ANSWER", (data) => {
+  const activeCall = activeCalls.get(data.callId);
+  if (activeCall) {
+    activeCall.status = "connected";
+    activeCall.connectedAt = Date.now();
+    clearReconnectTimer(activeCall, data.target);
+    clearReconnectTimer(activeCall, browser.username);
+  }
+  emitToUser(data.target, "CALL_ANSWER", { 
+    answer: data.answer, 
+    callId: data.callId 
+  });
+});
 
-      emitToUser(data.target, "CALL_ANSWER", { answer: data.answer, callId: data.callId });
-    });
-
-    browser.on("ICE_CANDIDATE", (data) => {
-      emitToUser(data.target, "ICE_CANDIDATE", { candidate: data.candidate, callId: data.callId });
-    });
-
+browser.on("ICE_CANDIDATE", (data) => {
+  if (!data.target) return;
+  // Bu yerda socket emas, emitToUser ishlatilishi shart
+  emitToUser(data.target, "ICE_CANDIDATE", { 
+    candidate: data.candidate, 
+    callId: data.callId 
+  });
+});
     browser.on("CALL_REJECT", async (data) => {
       emitToUser(data.target, "CALL_REJECT", { callId: data.callId });
       finalizeCallSession(data.callId);
