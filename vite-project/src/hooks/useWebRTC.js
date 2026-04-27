@@ -15,6 +15,8 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
+  // BU QATORNI QO'SHING:
+  iceTransportPolicy: "relay" 
 };
 
 export function useWebRTC(socket, currentUser) {
