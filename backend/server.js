@@ -24,13 +24,13 @@ const httpServer = http.createServer(app);
 
 // SOCKET.IO SOZLAMASI (Nginx bilan mos kelishi uchun)
 const io = new Server(httpServer, {
-  path: "/api/bootchat/socket.io/", // Nginx'dagi location bilan aynan bir xil
+  path: "/api/bootchat/socket.io/",
   cors: {
-    origin: "*",
+    origin: true, // Har qanday saytdan ulanishga ruxsat
     methods: ["GET", "POST"],
     credentials: true
   },
-  allowEIO3: true // Eski klientlar uchun ruxsat
+  allowEIO3: true
 });
 
 // Socket handlerlarni ulaymiz
