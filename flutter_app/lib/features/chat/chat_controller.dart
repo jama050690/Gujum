@@ -48,6 +48,8 @@ class ChatController extends ChangeNotifier {
   bool _loadingMessages = false;
   bool _searching = false;
   String? _connectionLabel;
+  bool _syncingSession = false;
+  String? _lastSessionKey;
 
   List<InboxItem> get inbox => _inbox;
   List<ChatMessage> get messages => _messages;
@@ -97,7 +99,8 @@ class ChatController extends ChangeNotifier {
   Future<void> clearChatHistory(String username) async {
     await _chatRepository.clearChatHistory(username);
     if (_activeChat?.username == username) _messages = const [];
-    _updateInboxPreview(peer: username, preview: '', at: DateTime.now(), unreadCount: 0);
+    _updateInboxPreview(
+        peer: username, preview: '', at: DateTime.now(), unreadCount: 0);
     notifyListeners();
   }
 
@@ -126,9 +129,12 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<ChatMessage?> updateActiveMessage({required int id, required String message}) async {
-    final updated = await _chatRepository.updateMessage(id: id, message: message);
-    _messages = _messages.map((item) => item.id == id ? updated : item).toList();
+  Future<ChatMessage?> updateActiveMessage(
+      {required int id, required String message}) async {
+    final updated =
+        await _chatRepository.updateMessage(id: id, message: message);
+    _messages =
+        _messages.map((item) => item.id == id ? updated : item).toList();
     notifyListeners();
     return updated;
   }
@@ -140,7 +146,8 @@ class ChatController extends ChangeNotifier {
     _loadingMessages = true;
     notifyListeners();
     try {
-      _messages = await _chatRepository.fetchMessages(user1: user.username, user2: item.username);
+      _messages = await _chatRepository.fetchMessages(
+          user1: user.username, user2: item.username);
       _updateInboxPreview(peer: item.username, unreadCount: 0);
     } finally {
       _loadingMessages = false;
@@ -174,14 +181,20 @@ class ChatController extends ChangeNotifier {
 
   // --- UPLOAD METODLARI ---
   Future<String> uploadAudio(String path) => _chatRepository.uploadAudio(path);
-  Future<String> uploadPickedAudio(PlatformFile file) => _chatRepository.uploadPickedAudio(file);
-  Future<String> uploadXFileAudio(XFile file) => _chatRepository.uploadXFileAudio(file);
+  Future<String> uploadPickedAudio(PlatformFile file) =>
+      _chatRepository.uploadPickedAudio(file);
+  Future<String> uploadXFileAudio(XFile file) =>
+      _chatRepository.uploadXFileAudio(file);
   Future<String> uploadMedia(String path) => _chatRepository.uploadMedia(path);
-  Future<String> uploadPickedMedia(PlatformFile file) => _chatRepository.uploadPickedMedia(file);
-  Future<String> uploadXFileMedia(XFile file) => _chatRepository.uploadXFileMedia(file);
+  Future<String> uploadPickedMedia(PlatformFile file) =>
+      _chatRepository.uploadPickedMedia(file);
+  Future<String> uploadXFileMedia(XFile file) =>
+      _chatRepository.uploadXFileMedia(file);
   Future<String> uploadVideo(String path) => _chatRepository.uploadVideo(path);
-  Future<String> uploadPickedVideo(PlatformFile file) => _chatRepository.uploadPickedVideo(file);
-  Future<String> uploadXFileVideo(XFile file) => _chatRepository.uploadXFileVideo(file);
+  Future<String> uploadPickedVideo(PlatformFile file) =>
+      _chatRepository.uploadPickedVideo(file);
+  Future<String> uploadXFileVideo(XFile file) =>
+      _chatRepository.uploadXFileVideo(file);
 
   // --- SOCKET VA OVOZ ---
 
@@ -191,7 +204,7 @@ class ChatController extends ChangeNotifier {
       case 'INCOMING_CALL':
         debugPrint("DEBUG: Qo'ng'iroq signali keldi");
         _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        
+
         // WEB UCHUN AUDIO CONTEXT RESUME (Eng muhim joyi!)
         _audioPlayer.resume().then((_) {
           _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
@@ -213,17 +226,25 @@ class ChatController extends ChangeNotifier {
         final payload = Map<String, dynamic>.from(packet.payload as Map);
         final message = ChatMessage.fromApi(payload);
         _consumeIncomingMessage(message, payload);
-        
+
         // Xabar kelganda ham audio uyg'otamiz
         _audioPlayer.resume().then((_) {
-          _audioPlayer.play(AssetSource('sounds/message.mp3'), mode: PlayerMode.lowLatency);
+          _audioPlayer.play(AssetSource('sounds/message.mp3'),
+              mode: PlayerMode.lowLatency);
         });
         break;
 
       case 'ONLINE_USERS_LIST':
-        final users = (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
-        _onlineUsers = users.where((e) => e['online'] == true).map((e) => e['username'].toString()).toSet();
-        _lastActiveUsers = {for (var e in users) e['username'].toString(): _parseLastActive(e['lastActive'])};
+        final users =
+            (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
+        _onlineUsers = users
+            .where((e) => e['online'] == true)
+            .map((e) => e['username'].toString())
+            .toSet();
+        _lastActiveUsers = {
+          for (var e in users)
+            e['username'].toString(): _parseLastActive(e['lastActive'])
+        };
         break;
     }
     notifyListeners();
@@ -246,21 +267,30 @@ class ChatController extends ChangeNotifier {
   void _consumeIncomingMessage(ChatMessage message, Map<String, dynamic> raw) {
     final currentUser = _authController.user;
     if (currentUser == null) return;
-    final peer = message.senderUsername == currentUser.username ? raw['receiver']?.toString() : message.senderUsername;
+    final peer = message.senderUsername == currentUser.username
+        ? raw['receiver']?.toString()
+        : message.senderUsername;
     if (peer == null) return;
-    _updateInboxPreview(peer: peer, preview: message.content, at: message.createdAt);
+    _updateInboxPreview(
+        peer: peer, preview: message.content, at: message.createdAt);
     if (_activeChat?.username == peer) _messages = [..._messages, message];
     notifyListeners();
   }
 
-  void _updateInboxPreview({required String peer, String? preview, DateTime? at, int unreadIncrement = 0, int? unreadCount}) {
+  void _updateInboxPreview(
+      {required String peer,
+      String? preview,
+      DateTime? at,
+      int unreadIncrement = 0,
+      int? unreadCount}) {
     final current = List<InboxItem>.from(_inbox);
     final index = current.indexWhere((item) => item.username == peer);
     if (index >= 0) {
       current[index] = current[index].copyWith(
         lastMessage: preview ?? current[index].lastMessage,
         lastMessageAt: at ?? current[index].lastMessageAt,
-        unreadCount: unreadCount ?? current[index].unreadCount + unreadIncrement,
+        unreadCount:
+            unreadCount ?? current[index].unreadCount + unreadIncrement,
       );
       _inbox = current;
     }
@@ -271,12 +301,25 @@ class ChatController extends ChangeNotifier {
   Future<void> _syncSession({bool force = false}) async {
     final user = _authController.user;
     if (user == null) return;
+    final sessionKey = '${user.username}|${_settingsController.baseUrl}';
+    if (_syncingSession) return;
+    if (!force && _lastSessionKey == sessionKey && _inbox.isNotEmpty) {
+      return;
+    }
+
+    _syncingSession = true;
     _socketService.connect(
       baseUrl: AppConfig.socketBaseUrl(_settingsController.baseUrl),
       path: AppConfig.socketPath(_settingsController.baseUrl),
       username: user.username,
       cookie: _sessionStore.cookie,
     );
+    try {
+      await loadInbox();
+      _lastSessionKey = sessionKey;
+    } finally {
+      _syncingSession = false;
+    }
   }
 
   @override
@@ -290,7 +333,9 @@ class ChatController extends ChangeNotifier {
 
   DateTime? _parseLastActive(dynamic value) {
     if (value == null) return null;
-    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
+    }
     return DateTime.tryParse(value.toString())?.toLocal();
   }
 }

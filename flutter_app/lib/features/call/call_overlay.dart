@@ -349,6 +349,12 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                   // --- DINAMIK TUGMALAR ---
                   if (ctrl.isVideo) ...[
                     _RoundActionButton(
+                      icon: Icons.phone_enabled,
+                      backgroundColor: Colors.white12,
+                      onPressed: () => ctrl.switchCallMode(false),
+                    ),
+                    const SizedBox(width: 16),
+                    _RoundActionButton(
                       icon: ctrl.isSpeakerOn ? Icons.volume_up : Icons.hearing,
                       backgroundColor: Colors.white12,
                       onPressed: () => ctrl.toggleSpeaker(),
@@ -364,6 +370,12 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                             ctrl.isCameraOff ? Colors.black : Colors.white,
                         onPressed: () => ctrl.toggleCamera()),
                   ] else ...[
+                    _RoundActionButton(
+                      icon: Icons.videocam,
+                      backgroundColor: Colors.white12,
+                      onPressed: () => ctrl.switchCallMode(true),
+                    ),
+                    const SizedBox(width: 16),
                     _RoundActionButton(
                       icon: ctrl.isSpeakerOn ? Icons.volume_up : Icons.hearing,
                       backgroundColor:

@@ -8,15 +8,8 @@ const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
     {
-      urls: `turn:${TURN_HOST}:3478?transport=udp`,
-      username: TURN_USERNAME,
-      credential: TURN_CREDENTIAL,
-    },
-    {
-      urls: `turn:${TURN_HOST}:3478?transport=tcp`,
+      urls: `turn:${TURN_HOST}:3478`,
       username: TURN_USERNAME,
       credential: TURN_CREDENTIAL,
     }
@@ -41,7 +34,7 @@ export function useWebRTC(socket, currentUser) {
   const callIdRef = useRef(null);
   const targetUserRef = useRef(null);
   const localStreamRef = useRef(null);
-  const ringtoneRef = useRef(null); // Gudok uchun ref
+  const ringtoneRef = useRef(null);
 
   const stopRingtone = useCallback(() => {
     if (ringtoneRef.current) {
@@ -68,6 +61,7 @@ export function useWebRTC(socket, currentUser) {
     setIncomingCall(null);
     setCallStartedAt(null);
     setCallError(null);
+    targetUserRef.current = null;
   }, [stopRingtone]);
 
   const createPeerConnection = useCallback((target) => {
@@ -90,13 +84,14 @@ export function useWebRTC(socket, currentUser) {
     };
 
     pc.oniceconnectionstatechange = () => {
+        console.log("ICE Connection State:", pc.iceConnectionState);
         if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-            stopRingtone(); // Ulanish bo'lganda gudokni to'xtatamiz
+            stopRingtone();
             setCallState('connected');
             setCallStartedAt(prev => prev || Date.now());
         }
-        if (pc.iceConnectionState === 'failed') {
-            setCallError("Ulanish muvaffaqiyatsiz");
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+            setCallError("Aloqa uzildi");
             cleanup();
         }
     };
@@ -105,20 +100,24 @@ export function useWebRTC(socket, currentUser) {
     return pc;
   }, [socket, stopRingtone, cleanup]);
 
-  // REFRESH dan himoya qilish
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (callState && callState !== "idle") {
-        e.preventDefault();
-        e.returnValue = "Qo'ng'iroq davom etmoqda, sahifani yangilash aloqani uzadi!";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [callState]);
-
   useEffect(() => {
     if (!socket) return;
+
+    // MUHIM: ICE_CANDIDATE tinglovchisi qo'shildi
+    socket.on("ICE_CANDIDATE", async (data) => {
+        try {
+            if (pcRef.current) {
+                const candidate = new RTCIceCandidate(data.candidate);
+                if (remoteDescSet.current) {
+                    await pcRef.current.addIceCandidate(candidate);
+                } else {
+                    iceQueue.current.push(candidate);
+                }
+            }
+        } catch (e) {
+            console.error("ICE Candidate qo'shishda xato:", e);
+        }
+    });
 
     socket.on("CALL_OFFER", async (data) => {
       if (callState && callState !== "incoming") {
@@ -132,23 +131,22 @@ export function useWebRTC(socket, currentUser) {
       setIncomingCall(data);
       setCallState("incoming");
       
-      // Kiruvchi qo'ng'iroq gudogi
       stopRingtone();
       ringtoneRef.current = playRingtone();
     });
 
     socket.on("CALL_ANSWER", async (data) => {
-      stopRingtone(); // Javob berilganda gudokni o'chirish
+      stopRingtone();
       try {
         if (!pcRef.current) return;
-        if (pcRef.current.signalingState === "stable") return;
-
+        
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         remoteDescSet.current = true;
         
+        // Navbatda turgan ICE nomzodlarni qo'shish
         while (iceQueue.current.length > 0) {
           const cand = iceQueue.current.shift();
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(cand));
+          await pcRef.current.addIceCandidate(cand);
         }
       } catch (e) { console.error("CALL_ANSWER xatosi:", e); }
     });
@@ -188,7 +186,6 @@ export function useWebRTC(socket, currentUser) {
         targetUserRef.current = targetUser.username;
         callIdRef.current = Math.random().toString(36).substring(7);
 
-        // Chiquvchi qo'ng'iroq gudogi (Tuuu-tuuu)
         stopRingtone();
         ringtoneRef.current = playRingtone();
 
@@ -234,7 +231,7 @@ export function useWebRTC(socket, currentUser) {
 
         while (iceQueue.current.length > 0) {
             const cand = iceQueue.current.shift();
-            await pc.addIceCandidate(new RTCIceCandidate(cand));
+            await pc.addIceCandidate(cand);
         }
 
         const answer = await pc.createAnswer();
