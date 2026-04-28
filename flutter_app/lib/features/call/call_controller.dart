@@ -11,6 +11,8 @@ import '../auth/auth_controller.dart';
 
 enum CallSessionState { calling, ringing, connecting, connected }
 
+enum CallAudioRoute { speaker, bluetooth, headset, earpiece }
+
 class CallPeer {
   const CallPeer({
     required this.username,
@@ -100,6 +102,9 @@ class CallController extends ChangeNotifier {
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isSpeakerOn = true;
+  bool _hasBluetoothAudio = false;
+  bool _hasHeadsetAudio = false;
+  CallAudioRoute _audioRoute = CallAudioRoute.speaker;
   String? _callId;
   String? _targetUsername;
   DateTime? _connectedAt;
@@ -113,6 +118,10 @@ class CallController extends ChangeNotifier {
   bool get isMuted => _isMuted;
   bool get isCameraOff => _isCameraOff;
   bool get isSpeakerOn => _isSpeakerOn;
+  bool get hasBluetoothAudio => _hasBluetoothAudio;
+  bool get hasHeadsetAudio => _hasHeadsetAudio;
+  CallAudioRoute get audioRoute => _audioRoute;
+  bool get hasExternalAudioRoute => _hasBluetoothAudio || _hasHeadsetAudio;
   bool get hasSession => _state != null && _incomingCall == null;
   bool get hasIncomingCall => _incomingCall != null;
   DateTime? get connectedAt => _connectedAt;
@@ -133,6 +142,7 @@ class CallController extends ChangeNotifier {
     try {
       await _requestMediaPermissions(video: video);
       _localStream = await _openLocalMedia(video: video);
+      await _applyAudioRoute();
       final pc = await _createPeerConnection();
       _localStream!
           .getTracks()
@@ -175,6 +185,7 @@ class CallController extends ChangeNotifier {
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
       _localStream = await _openLocalMedia(video: incoming.isVideo);
+      await _applyAudioRoute();
       final pc = await _createPeerConnection();
       _localStream!
           .getTracks()
@@ -239,7 +250,11 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> toggleSpeaker() async {
-    _isSpeakerOn = !_isSpeakerOn;
+    if (hasExternalAudioRoute) {
+      _isSpeakerOn = !_isSpeakerOn;
+    } else {
+      _isSpeakerOn = true;
+    }
     await _applyAudioRoute();
     notifyListeners();
   }
@@ -344,6 +359,9 @@ class CallController extends ChangeNotifier {
     _isMuted = false;
     _isCameraOff = false;
     _isSpeakerOn = video;
+    _hasBluetoothAudio = false;
+    _hasHeadsetAudio = false;
+    _audioRoute = video ? CallAudioRoute.speaker : CallAudioRoute.earpiece;
     if (!preserveIncoming) {
       _incomingCall = null;
     }
@@ -380,11 +398,18 @@ class CallController extends ChangeNotifier {
       });
     };
 
-    pc.onTrack = (event) {
+    pc.onTrack = (event) async {
+      final track = event.track;
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams.first;
-        notifyListeners();
+      } else {
+        _remoteStream ??= await createLocalMediaStream('bootchat_remote');
+        _remoteStream!.addTrack(track);
       }
+      if (track.kind == 'audio') {
+        unawaited(_applyAudioRoute());
+      }
+      notifyListeners();
     };
 
     pc.onConnectionState = (state) {
@@ -441,9 +466,13 @@ class CallController extends ChangeNotifier {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
 
     try {
-      await _audioChannel.invokeMethod<void>('activateCallAudio', {
+      final result = await _audioChannel.invokeMapMethod<String, dynamic>(
+        'activateCallAudio',
+        {
         'speakerOn': _isVideo || _isSpeakerOn,
-      });
+        },
+      );
+      _syncAudioRouteInfo(result);
     } catch (_) {}
   }
 
@@ -503,6 +532,33 @@ class CallController extends ChangeNotifier {
     _connectedAt = null;
     _pendingCandidates.clear();
     _remoteDescriptionReady = false;
+  }
+
+  void _syncAudioRouteInfo(Map<String, dynamic>? data) {
+    if (data == null) return;
+
+    _hasBluetoothAudio = data['hasBluetooth'] == true;
+    _hasHeadsetAudio = data['hasHeadset'] == true;
+
+    switch ((data['currentRoute'] ?? '').toString()) {
+      case 'bluetooth':
+        _audioRoute = CallAudioRoute.bluetooth;
+        _isSpeakerOn = false;
+        break;
+      case 'headset':
+        _audioRoute = CallAudioRoute.headset;
+        _isSpeakerOn = false;
+        break;
+      case 'earpiece':
+        _audioRoute = CallAudioRoute.earpiece;
+        _isSpeakerOn = false;
+        break;
+      case 'speaker':
+      default:
+        _audioRoute = CallAudioRoute.speaker;
+        _isSpeakerOn = true;
+        break;
+    }
   }
 
   @override

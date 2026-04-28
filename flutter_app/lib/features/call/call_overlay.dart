@@ -163,6 +163,8 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final showRemoteVideo = ctrl.isVideo && ctrl.remoteStream != null && _ready;
     final statusText = _buildStatusText(context, ctrl);
     final timerText = _buildTimerText(ctrl.connectedAt);
+    final titleText = peer?.displayName ?? peer?.username ?? '';
+    final subtitleText = timerText ?? statusText;
 
     return Scaffold(
       backgroundColor: const Color(0xFF09111C),
@@ -174,9 +176,9 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF1C2738),
-                  Color(0xFF101A28),
-                  Color(0xFF05080E),
+                  Color(0xFF0C111A),
+                  Color(0xFF0A0F17),
+                  Color(0xFF04070C),
                 ],
               ),
             ),
@@ -190,222 +192,126 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
             child: DecoratedBox(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
-                  center: Alignment(0, 0.1),
-                  radius: 0.85,
+                  center: Alignment(0, -0.04),
+                  radius: 0.92,
                   colors: [
-                    Color(0xFF1C2A40),
-                    Color(0xFF0F1724),
-                    Color(0xFF05080E),
+                    Color(0xFF13233B),
+                    Color(0xFF0C1625),
+                    Color(0xFF060A10),
                   ],
                 ),
               ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 52),
-                    Text(
-                      statusText,
-                      style: const TextStyle(
-                        color: Color(0xFF4AA3FF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 3.5,
-                      ),
-                    ),
-                    if (timerText != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        timerText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    Container(
-                      width: 188,
-                      height: 188,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2B7BFF).withAlpha(40),
-                            blurRadius: 36,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 94,
-                        backgroundColor: const Color(0xFF223046),
-                        backgroundImage: avatarUrl.isNotEmpty
-                            ? NetworkImage(avatarUrl)
-                            : null,
-                        child: avatarUrl.isEmpty
-                            ? Text(
-                                _initialsFor(
-                                    peer?.displayName ?? peer?.username ?? '?'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 54,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    Text(
-                      peer?.displayName ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    if ((peer?.username ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '@${peer!.username}',
-                        style: const TextStyle(
-                          color: Color(0xFF8D99A8),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                    if (ctrl.state != CallSessionState.connected) ...[
-                      const SizedBox(height: 26),
-                      const _ConnectingDots(),
-                    ],
-                    const Spacer(flex: 2),
-                  ],
-                ),
+              child: _buildAudioLayout(
+                titleText: titleText,
+                subtitleText: subtitleText,
+                avatarUrl: avatarUrl,
+                ctrl: ctrl,
               ),
             ),
           ),
         if (showRemoteVideo)
           Positioned(
-            top: 52,
-            left: 0,
-            right: 0,
+            top: 64,
+            left: 28,
+            right: 28,
             child: SafeArea(
               bottom: false,
-              child: Column(
-                children: [
-                  Text(
-                    statusText,
-                    style: const TextStyle(
-                      color: Color(0xFF7EB8FF),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 3.5,
-                    ),
+              child: Column(children: [
+                Text(
+                  titleText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
                   ),
-                  if (timerText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      timerText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitleText,
+                  style: const TextStyle(
+                    color: Color(0xD9FFFFFF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ]),
             ),
           ),
         if (ctrl.isVideo && !ctrl.isCameraOff && _ready)
           Positioned(
-              top: 50,
-              right: 20,
-              width: 120,
-              height: 180,
-              child: RTCVideoView(_local,
-                  mirror: true,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
+            right: 22,
+            bottom: 188,
+            width: 132,
+            height: 188,
+            child: _LocalPreviewCard(renderer: _local),
+          ),
         Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-                top: false,
-                child:
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  // 1. MIKROFON (Har doim bor)
-                  _RoundActionButton(
-                      icon: ctrl.isMuted ? Icons.mic_off : Icons.mic,
-                      backgroundColor:
-                          ctrl.isMuted ? Colors.white : Colors.white12,
-                      iconColor: ctrl.isMuted ? Colors.black : Colors.white,
-                      onPressed: () => ctrl.toggleMute()),
-                  const SizedBox(width: 16),
-
-                  // --- DINAMIK TUGMALAR ---
-                  if (ctrl.isVideo) ...[
-                    _RoundActionButton(
-                      icon: Icons.phone_enabled,
-                      backgroundColor: Colors.white12,
-                      onPressed: () => ctrl.switchCallMode(false),
-                    ),
-                    const SizedBox(width: 16),
-                    _RoundActionButton(
-                      icon: ctrl.isSpeakerOn ? Icons.volume_up : Icons.hearing,
-                      backgroundColor: Colors.white12,
-                      onPressed: () => ctrl.toggleSpeaker(),
-                    ),
-                    const SizedBox(width: 16),
-                    _RoundActionButton(
-                        icon: ctrl.isCameraOff
-                            ? Icons.videocam_off
-                            : Icons.videocam,
-                        backgroundColor:
-                            ctrl.isCameraOff ? Colors.white : Colors.white12,
-                        iconColor:
-                            ctrl.isCameraOff ? Colors.black : Colors.white,
-                        onPressed: () => ctrl.toggleCamera()),
-                  ] else ...[
-                    _RoundActionButton(
-                      icon: Icons.videocam,
-                      backgroundColor: Colors.white12,
-                      onPressed: () => ctrl.switchCallMode(true),
-                    ),
-                    const SizedBox(width: 16),
-                    _RoundActionButton(
-                      icon: ctrl.isSpeakerOn ? Icons.volume_up : Icons.hearing,
-                      backgroundColor:
-                          ctrl.isSpeakerOn ? Colors.white : Colors.white12,
-                      iconColor: ctrl.isSpeakerOn ? Colors.black : Colors.white,
-                      onPressed: () => ctrl.toggleSpeaker(),
-                    ),
-                  ],
-
-                  const SizedBox(width: 16),
-
-                  // 4. YAKUNLASH (Har doim bor)
-                  _RoundActionButton(
-                      icon: Icons.call_end,
-                      backgroundColor: Colors.red,
-                      onPressed: () => ctrl.hangUp()),
-                ]))),
+          bottom: 36,
+          left: 20,
+          right: 20,
+          child: SafeArea(
+            top: false,
+            child: _ControlsDock(ctrl: ctrl),
+          ),
+        ),
       ]),
+    );
+  }
+
+  Widget _buildAudioLayout({
+    required String titleText,
+    required String subtitleText,
+    required String avatarUrl,
+    required CallController ctrl,
+  }) {
+    final initials = _initialsFor(titleText);
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 74),
+          Text(
+            titleText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitleText,
+            style: const TextStyle(
+              color: Color(0xCCFFFFFF),
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const Spacer(),
+          _AvatarGlow(
+            avatarUrl: avatarUrl,
+            initials: initials,
+            isVideo: ctrl.isVideo,
+          ),
+          const Spacer(flex: 2),
+        ],
+      ),
     );
   }
 
   String _buildStatusText(BuildContext context, CallController ctrl) {
     switch (ctrl.state) {
       case CallSessionState.connected:
-        return 'ALOQADA';
+        return 'Connected';
       case CallSessionState.calling:
+        return 'Calling...';
       case CallSessionState.connecting:
-        return 'ULANMOQDA...';
+        return 'Connecting...';
       case CallSessionState.ringing:
-        return 'QO\'NG\'IROQ KELYAPTI';
+        return 'Incoming call';
       case null:
         return '';
     }
@@ -495,19 +401,251 @@ class _RoundActionButton extends StatelessWidget {
       {required this.icon,
       required this.backgroundColor,
       required this.onPressed,
-      this.iconColor = Colors.white});
+      this.iconColor = Colors.white,
+      this.size = 60,
+      this.iconSize = 28});
   final IconData icon;
   final Color backgroundColor;
   final Color iconColor;
   final VoidCallback onPressed;
+  final double size;
+  final double iconSize;
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 60,
-      height: 60,
+      width: size,
+      height: size,
       decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
       child: IconButton(
-          icon: Icon(icon, color: iconColor, size: 28), onPressed: onPressed),
+          icon: Icon(icon, color: iconColor, size: iconSize),
+          onPressed: onPressed),
     );
+  }
+}
+
+class _AvatarGlow extends StatelessWidget {
+  const _AvatarGlow({
+    required this.avatarUrl,
+    required this.initials,
+    required this.isVideo,
+  });
+
+  final String avatarUrl;
+  final String initials;
+  final bool isVideo;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 360,
+      height: 360,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 320,
+            height: 320,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2D6FFF).withAlpha(58),
+                  blurRadius: 64,
+                  spreadRadius: 24,
+                ),
+                BoxShadow(
+                  color: const Color(0xFF724BFF).withAlpha(46),
+                  blurRadius: 92,
+                  spreadRadius: 12,
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: isVideo ? 220 : 210,
+            height: isVideo ? 220 : 210,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFC654),
+                  Color(0xFFFFA52F),
+                ],
+              ),
+            ),
+            child: CircleAvatar(
+              backgroundColor: Colors.transparent,
+              backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+              child: avatarUrl.isEmpty
+                  ? Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 72,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocalPreviewCard extends StatelessWidget {
+  const _LocalPreviewCard({required this.renderer});
+
+  final RTCVideoRenderer renderer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F29),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(70),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            RTCVideoView(
+              renderer,
+              mirror: true,
+              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(130),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.flip_camera_ios,
+                    size: 18, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(110),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text(
+                  'You',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ControlsDock extends StatelessWidget {
+  const _ControlsDock({required this.ctrl});
+
+  final CallController ctrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final speakerIcon = _speakerIconFor(ctrl);
+    final List<Widget> actions = <Widget>[
+      _RoundActionButton(
+        icon: speakerIcon,
+        backgroundColor: Colors.transparent,
+        size: 58,
+        onPressed: () => ctrl.toggleSpeaker(),
+      ),
+      _RoundActionButton(
+        icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+        backgroundColor: Colors.transparent,
+        size: 58,
+        onPressed: () => ctrl.toggleMute(),
+      ),
+      _RoundActionButton(
+        icon: ctrl.isVideo
+            ? (ctrl.isCameraOff
+                ? Icons.videocam_off_rounded
+                : Icons.videocam_rounded)
+            : Icons.videocam_rounded,
+        backgroundColor: ctrl.isVideo && ctrl.isCameraOff
+            ? Colors.white
+            : Colors.transparent,
+        iconColor:
+            ctrl.isVideo && ctrl.isCameraOff ? Colors.black : Colors.white,
+        size: 76,
+        iconSize: 34,
+        onPressed: () =>
+            ctrl.isVideo ? ctrl.toggleCamera() : ctrl.switchCallMode(true),
+      ),
+      _RoundActionButton(
+        icon: Icons.call_end_rounded,
+        backgroundColor: const Color(0xFFD84D68),
+        size: 76,
+        iconSize: 34,
+        onPressed: () => ctrl.hangUp(),
+      ),
+    ];
+
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 680),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF14161C).withAlpha(244),
+          borderRadius: BorderRadius.circular(40),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(70),
+              blurRadius: 32,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: actions,
+        ),
+      ),
+    );
+  }
+
+  IconData _speakerIconFor(CallController ctrl) {
+    if (ctrl.hasBluetoothAudio &&
+        ctrl.audioRoute == CallAudioRoute.bluetooth &&
+        !ctrl.isSpeakerOn) {
+      return Icons.bluetooth_audio_rounded;
+    }
+    if (ctrl.hasHeadsetAudio &&
+        ctrl.audioRoute == CallAudioRoute.headset &&
+        !ctrl.isSpeakerOn) {
+      return Icons.headset_rounded;
+    }
+    return Icons.volume_up_rounded;
   }
 }

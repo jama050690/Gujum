@@ -2,7 +2,7 @@ import "./src/config/env.js";
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { Server } from 'socket.io';
+import { Server } from 'socket.io'; // Server importi bor
 
 import app from './src/app.js';
 import { startCleanupScheduler } from './src/config/cleanup.js';
@@ -19,22 +19,19 @@ function ensureUploadsDir() {
   }
 }
 
-// Http serverni yaratamiz
+// 1. Http serverni yaratamiz
 const httpServer = http.createServer(app);
 
-// SOCKET.IO SOZLAMASI (Nginx bilan mos kelishi uchun)
-socket.on("ICE_CANDIDATE", (data) => {
-  // data: { target: 'urinov', candidate: {...}, callId: '...' }
-  const targetSocket = users[data.target]; // Target socketni topish
-  if (targetSocket) {
-    io.to(targetSocket).emit("ICE_CANDIDATE", {
-      candidate: data.candidate,
-      callId: data.callId
-    });
+// 2. Socket.io serverini yaratamiz (BU QISMNI QO'SHDIM)
+const io = new Server(httpServer, {
+  path: '/api/bootchat/socket.io/',
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
-// Socket handlerlarni ulaymiz
+// 3. Endi io aniqlangan, uni handlerga uzatamiz
 registerSocketHandlers(io);
 
 async function start() {

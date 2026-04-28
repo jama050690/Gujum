@@ -1,6 +1,7 @@
 package com.example.bootchat_flutter
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -32,14 +33,18 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "activateCallAudio" -> {
-                    activateCallAudio(
+                    result.success(
+                        activateCallAudio(
                         speakerOn = call.argument<Boolean>("speakerOn") ?: true
+                        )
                     )
-                    result.success(null)
                 }
                 "restoreAudioRoute" -> {
                     restoreAudioRoute()
                     result.success(null)
+                }
+                "getAudioRouteInfo" -> {
+                    result.success(getAudioRouteInfo())
                 }
                 else -> result.notImplemented()
             }
@@ -68,8 +73,13 @@ class MainActivity : FlutterActivity() {
         incomingRingtone?.stop()
     }
 
-    private fun activateCallAudio(speakerOn: Boolean) {
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+    private fun activateCallAudio(speakerOn: Boolean): Map<String, Any> {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            ?: return mapOf(
+                "currentRoute" to "speaker",
+                "hasBluetooth" to false,
+                "hasHeadset" to false,
+            )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -98,6 +108,7 @@ class MainActivity : FlutterActivity() {
         audioManager.isSpeakerphoneOn = speakerOn
         @Suppress("DEPRECATION")
         audioManager.isMicrophoneMute = false
+        return getAudioRouteInfo()
     }
 
     private fun restoreAudioRoute() {
@@ -115,6 +126,45 @@ class MainActivity : FlutterActivity() {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(null)
         }
+    }
+
+    private fun getAudioRouteInfo(): Map<String, Any> {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            ?: return mapOf(
+                "currentRoute" to "speaker",
+                "hasBluetooth" to false,
+                "hasHeadset" to false,
+            )
+
+        val outputs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+        } else {
+            emptyList()
+        }
+
+        val hasBluetooth = outputs.any {
+            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+        } || audioManager.isBluetoothScoOn
+
+        val hasHeadset = outputs.any {
+            it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+        } || audioManager.isWiredHeadsetOn
+
+        val currentRoute = when {
+            audioManager.isSpeakerphoneOn -> "speaker"
+            hasBluetooth -> "bluetooth"
+            hasHeadset -> "headset"
+            else -> "earpiece"
+        }
+
+        return mapOf(
+            "currentRoute" to currentRoute,
+            "hasBluetooth" to hasBluetooth,
+            "hasHeadset" to hasHeadset,
+        )
     }
 
     override fun onDestroy() {
