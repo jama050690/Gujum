@@ -831,6 +831,19 @@ browser.on("ICE_CANDIDATE", (data) => {
   });
 });
     browser.on("CALL_REJECT", async (data) => {
+      const activeCall = data.callId
+        ? activeCalls.get(data.callId)
+        : getSharedActiveCall(browser.username, data.target);
+
+      // Ba'zi klientlar ulangan call vaqtida takroriy CALL_OFFER ko'rib
+      // "busy" / reject yuborishi mumkin. Connected sessiyani bu bilan buzmaymiz.
+      if (activeCall?.status === "connected") {
+        console.log(
+          `Connected call uchun CALL_REJECT e'tiborsiz qoldirildi: ${browser.username} → ${data.target} (${activeCall.id})`,
+        );
+        return;
+      }
+
       emitToUser(data.target, "CALL_REJECT", { callId: data.callId });
       finalizeCallSession(data.callId);
       // Save missed call message — caller is target (the one who originally called)

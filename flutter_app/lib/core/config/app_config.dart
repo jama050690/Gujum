@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const defaultSocketPath = '/socket.io';
+  static const defaultSocketPath = '/api/bootchat/socket.io/';
   static const defaultLocale = 'uz';
   static const defaultPort = 4000;
   static const productionBaseUrl = 'https://jamshiddin.uz';
@@ -80,7 +80,7 @@ class AppConfig {
       return defaultSocketPath;
     }
 
-    return '$normalizedPath$defaultSocketPath';
+    return '$normalizedPath${defaultSocketPath.startsWith('/') ? defaultSocketPath : '/$defaultSocketPath'}';
   }
 
   static String resolveMediaUrl(String? path, String baseUrl) {

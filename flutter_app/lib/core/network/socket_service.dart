@@ -26,6 +26,9 @@ class SocketService {
     required String username,
     String? cookie,
   }) {
+    debugPrint(
+      'SOCKET_DEBUG connect() username=$username baseUrl=$baseUrl path=$path hasCookie=${cookie?.isNotEmpty == true}',
+    );
     disconnect();
 
     final options = io.OptionBuilder()
@@ -42,6 +45,7 @@ class SocketService {
         .build();
 
     _socket = io.io(baseUrl, options);
+    debugPrint('SOCKET_DEBUG socket instance created');
     _registerDefaultListeners(username);
   }
 
@@ -53,10 +57,12 @@ class SocketService {
     if (!_socket!.connected) {
       debugPrint('Socket emit warning: socket not connected for event: $event');
     }
+    debugPrint('SOCKET_DEBUG emit event=$event payload=$payload');
     _socket!.emit(event, payload);
   }
 
   void disconnect() {
+    debugPrint('SOCKET_DEBUG disconnect() called');
     _socket?.dispose();
     _socket?.disconnect();
     _socket = null;
@@ -74,11 +80,15 @@ class SocketService {
     }
 
     socket.onConnect((_) {
+      debugPrint('SOCKET_DEBUG onConnect id=${socket.id}');
       socket.emit('USER_ONLINE', username);
+      debugPrint('SOCKET_DEBUG USER_ONLINE emitted username=$username');
       _controller.add(SocketPacket('connect', null));
     });
-    socket
-        .onDisconnect((_) => _controller.add(SocketPacket('disconnect', null)));
+    socket.onDisconnect((reason) {
+      debugPrint('SOCKET_DEBUG onDisconnect reason=$reason');
+      _controller.add(SocketPacket('disconnect', reason));
+    });
     socket.onConnectError((error) {
       debugPrint('Socket connect error: $error');
       _controller.add(SocketPacket('connect_error', error));
@@ -110,7 +120,10 @@ class SocketService {
       'CALL_PARTICIPANT_RECONNECTING',
       'CALL_PARTICIPANT_REJOINED',
     ]) {
-      socket.on(event, (data) => _controller.add(SocketPacket(event, data)));
+      socket.on(event, (data) {
+        debugPrint('SOCKET_DEBUG onEvent event=$event data=$data');
+        _controller.add(SocketPacket(event, data));
+      });
     }
   }
 }

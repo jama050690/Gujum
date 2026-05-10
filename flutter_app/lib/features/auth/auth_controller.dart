@@ -23,27 +23,37 @@ class AuthController extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   Future<void> bootstrap() async {
+    debugPrint(
+      'AUTH_DEBUG bootstrap() storedUser=${_sessionStore.savedUser != null} hasCookie=${_sessionStore.cookie?.isNotEmpty == true}',
+    );
     final stored = _sessionStore.savedUser;
     if (stored != null) {
       _user = SessionUser.fromJson(stored);
+      debugPrint('AUTH_DEBUG restored saved user username=${_user?.username}');
     }
 
     if ((_sessionStore.cookie?.isNotEmpty ?? false) == false) {
+      debugPrint('AUTH_DEBUG bootstrap skipped refreshSession: no cookie');
       return;
     }
 
     try {
+      debugPrint('AUTH_DEBUG bootstrap calling refreshSession()');
       await refreshSession();
     } catch (_) {
+      debugPrint('AUTH_DEBUG bootstrap refreshSession failed, logging out');
       await logout();
     }
   }
 
   Future<void> refreshSession() async {
+    debugPrint('AUTH_DEBUG refreshSession() start');
     final result = await _authRepository.fetchMe();
     if (result.username.isEmpty) {
+      debugPrint('AUTH_DEBUG refreshSession() empty username');
       return;
     }
+    debugPrint('AUTH_DEBUG refreshSession() success username=${result.username}');
 
     if (_user == null) {
       _user = result;
@@ -68,24 +78,28 @@ class AuthController extends ChangeNotifier {
     required String username,
     required String password,
   }) async {
+    debugPrint('AUTH_DEBUG login() username=$username');
     await _runGuarded(() async {
       final user =
           await _authRepository.login(username: username, password: password);
       _user = user;
       await _sessionStore.saveUser(user.toJson());
       await _sessionStore.saveLastLoginUsername(user.username);
+      debugPrint('AUTH_DEBUG login() success username=${user.username}');
     });
   }
 
   Future<void> loginWithGoogle({
     required String credential,
   }) async {
+    debugPrint('AUTH_DEBUG loginWithGoogle() start');
     await _runGuarded(() async {
       final user =
           await _authRepository.loginWithGoogle(credential: credential);
       _user = user;
       await _sessionStore.saveUser(user.toJson());
       await _sessionStore.saveLastLoginUsername(user.username);
+      debugPrint('AUTH_DEBUG loginWithGoogle() success username=${user.username}');
     });
   }
 
@@ -121,6 +135,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    debugPrint('AUTH_DEBUG logout() username=${_user?.username}');
     _user = null;
     await _sessionStore.clearSession();
     notifyListeners();

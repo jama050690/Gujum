@@ -71,16 +71,12 @@ class CallController extends ChangeNotifier {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {
-        'urls': 'turn:jamshiddin.uz:3478?transport=udp',
-        'username': 'jama',
-        'credential': '12345',
-      },
-      {
-        'urls': 'turn:jamshiddin.uz:3478?transport=tcp',
-        'username': 'jama',
-        'credential': '12345',
+        'urls': 'turns:jamshiddin.uz:5349',
+        'username': 'bootchat',
+        'credential': 'Bootchat2024!',
       },
     ],
+    'iceTransportPolicy': 'relay',
     'iceCandidatePoolSize': 10,
   };
 
@@ -130,6 +126,9 @@ class CallController extends ChangeNotifier {
 
   Future<void> startCall(CallPeer peer, {required bool video}) async {
     if (hasSession || hasIncomingCall) return;
+    debugPrint(
+      'CALL_DEBUG startCall() target=${peer.username} video=$video socketConnected=${_socketService.isConnected}',
+    );
 
     await _prepareForNewSession(video: video);
     _remotePeer = peer;
@@ -163,13 +162,18 @@ class CallController extends ChangeNotifier {
           'avatar': _authController.user?.avatar,
         }
       });
-    } catch (_) {
+      debugPrint('CALL_DEBUG CALL_OFFER emitted callId=$_callId');
+    } catch (error) {
+      debugPrint('CALL_DEBUG startCall() failed error=$error');
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
   }
 
   Future<void> acceptIncomingCall() async {
     if (_incomingCall == null) return;
+    debugPrint(
+      'CALL_DEBUG acceptIncomingCall() callId=${_incomingCall!.callId} caller=${_incomingCall!.caller.username} video=${_incomingCall!.isVideo}',
+    );
 
     final incoming = _incomingCall!;
     await _stopAlertTone();
@@ -187,13 +191,14 @@ class CallController extends ChangeNotifier {
       _localStream = await _openLocalMedia(video: incoming.isVideo);
       await _applyAudioRoute();
       final pc = await _createPeerConnection();
-      _localStream!
-          .getTracks()
-          .forEach((track) => pc.addTrack(track, _localStream!));
       await pc.setRemoteDescription(
         RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
       );
       _remoteDescriptionReady = true;
+
+      _localStream!
+          .getTracks()
+          .forEach((track) => pc.addTrack(track, _localStream!));
 
       for (final candidate in _pendingCandidates) {
         await pc.addCandidate(candidate);
@@ -214,7 +219,9 @@ class CallController extends ChangeNotifier {
           'avatar': _authController.user?.avatar,
         },
       });
-    } catch (_) {
+      debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
+    } catch (error) {
+      debugPrint('CALL_DEBUG acceptIncomingCall() failed error=$error');
       rejectIncomingCall();
     }
   }
@@ -269,6 +276,7 @@ class CallController extends ChangeNotifier {
   }
 
   void _handlePacket(SocketPacket packet) {
+    debugPrint('CALL_DEBUG packet event=${packet.event} payload=${packet.payload}');
     final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
     switch (packet.event) {
       case 'CALL_OFFER':
@@ -409,7 +417,18 @@ class CallController extends ChangeNotifier {
       if (track.kind == 'audio') {
         unawaited(_applyAudioRoute());
       }
+      unawaited(_markCallConnected());
       notifyListeners();
+    };
+
+    pc.onIceConnectionState = (state) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        unawaited(_markCallConnected());
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        unawaited(_resetSession());
+      }
     };
 
     pc.onConnectionState = (state) {

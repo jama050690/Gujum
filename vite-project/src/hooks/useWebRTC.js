@@ -32,10 +32,15 @@ export function useWebRTC(socket, currentUser) {
   const pcRef = useRef(null);
   const iceQueue = useRef([]);
   const remoteDescSet = useRef(false);
+  const callStateRef = useRef(null);
   const callIdRef = useRef(null);
   const targetUserRef = useRef(null);
   const localStreamRef = useRef(null);
   const ringtoneRef = useRef(null);
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
  
   const stopRingtone = useCallback(() => {
     if (ringtoneRef.current) {
@@ -65,6 +70,8 @@ export function useWebRTC(socket, currentUser) {
     setIncomingCall(null);
     setCallStartedAt(null);
     setCallError(null);
+    setIsMuted(false);
+    setIsCameraOff(false);
     targetUserRef.current = null;
     callIdRef.current = null;
   }, [stopRingtone]);
@@ -148,6 +155,7 @@ export function useWebRTC(socket, currentUser) {
         if (!pcRef.current) return;
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         remoteDescSet.current = true;
+        setCallState("connecting");
  
         while (iceQueue.current.length > 0) {
           const cand = iceQueue.current.shift();
@@ -163,13 +171,15 @@ export function useWebRTC(socket, currentUser) {
         console.error("CALL_ANSWER xatosi:", e);
       }
     };
- 
-    socket.on("ICE_CANDIDATE", handleIceCandidate);
-    socket.on("CALL_ANSWER", handleCallAnswer);
- 
-    socket.on("CALL_OFFER", async (data) => {
-      if (callState && callState !== "incoming") {
-        socket.emit("CALL_REJECT", { target: data.caller.username, reason: "busy" });
+
+    const handleCallOffer = async (data) => {
+      if (callStateRef.current && callStateRef.current !== "incoming") {
+        socket.emit("CALL_REJECT", {
+          target: data.caller.username,
+          reason: "busy",
+          callId: data.callId,
+          isVideo: data.isVideo,
+        });
         return;
       }
       callIdRef.current = data.callId;
@@ -180,29 +190,38 @@ export function useWebRTC(socket, currentUser) {
       setCallState("incoming");
       stopRingtone();
       ringtoneRef.current = playRingtone();
-    });
- 
-    socket.on("CALL_END", () => {
+    };
+
+    const handleCallEnd = () => {
       playCallEnd();
       cleanup();
-    });
- 
-    socket.on("CALL_REJECT", () => {
+    };
+
+    const handleCallReject = () => {
       stopRingtone();
       setCallError("Rad etildi");
       setTimeout(cleanup, 2000);
-    });
+    };
+
+    socket.on("ICE_CANDIDATE", handleIceCandidate);
+    socket.on("CALL_ANSWER", handleCallAnswer);
+    socket.on("CALL_OFFER", handleCallOffer);
+    socket.on("CALL_END", handleCallEnd);
+    socket.on("CALL_REJECT", handleCallReject);
  
     return () => {
       socket.off("ICE_CANDIDATE", handleIceCandidate);
       socket.off("CALL_ANSWER", handleCallAnswer);
-      socket.off("CALL_OFFER");
-      socket.off("CALL_END");
-      socket.off("CALL_REJECT");
+      socket.off("CALL_OFFER", handleCallOffer);
+      socket.off("CALL_END", handleCallEnd);
+      socket.off("CALL_REJECT", handleCallReject);
     };
-  }, [socket, callState, cleanup, stopRingtone]);
+  }, [socket, cleanup, stopRingtone]);
  
   const startCall = useCallback(async (targetUser, video = false) => {
+    if (callStateRef.current) {
+      return;
+    }
     try {
       cleanup();
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -253,15 +272,16 @@ export function useWebRTC(socket, currentUser) {
  
       localStreamRef.current = stream;
       setLocalStream(stream);
-      setCallState("connected");
-      // ✅ Javob beruvchi tomonda callStartedAt darhol o'rnatiladi
-      setCallStartedAt(Date.now());
+      setIsVideo(incomingCall.isVideo);
+      setRemoteUser(incomingCall.caller);
+      setCallState("connecting");
  
       const pc = createPeerConnection(incomingCall.caller.username);
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
  
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
       remoteDescSet.current = true;
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
  
       while (iceQueue.current.length > 0) {
         const cand = iceQueue.current.shift();
@@ -276,9 +296,15 @@ export function useWebRTC(socket, currentUser) {
         answer,
         callId: callIdRef.current
       });
+      setCallStartedAt(prev => prev || Date.now());
       setIncomingCall(null);
     } catch (e) {
-      socket.emit("CALL_REJECT", { target: incomingCall.caller.username });
+      console.error("CALL_ACCEPT xatosi:", e);
+      socket.emit("CALL_REJECT", {
+        target: incomingCall.caller.username,
+        callId: callIdRef.current,
+        isVideo: incomingCall.isVideo,
+      });
       cleanup();
     }
   }, [incomingCall, createPeerConnection, socket, cleanup, stopRingtone]);
@@ -315,7 +341,13 @@ export function useWebRTC(socket, currentUser) {
     localStream, remoteStream, incomingCall, callStartedAt,
     startCall, acceptCall, hangUp, toggleMute, toggleCamera,
     rejectCall: () => {
-      if (incomingCall) socket.emit("CALL_REJECT", { target: incomingCall.caller.username });
+      if (incomingCall) {
+        socket.emit("CALL_REJECT", {
+          target: incomingCall.caller.username,
+          callId: callIdRef.current,
+          isVideo: incomingCall.isVideo,
+        });
+      }
       cleanup();
     }
   };

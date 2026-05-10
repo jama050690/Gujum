@@ -166,15 +166,35 @@ class ChatController extends ChangeNotifier {
     final currentUser = _authController.user;
     final target = receiver ?? _activeChat?.username;
     if (currentUser == null || target == null) return false;
+    debugPrint(
+      'CHAT_DEBUG sendMessage() from=${currentUser.username} to=$target socketConnected=${_socketService.isConnected} hasText=${message.trim().isNotEmpty} hasImage=${image != null} hasAudio=${audio != null} hasVideo=${video != null}',
+    );
 
-    _socketService.emit('NEW_MESSAGE', {
-      'user': currentUser.username,
+    if (_socketService.isConnected) {
+      _socketService.emit('NEW_MESSAGE', {
+        'user': currentUser.username,
+        'receiver': target,
+        'message': message.trim(),
+        'image': image,
+        'audio': audio,
+        'video': video,
+        'replyTo': replyTo,
+      });
+      return true;
+    }
+
+    debugPrint('CHAT_DEBUG sendMessage() falling back to REST API');
+    final sent = await _chatRepository.sendDirectMessage(
+      receiver: target,
+      message: message.trim(),
+      image: image,
+      audio: audio,
+      video: video,
+      replyTo: replyTo,
+    );
+    _consumeIncomingMessage(sent, {
       'receiver': target,
-      'message': message.trim(),
-      'image': image,
-      'audio': audio,
-      'video': video,
-      'replyTo': replyTo,
+      'user': currentUser.username,
     });
     return true;
   }
@@ -200,6 +220,16 @@ class ChatController extends ChangeNotifier {
 
   void _handleSocketPacket(SocketPacket packet) {
     switch (packet.event) {
+      case 'connect':
+        _connectionLabel = null;
+        break;
+      case 'disconnect':
+        _connectionLabel = 'Socket uzildi';
+        break;
+      case 'connect_error':
+      case 'error':
+        _connectionLabel = 'Socket ulanmayapti';
+        break;
       case 'CALL_OFFER':
       case 'INCOMING_CALL':
         debugPrint("DEBUG: Qo'ng'iroq signali keldi");
@@ -300,13 +330,23 @@ class ChatController extends ChangeNotifier {
 
   Future<void> _syncSession({bool force = false}) async {
     final user = _authController.user;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('CHAT_DEBUG _syncSession() skipped: no authenticated user');
+      return;
+    }
     final sessionKey = '${user.username}|${_settingsController.baseUrl}';
-    if (_syncingSession) return;
+    if (_syncingSession) {
+      debugPrint('CHAT_DEBUG _syncSession() skipped: already syncing');
+      return;
+    }
     if (!force && _lastSessionKey == sessionKey && _inbox.isNotEmpty) {
+      debugPrint('CHAT_DEBUG _syncSession() skipped: session already ready');
       return;
     }
 
+    debugPrint(
+      'CHAT_DEBUG _syncSession() start force=$force username=${user.username} baseUrl=${_settingsController.baseUrl} socketBase=${AppConfig.socketBaseUrl(_settingsController.baseUrl)} socketPath=${AppConfig.socketPath(_settingsController.baseUrl)} hasCookie=${_sessionStore.cookie?.isNotEmpty == true}',
+    );
     _syncingSession = true;
     _socketService.connect(
       baseUrl: AppConfig.socketBaseUrl(_settingsController.baseUrl),
@@ -317,6 +357,7 @@ class ChatController extends ChangeNotifier {
     try {
       await loadInbox();
       _lastSessionKey = sessionKey;
+      debugPrint('CHAT_DEBUG _syncSession() completed');
     } finally {
       _syncingSession = false;
     }
