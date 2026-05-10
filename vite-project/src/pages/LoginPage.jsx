@@ -9,8 +9,8 @@ import { saveProfileData } from "@/utils/storage";
 import {
   initializeGoogleIdentity,
   loadGoogleIdentityScript,
+  renderGoogleButton,
   setGoogleCredentialHandler,
-  triggerGoogleSignIn, // ✅ yangi funksiya
 } from "@/utils/googleIdentity";
 
 const LAST_LOGIN_USERNAME_KEY = "bootchat:last_login_username";
@@ -32,11 +32,17 @@ export default function LoginPage() {
   const [googleReady, setGoogleReady] = useState(false);
   const [savedUsername, setSavedUsername] = useState("");
   const [inputsUnlocked, setInputsUnlocked] = useState(false);
+
   const usernameInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const profileInputRef = useRef(null);
+  // ✅ Google SDK ning haqiqiy render qilinadigan yashirin div
+  const googleSdkRef = useRef(null);
+  // ✅ SDK ichidagi bosiladigan element
+  const googleInnerBtnRef = useRef(null);
   const formRootRef = useRef(null);
   const userInteractedRef = useRef(false);
+
   const navigate = useNavigate();
   const { login } = useAuth();
   const { isDark } = useTheme();
@@ -53,10 +59,7 @@ export default function LoginPage() {
 
   const withTimeout = useCallback(async (url, options = {}) => {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      REQUEST_TIMEOUT_MS,
-    );
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       return await fetch(url, { ...options, signal: controller.signal });
     } finally {
@@ -68,7 +71,7 @@ export default function LoginPage() {
     (err, fallbackMessage) => {
       const apiBaseUrl = getBaseUrl();
       if (err?.name === "AbortError") {
-        return `${tr("login_timeout", "Server javobi kechikyapti.")}\nAPI: ${apiBaseUrl}`;
+        return `${tr("login_timeout", "Server javobi kechikyapdi.")}\nAPI: ${apiBaseUrl}`;
       }
       if (err instanceof TypeError && /fetch/i.test(err.message || "")) {
         return `${tr("login_network_failed", "Serverga ulanib bo'lmadi.")}\nAPI: ${apiBaseUrl}`;
@@ -133,7 +136,10 @@ export default function LoginPage() {
         completeLogin(data.user);
       } catch (err) {
         setError(
-          getRequestErrorMessage(err, tr("login_google_failed", "Google orqali kirishda xatolik.")),
+          getRequestErrorMessage(
+            err,
+            tr("login_google_failed", "Google orqali kirishda xatolik."),
+          ),
         );
       } finally {
         setGoogleLoading(false);
@@ -167,12 +173,10 @@ export default function LoginPage() {
     const timers = [0, 150, 500].map((delay) =>
       window.setTimeout(clearVisibleAutofill, delay),
     );
-    return () => {
-      timers.forEach((timerId) => window.clearTimeout(timerId));
-    };
+    return () => timers.forEach((id) => window.clearTimeout(id));
   }, [clearVisibleAutofill]);
 
-  // ✅ googleButtonRef va renderButton olib tashlandi — faqat initialize qilinadi
+  // ✅ SDK yuklash va initialize
   useEffect(() => {
     setGoogleReady(false);
     if (!GOOGLE_CLIENT_ID) return;
@@ -197,7 +201,15 @@ export default function LoginPage() {
     };
   }, [GOOGLE_CLIENT_ID, handleGoogleCredential]);
 
-  // ✅ Endi triggerGoogleSignIn() ishlatiladi — yashirin div kerak emas
+  // ✅ SDK tayyor bo'lganda yashirin divga render qilamiz
+  // Bu div ekranda ko'rinmaydi lekin DOM da mavjud — postMessage ishlaydi
+  useEffect(() => {
+    if (!googleReady || !googleSdkRef.current) return;
+
+    googleInnerBtnRef.current = renderGoogleButton(googleSdkRef.current, isDark);
+  }, [googleReady, isDark]);
+
+  // ✅ Custom button bosilganda SDK ning haqiqiy elementini click qilamiz
   const handleGoogleLoginClick = () => {
     setError("");
 
@@ -211,7 +223,12 @@ export default function LoginPage() {
       return;
     }
 
-    triggerGoogleSignIn();
+    if (!googleInnerBtnRef.current) {
+      // Qayta render qilib ko'ramiz
+      googleInnerBtnRef.current = renderGoogleButton(googleSdkRef.current, isDark);
+    }
+
+    googleInnerBtnRef.current?.click();
   };
 
   const handleUsernameChange = (value) => {
@@ -224,9 +241,7 @@ export default function LoginPage() {
       userInteractedRef.current = true;
       if (inputsUnlocked) return;
       setInputsUnlocked(true);
-      window.requestAnimationFrame(() => {
-        element?.focus?.();
-      });
+      window.requestAnimationFrame(() => element?.focus?.());
     },
     [inputsUnlocked],
   );
@@ -321,9 +336,7 @@ export default function LoginPage() {
     : "border border-[#d4d8e5] bg-[#fbfaff] text-[#13202c] placeholder:text-[#9aa3b4] shadow-[0_8px_20px_rgba(90,120,170,0.08)] focus:border-[#8fbaf2] focus:ring-[#8fbaf2]/20";
 
   const mutedClass = isDark ? "text-white/72" : "text-[#677487]";
-  const iconBoxClass = isDark
-    ? "bg-[#00577a] text-[#8fd1ff]"
-    : "bg-[#d7f0ff] text-[#1e88e5]";
+  const iconBoxClass = isDark ? "bg-[#00577a] text-[#8fd1ff]" : "bg-[#d7f0ff] text-[#1e88e5]";
   const googleButtonClass = isDark
     ? "border border-white/15 bg-[#182430] text-white hover:bg-[#1d2b38]"
     : "border border-[#1f2c44] bg-[#1f2c44] text-white hover:bg-[#263652]";
@@ -344,6 +357,17 @@ export default function LoginPage() {
         ref={formRootRef}
         className={`relative z-10 w-full max-w-md rounded-[24px] px-6 py-6 sm:px-7 sm:py-6 ${cardClass}`}
       >
+        {/*
+          ✅ Google SDK render div — ko'rinmaydi lekin DOM da mavjud.
+          visibility:hidden ishlatilgan — display:none yoki offscreen emas,
+          chunki Google SDK element DOM da ko'rinishi kerak (postMessage uchun).
+        */}
+        <div
+          ref={googleSdkRef}
+          style={{ visibility: "hidden", height: 0, overflow: "hidden" }}
+          aria-hidden="true"
+        />
+
         <div className="absolute right-5 top-5 shrink-0 sm:right-6 sm:top-6">
           <select
             value={LANGUAGE_OPTIONS.some((o) => o.value === lang) ? lang : "en"}
@@ -364,11 +388,7 @@ export default function LoginPage() {
         <div
           className={`mx-auto flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[24px] ${iconBoxClass}`}
         >
-          <img
-            src={BRAND_LOGO_URL}
-            alt="Bootchat logo"
-            className="h-[46px] w-[46px] object-contain"
-          />
+          <img src={BRAND_LOGO_URL} alt="Bootchat logo" className="h-[46px] w-[46px] object-contain" />
         </div>
 
         <div className="mt-5 text-center">
@@ -384,11 +404,7 @@ export default function LoginPage() {
             title={tr("login_profile_pick", "Profil rasmini tanlash")}
           >
             {profilePreview ? (
-              <img
-                src={profilePreview}
-                alt="Selected profile"
-                className="h-full w-full object-cover"
-              />
+              <img src={profilePreview} alt="Selected profile" className="h-full w-full object-cover" />
             ) : (
               <div className="flex flex-col items-center justify-center text-[#7f8b99]">
                 <i className="fas fa-user-circle text-[68px]" />
@@ -435,11 +451,15 @@ export default function LoginPage() {
             mutedClass={mutedClass}
           />
 
-          {showSavedUsernameSuggestion ? (
+          {showSavedUsernameSuggestion && (
             <button
               type="button"
               onClick={applySavedUsername}
-              className={`mt-[-8px] flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-colors ${isDark ? "border-white/10 bg-[#182430] text-white hover:bg-[#1d2b38]" : "border-[#d4d8e5] bg-[#eef5ff] text-[#13202c] hover:bg-[#e4efff]"}`}
+              className={`mt-[-8px] flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-colors ${
+                isDark
+                  ? "border-white/10 bg-[#182430] text-white hover:bg-[#1d2b38]"
+                  : "border-[#d4d8e5] bg-[#eef5ff] text-[#13202c] hover:bg-[#e4efff]"
+              }`}
             >
               <div className="flex min-w-0 items-center gap-3">
                 <i className={`fas fa-clock-rotate-left text-[15px] ${mutedClass}`} />
@@ -454,7 +474,7 @@ export default function LoginPage() {
                 {tr("login_saved_username_apply", "Tanlash")}
               </span>
             </button>
-          ) : null}
+          )}
 
           <AuthField
             ref={passwordInputRef}
@@ -508,7 +528,6 @@ export default function LoginPage() {
           <div className="h-px flex-1 bg-[#d8d8e2]" />
         </div>
 
-        {/* ✅ Yashirin div olib tashlandi — custom button to'g'ridan-to'g'ri ishlaydi */}
         <div className="mt-4">
           <button
             type="button"
@@ -553,22 +572,7 @@ export default function LoginPage() {
 }
 
 const AuthField = forwardRef(function AuthField(
-  {
-    value,
-    onChange,
-    label,
-    icon,
-    name,
-    placeholder,
-    type = "text",
-    autoComplete,
-    onFocus,
-    onPointerDown,
-    readOnly = false,
-    fieldClass,
-    mutedClass,
-    rightSlot,
-  },
+  { value, onChange, label, icon, name, placeholder, type = "text", autoComplete, onFocus, onPointerDown, readOnly = false, fieldClass, mutedClass, rightSlot },
   ref,
 ) {
   return (

@@ -21,36 +21,44 @@ export function initializeGoogleIdentity(clientId) {
   const gsi = win.google?.accounts?.id;
   if (!gsi) return false;
 
-  if (win[GOOGLE_INIT_KEY] !== clientId) {
-    gsi.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        win[GOOGLE_HANDLER_KEY]?.(response);
-      },
-      auto_select: false,
-      use_fedcm_for_prompt: true, // ✅ FedCM yoqildi — postMessage xatosini hal qiladi
-    });
-    gsi.disableAutoSelect?.();
-    win[GOOGLE_INIT_KEY] = clientId;
-  }
+  win[GOOGLE_INIT_KEY] = null;
+
+  gsi.initialize({
+    client_id: clientId,
+    callback: (response) => {
+      win[GOOGLE_HANDLER_KEY]?.(response);
+    },
+    auto_select: false,
+    use_fedcm_for_prompt: false, // custom button bilan FedCM ishlamaydi
+  });
+
+  gsi.disableAutoSelect?.();
+  win[GOOGLE_INIT_KEY] = clientId;
 
   return true;
 }
 
-// ✅ Yangi funksiya — custom button bilan ishlash uchun
-export function triggerGoogleSignIn() {
+// ✅ container elementga Google tugmasini render qiladi, ichki elementni qaytaradi
+export function renderGoogleButton(container, isDark = false) {
   const win = getWindowObject();
-  if (!win) return;
+  if (!win || !container) return null;
 
   const gsi = win.google?.accounts?.id;
-  if (!gsi) return;
+  if (!gsi) return null;
 
-  gsi.prompt((notification) => {
-    // Prompt yopilsa yoki blok bo'lsa — callback orqali hal qilinadi
-    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-      console.warn("Google prompt ko'rsatilmadi:", notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
-    }
+  container.innerHTML = "";
+
+  gsi.renderButton(container, {
+    type: "standard",
+    theme: isDark ? "filled_black" : "outline",
+    size: "large",
+    text: "signin_with",
+    shape: "pill",
+    logo_alignment: "left",
+    width: container.offsetWidth || 320,
   });
+
+  return container.querySelector("div[role=button], button");
 }
 
 export function loadGoogleIdentityScript() {
