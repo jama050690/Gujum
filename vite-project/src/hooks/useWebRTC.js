@@ -319,3 +319,4 @@ export function useWebRTC(socket, currentUser) {
       cleanup();
     }
   };
+}
