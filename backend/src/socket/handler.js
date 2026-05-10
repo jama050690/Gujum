@@ -808,6 +808,7 @@ function registerSocketHandlers(io) {
 browser.on("CALL_ANSWER", (data) => {
   const activeCall = activeCalls.get(data.callId);
   const answeredAt = Date.now();
+  console.log(`CALL_ANSWER keldi: ${browser.username} → ${data.target} (${data.callId})`);
   if (activeCall) {
     activeCall.status = "connected";
     activeCall.connectedAt = answeredAt;
