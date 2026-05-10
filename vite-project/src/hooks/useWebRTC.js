@@ -234,13 +234,18 @@ export function useWebRTC(socket, currentUser) {
 
         localStreamRef.current = stream;
         setLocalStream(stream);
-        setCallState("connected");
+        setIsVideo(incomingCall.isVideo);
+        setRemoteUser(incomingCall.caller);
+        setCallState("connecting");
 
         const pc = createPeerConnection(incomingCall.caller.username);
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
         remoteDescSet.current = true;
+
+        // Javob yaratilishida m-line tartibi offer bilan bir xil bo'lishi uchun
+        // local tracklarni remote description'dan keyin qo'shamiz.
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         // Navbatdagi ICE larni qo'shish
         while (iceQueue.current.length > 0) {
