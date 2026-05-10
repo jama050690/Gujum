@@ -10,6 +10,7 @@ import {
   initializeGoogleIdentity,
   loadGoogleIdentityScript,
   setGoogleCredentialHandler,
+  triggerGoogleSignIn, // ✅ yangi funksiya
 } from "@/utils/googleIdentity";
 
 const LAST_LOGIN_USERNAME_KEY = "bootchat:last_login_username";
@@ -29,14 +30,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
-  const [googleButtonRendered, setGoogleButtonRendered] = useState(false);
   const [savedUsername, setSavedUsername] = useState("");
   const [inputsUnlocked, setInputsUnlocked] = useState(false);
   const usernameInputRef = useRef(null);
   const passwordInputRef = useRef(null);
   const profileInputRef = useRef(null);
-  const googleButtonRef = useRef(null);
-  const googleButtonInnerRef = useRef(null);
   const formRootRef = useRef(null);
   const userInteractedRef = useRef(false);
   const navigate = useNavigate();
@@ -59,12 +57,8 @@ export default function LoginPage() {
       () => controller.abort(),
       REQUEST_TIMEOUT_MS,
     );
-
     try {
-      return await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
+      return await fetch(url, { ...options, signal: controller.signal });
     } finally {
       window.clearTimeout(timeoutId);
     }
@@ -73,15 +67,12 @@ export default function LoginPage() {
   const getRequestErrorMessage = useCallback(
     (err, fallbackMessage) => {
       const apiBaseUrl = getBaseUrl();
-
       if (err?.name === "AbortError") {
         return `${tr("login_timeout", "Server javobi kechikyapti.")}\nAPI: ${apiBaseUrl}`;
       }
-
       if (err instanceof TypeError && /fetch/i.test(err.message || "")) {
         return `${tr("login_network_failed", "Serverga ulanib bo'lmadi.")}\nAPI: ${apiBaseUrl}`;
       }
-
       return err?.message || fallbackMessage;
     },
     [tr],
@@ -110,9 +101,7 @@ export default function LoginPage() {
       try {
         const credential = response?.credential;
         if (!credential) {
-          throw new Error(
-            tr("login_google_failed", "Google orqali kirishda xatolik."),
-          );
+          throw new Error(tr("login_google_failed", "Google orqali kirishda xatolik."));
         }
 
         const res = await withTimeout(`${getBaseUrl()}/api/login/google`, {
@@ -127,34 +116,24 @@ export default function LoginPage() {
         if (!res.ok) {
           if (res.status === 404) {
             throw new Error(
-              tr(
-                "login_google_backend_missing",
-                "Google login backend hali sozlanmagan.",
-              ),
+              tr("login_google_backend_missing", "Google login backend hali sozlanmagan."),
             );
           }
           throw new Error(
-            data.message ||
-              tr("login_google_failed", "Google orqali kirishda xatolik."),
+            data.message || tr("login_google_failed", "Google orqali kirishda xatolik."),
           );
         }
 
         if (!data?.user?.username) {
           throw new Error(
-            tr(
-              "login_google_bad_response",
-              "Google login javobi noto'g'ri formatda.",
-            ),
+            tr("login_google_bad_response", "Google login javobi noto'g'ri formatda."),
           );
         }
 
         completeLogin(data.user);
       } catch (err) {
         setError(
-          getRequestErrorMessage(
-            err,
-            tr("login_google_failed", "Google orqali kirishda xatolik."),
-          ),
+          getRequestErrorMessage(err, tr("login_google_failed", "Google orqali kirishda xatolik.")),
         );
       } finally {
         setGoogleLoading(false);
@@ -193,9 +172,9 @@ export default function LoginPage() {
     };
   }, [clearVisibleAutofill]);
 
+  // ✅ googleButtonRef va renderButton olib tashlandi — faqat initialize qilinadi
   useEffect(() => {
     setGoogleReady(false);
-    setGoogleButtonRendered(false);
     if (!GOOGLE_CLIENT_ID) return;
 
     let cancelled = false;
@@ -209,9 +188,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setGoogleReady(false);
-        }
+        if (!cancelled) setGoogleReady(false);
       });
 
     return () => {
@@ -220,26 +197,7 @@ export default function LoginPage() {
     };
   }, [GOOGLE_CLIENT_ID, handleGoogleCredential]);
 
-  useEffect(() => {
-    if (!googleReady) return;
-    const gsi = window.google?.accounts?.id;
-    if (!gsi || !googleButtonRef.current) return;
-
-    googleButtonRef.current.innerHTML = "";
-    gsi.renderButton(googleButtonRef.current, {
-      type: "standard",
-      theme: isDark ? "filled_black" : "outline",
-      size: "large",
-      text: "signin_with",
-      shape: "pill",
-      logo_alignment: "left",
-      width: googleButtonRef.current.offsetWidth || 320,
-    });
-    googleButtonInnerRef.current =
-      googleButtonRef.current.querySelector("div[role=button], button");
-    setGoogleButtonRendered(!!googleButtonInnerRef.current);
-  }, [googleReady, isDark]);
-
+  // ✅ Endi triggerGoogleSignIn() ishlatiladi — yashirin div kerak emas
   const handleGoogleLoginClick = () => {
     setError("");
 
@@ -248,14 +206,12 @@ export default function LoginPage() {
       return;
     }
 
-    if (!googleReady || !googleButtonRendered) {
-      setError(
-        tr("login_google_sdk_loading", "Google SDK yuklanmoqda, qayta bosing."),
-      );
+    if (!googleReady) {
+      setError(tr("login_google_sdk_loading", "Google SDK yuklanmoqda, qayta bosing."));
       return;
     }
 
-    googleButtonInnerRef.current?.click();
+    triggerGoogleSignIn();
   };
 
   const handleUsernameChange = (value) => {
@@ -282,10 +238,7 @@ export default function LoginPage() {
     setUsername(savedUsername);
     requestAnimationFrame(() => {
       usernameInputRef.current?.focus();
-      usernameInputRef.current?.setSelectionRange(
-        savedUsername.length,
-        savedUsername.length,
-      );
+      usernameInputRef.current?.setSelectionRange(savedUsername.length, savedUsername.length);
     });
   };
 
@@ -306,6 +259,7 @@ export default function LoginPage() {
       if (profileInputRef.current?.files?.[0]) {
         formData.append("profilePic", profileInputRef.current.files[0]);
       }
+
       const res = await withTimeout(`${getBaseUrl()}/api/login`, {
         method: "POST",
         credentials: "include",
@@ -319,9 +273,7 @@ export default function LoginPage() {
 
       completeLogin(data.user);
     } catch (err) {
-      setError(
-        getRequestErrorMessage(err, tr("login_failed", "Login failed")),
-      );
+      setError(getRequestErrorMessage(err, tr("login_failed", "Login failed")));
     } finally {
       setLoading(false);
     }
@@ -343,21 +295,16 @@ export default function LoginPage() {
       setProfilePreview("");
       return;
     }
-
     const previewUrl = URL.createObjectURL(file);
     setProfilePreview((current) => {
-      if (current) {
-        URL.revokeObjectURL(current);
-      }
+      if (current) URL.revokeObjectURL(current);
       return previewUrl;
     });
   };
 
   useEffect(() => {
     return () => {
-      if (profilePreview) {
-        URL.revokeObjectURL(profilePreview);
-      }
+      if (profilePreview) URL.revokeObjectURL(profilePreview);
     };
   }, [profilePreview]);
 
@@ -380,6 +327,7 @@ export default function LoginPage() {
   const googleButtonClass = isDark
     ? "border border-white/15 bg-[#182430] text-white hover:bg-[#1d2b38]"
     : "border border-[#1f2c44] bg-[#1f2c44] text-white hover:bg-[#263652]";
+
   const showSavedUsernameSuggestion =
     username.trim() &&
     savedUsername &&
@@ -398,11 +346,7 @@ export default function LoginPage() {
       >
         <div className="absolute right-5 top-5 shrink-0 sm:right-6 sm:top-6">
           <select
-            value={
-              LANGUAGE_OPTIONS.some((option) => option.value === lang)
-                ? lang
-                : "en"
-            }
+            value={LANGUAGE_OPTIONS.some((o) => o.value === lang) ? lang : "en"}
             onChange={(event) => handleLanguageChange(event.target.value)}
             className={`appearance-none bg-transparent pr-5 text-[17px] font-semibold outline-none ${isDark ? "text-white" : "text-[#233042]"}`}
           >
@@ -428,12 +372,8 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-5 text-center">
-          <h1 className="text-[28px] font-bold leading-none">
-            {t("login_title")}
-          </h1>
-          <p className={`mt-2.5 text-[15px] ${mutedClass}`}>
-            {t("login_subtitle")}
-          </p>
+          <h1 className="text-[28px] font-bold leading-none">{t("login_title")}</h1>
+          <p className={`mt-2.5 text-[15px] ${mutedClass}`}>{t("login_subtitle")}</p>
         </div>
 
         <div className="mt-5 flex justify-center">
@@ -473,20 +413,12 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          autoComplete="off"
-          className="mt-6 space-y-4"
-        >
+        <form onSubmit={handleSubmit} autoComplete="off" className="mt-6 space-y-4">
           <div className="hidden" aria-hidden="true">
             <input type="text" name="username" autoComplete="username" tabIndex={-1} />
-            <input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              tabIndex={-1}
-            />
+            <input type="password" name="password" autoComplete="current-password" tabIndex={-1} />
           </div>
+
           <AuthField
             ref={usernameInputRef}
             value={username}
@@ -502,6 +434,7 @@ export default function LoginPage() {
             fieldClass={fieldClass}
             mutedClass={mutedClass}
           />
+
           {showSavedUsernameSuggestion ? (
             <button
               type="button"
@@ -509,16 +442,12 @@ export default function LoginPage() {
               className={`mt-[-8px] flex w-full items-center justify-between gap-3 rounded-[12px] border px-4 py-3 text-left transition-colors ${isDark ? "border-white/10 bg-[#182430] text-white hover:bg-[#1d2b38]" : "border-[#d4d8e5] bg-[#eef5ff] text-[#13202c] hover:bg-[#e4efff]"}`}
             >
               <div className="flex min-w-0 items-center gap-3">
-                <i
-                  className={`fas fa-clock-rotate-left text-[15px] ${mutedClass}`}
-                />
+                <i className={`fas fa-clock-rotate-left text-[15px] ${mutedClass}`} />
                 <div className="min-w-0">
                   <div className={`text-[12px] ${mutedClass}`}>
                     {tr("login_saved_username_prompt", "Shuni xohlaysizmi?")}
                   </div>
-                  <div className="truncate text-[15px] font-semibold">
-                    {savedUsername}
-                  </div>
+                  <div className="truncate text-[15px] font-semibold">{savedUsername}</div>
                 </div>
               </div>
               <span className="shrink-0 text-[13px] font-semibold text-[#2b7cff]">
@@ -552,9 +481,7 @@ export default function LoginPage() {
                 className={`absolute right-5 top-1/2 -translate-y-1/2 text-[20px] ${mutedClass}`}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                <i
-                  className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`}
-                />
+                <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`} />
               </button>
             }
           />
@@ -577,22 +504,16 @@ export default function LoginPage() {
 
         <div className="mt-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-[#d8d8e2]" />
-          <span className="rounded-full bg-[#f6f4fb] px-3 text-[14px] text-[#b2acb7]">
-            yoki
-          </span>
+          <span className="rounded-full bg-[#f6f4fb] px-3 text-[14px] text-[#b2acb7]">yoki</span>
           <div className="h-px flex-1 bg-[#d8d8e2]" />
         </div>
 
+        {/* ✅ Yashirin div olib tashlandi — custom button to'g'ridan-to'g'ri ishlaydi */}
         <div className="mt-4">
-          <div
-            ref={googleButtonRef}
-            className="absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden"
-            aria-hidden="true"
-          />
           <button
             type="button"
             onClick={handleGoogleLoginClick}
-            disabled={googleLoading}
+            disabled={googleLoading || !googleReady}
             className={`mt-2 flex h-[54px] w-full items-center justify-center gap-4 rounded-[14px] text-[16px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${googleButtonClass}`}
           >
             {googleLoading ? (
@@ -617,9 +538,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[15px]">
-          <span className={mutedClass}>
-            {tr("no_account", t("login_no_account"))}
-          </span>
+          <span className={mutedClass}>{tr("no_account", t("login_no_account"))}</span>
           <Link
             to={`/${lang}/signup`}
             className={`flex items-center gap-3 font-semibold ${isDark ? "text-[#8fd1ff]" : "text-[#1e5fa6]"}`}
@@ -654,14 +573,9 @@ const AuthField = forwardRef(function AuthField(
 ) {
   return (
     <div>
-      <label className={`mb-2 block text-[14px] font-semibold ${mutedClass}`}>
-        {label}
-      </label>
-
+      <label className={`mb-2 block text-[14px] font-semibold ${mutedClass}`}>{label}</label>
       <div className="relative">
-        <i
-          className={`fas ${icon} absolute left-5 top-1/2 -translate-y-1/2 text-[20px] ${mutedClass}`}
-        />
+        <i className={`fas ${icon} absolute left-5 top-1/2 -translate-y-1/2 text-[20px] ${mutedClass}`} />
         <input
           ref={ref}
           name={name}

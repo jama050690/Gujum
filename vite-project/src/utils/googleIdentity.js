@@ -28,13 +28,29 @@ export function initializeGoogleIdentity(clientId) {
         win[GOOGLE_HANDLER_KEY]?.(response);
       },
       auto_select: false,
-      use_fedcm_for_prompt: false,
+      use_fedcm_for_prompt: true, // ✅ FedCM yoqildi — postMessage xatosini hal qiladi
     });
     gsi.disableAutoSelect?.();
     win[GOOGLE_INIT_KEY] = clientId;
   }
 
   return true;
+}
+
+// ✅ Yangi funksiya — custom button bilan ishlash uchun
+export function triggerGoogleSignIn() {
+  const win = getWindowObject();
+  if (!win) return;
+
+  const gsi = win.google?.accounts?.id;
+  if (!gsi) return;
+
+  gsi.prompt((notification) => {
+    // Prompt yopilsa yoki blok bo'lsa — callback orqali hal qilinadi
+    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+      console.warn("Google prompt ko'rsatilmadi:", notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
+    }
+  });
 }
 
 export function loadGoogleIdentityScript() {
@@ -55,7 +71,7 @@ export function loadGoogleIdentityScript() {
     const handleLoad = () => resolve(true);
     const handleError = () => {
       googleScriptPromise = null;
-      reject(new Error("Google Identity script failed to load"));
+      reject(new Error("Google Identity script yuklanmadi"));
     };
 
     if (!script) {
