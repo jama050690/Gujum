@@ -135,6 +135,8 @@ export function useWebRTC(socket, currentUser) {
           if (!pcRef.current) return;
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
           remoteDescSet.current = true;
+          setCallState("connected");
+          setCallStartedAt(prev => prev || data.answeredAt || Date.now());
           
           // Navbatdagi ICE larni qo'shish
           while (iceQueue.current.length > 0) {
@@ -253,6 +255,7 @@ export function useWebRTC(socket, currentUser) {
             target: incomingCall.caller.username,
             answer, callId: callIdRef.current
         });
+        setCallStartedAt(prev => prev || Date.now());
         setIncomingCall(null);
     } catch (e) {
         socket.emit("CALL_REJECT", { target: incomingCall.caller.username });

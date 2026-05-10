@@ -805,17 +805,19 @@ function registerSocketHandlers(io) {
       }
     });
 
-  browser.on("CALL_ANSWER", (data) => {
+browser.on("CALL_ANSWER", (data) => {
   const activeCall = activeCalls.get(data.callId);
+  const answeredAt = Date.now();
   if (activeCall) {
     activeCall.status = "connected";
-    activeCall.connectedAt = Date.now();
+    activeCall.connectedAt = answeredAt;
     clearReconnectTimer(activeCall, data.target);
     clearReconnectTimer(activeCall, browser.username);
   }
   emitToUser(data.target, "CALL_ANSWER", { 
     answer: data.answer, 
-    callId: data.callId 
+    callId: data.callId,
+    answeredAt,
   });
 });
 
