@@ -139,6 +139,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   final _local = RTCVideoRenderer();
   final _remote = RTCVideoRenderer();
   bool _ready = false;
+  Timer? _ticker;
 
   @override
   void initState() {
@@ -150,6 +151,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   @override
   void dispose() {
     widget.callController.removeListener(_update);
+    _ticker?.cancel();
     _local.dispose();
     _remote.dispose();
     super.dispose();
@@ -160,10 +162,12 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     await _remote.initialize();
     if (mounted) setState(() => _ready = true);
     _sync();
+    _syncTicker();
   }
 
   void _update() {
     _sync();
+    _syncTicker();
     if (mounted) setState(() {});
   }
 
@@ -171,6 +175,20 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     if (!_ready) return;
     _local.srcObject = widget.callController.localStream;
     _remote.srcObject = widget.callController.remoteStream;
+  }
+
+  void _syncTicker() {
+    final connectedAt = widget.callController.connectedAt;
+    if (connectedAt == null) {
+      _ticker?.cancel();
+      _ticker = null;
+      return;
+    }
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -322,15 +340,16 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   }
 
   String _buildStatusText(BuildContext context, CallController ctrl) {
+    final localeCode = context.read<SettingsController>().localeCode;
     switch (ctrl.state) {
       case CallSessionState.connected:
-        return 'Connected';
+        return AppStrings.text(localeCode, 'call_connected');
       case CallSessionState.calling:
-        return 'Calling...';
+        return AppStrings.text(localeCode, 'call_ringing');
       case CallSessionState.connecting:
-        return 'Connecting...';
+        return AppStrings.text(localeCode, 'call_connecting');
       case CallSessionState.ringing:
-        return 'Incoming call';
+        return AppStrings.text(localeCode, 'call_incoming');
       case null:
         return '';
     }
@@ -420,6 +439,7 @@ class _RoundActionButton extends StatelessWidget {
       {required this.icon,
       required this.backgroundColor,
       required this.onPressed,
+      this.enabled = true,
       this.iconColor = Colors.white,
       this.size = 60,
       this.iconSize = 28});
@@ -427,17 +447,23 @@ class _RoundActionButton extends StatelessWidget {
   final Color backgroundColor;
   final Color iconColor;
   final VoidCallback onPressed;
+  final bool enabled;
   final double size;
   final double iconSize;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
-      child: IconButton(
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Container(
+        width: size,
+        height: size,
+        decoration:
+            BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+        child: IconButton(
           icon: Icon(icon, color: iconColor, size: iconSize),
-          onPressed: onPressed),
+          onPressed: enabled ? onPressed : null,
+        ),
+      ),
     );
   }
 }
@@ -593,6 +619,7 @@ class _ControlsDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final speakerIcon = _speakerIconFor(ctrl);
+    final canToggleCamera = ctrl.canToggleCamera;
     final List<Widget> actions = <Widget>[
       _RoundActionButton(
         icon: speakerIcon,
@@ -617,10 +644,10 @@ class _ControlsDock extends StatelessWidget {
             : Colors.transparent,
         iconColor:
             ctrl.isVideo && ctrl.isCameraOff ? Colors.black : Colors.white,
+        enabled: canToggleCamera,
         size: 76,
         iconSize: 34,
-        onPressed: () =>
-            ctrl.isVideo ? ctrl.toggleCamera() : ctrl.switchCallMode(true),
+        onPressed: () => ctrl.toggleCamera(),
       ),
       _RoundActionButton(
         icon: Icons.call_end_rounded,

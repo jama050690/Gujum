@@ -428,7 +428,13 @@ class CallController extends ChangeNotifier {
     if (video) {
       permissions.add(Permission.camera);
     }
-    await permissions.request();
+    final statuses = await permissions.request();
+    final denied = statuses.values.any(
+      (status) => !status.isGranted && !status.isLimited,
+    );
+    if (denied) {
+      throw const CallSetupException('call_permission_denied');
+    }
   }
 
   Future<MediaStream> _openLocalMedia({required bool video}) {
@@ -436,6 +442,22 @@ class CallController extends ChangeNotifier {
       'audio': true,
       'video': video ? {'facingMode': 'user'} : false,
     });
+  }
+
+  Future<({MediaStream stream, bool videoEnabled})> _openPreferredLocalMedia({
+    required bool video,
+  }) async {
+    if (!video) {
+      return (stream: await _openLocalMedia(video: false), videoEnabled: false);
+    }
+
+    try {
+      return (stream: await _openLocalMedia(video: true), videoEnabled: true);
+    } catch (error) {
+      debugPrint('CALL_DEBUG video media failed, falling back to audio: $error');
+      _reportError('call_video_fallback');
+      return (stream: await _openLocalMedia(video: false), videoEnabled: false);
+    }
   }
 
   Future<RTCPeerConnection> _createPeerConnection() async {
@@ -553,7 +575,19 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _applyAudioRoute() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (kIsWeb) return;
+
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      try {
+        await Helper.setSpeakerphoneOn(_isVideo || _isSpeakerOn);
+        _audioRoute = _isVideo || _isSpeakerOn
+            ? CallAudioRoute.speaker
+            : CallAudioRoute.earpiece;
+      } catch (error) {
+        debugPrint('CALL_DEBUG _applyAudioRoute() helper failed error=$error');
+      }
+      return;
+    }
 
     try {
       final result = await _audioChannel.invokeMapMethod<String, dynamic>(
@@ -570,7 +604,14 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _restoreAudioRoute() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (kIsWeb) return;
+
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      try {
+        await Helper.setSpeakerphoneOn(false);
+      } catch (_) {}
+      return;
+    }
 
     try {
       await _audioChannel.invokeMethod<void>('restoreAudioRoute');
@@ -625,6 +666,12 @@ class CallController extends ChangeNotifier {
     _connectedAt = null;
     _pendingCandidates.clear();
     _remoteDescriptionReady = false;
+  }
+
+  void _reportError(String key) {
+    _errorKey = key;
+    _errorVersion += 1;
+    notifyListeners();
   }
 
   void _syncAudioRouteInfo(Map<String, dynamic>? data) {
