@@ -387,8 +387,12 @@ class CallController extends ChangeNotifier {
         break;
       case 'CALL_END':
         final endData = Map<String, dynamic>.from(packet.payload as Map? ?? {});
-        if ((endData['reason'] ?? '').toString() == 'connection_lost') {
+        final reason = (endData['reason'] ?? '').toString();
+        if (reason == 'connection_lost') {
           _reportError('call_connection_lost');
+        } else if (_connectedAt == null &&
+            (reason == 'hangup' || reason == 'disconnect_timeout')) {
+          _reportError('call_missed');
         }
         unawaited(_resetSession());
         break;

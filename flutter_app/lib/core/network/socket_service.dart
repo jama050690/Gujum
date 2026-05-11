@@ -15,6 +15,7 @@ class SocketPacket {
 class SocketService {
   io.Socket? _socket;
   final _controller = StreamController<SocketPacket>.broadcast();
+  String? _connectionKey;
 
   Stream<SocketPacket> get packets => _controller.stream;
 
@@ -26,6 +27,16 @@ class SocketService {
     required String username,
     String? cookie,
   }) {
+    final nextConnectionKey = '$baseUrl|$path|$username|${cookie ?? ''}';
+    if (_socket != null &&
+        _connectionKey == nextConnectionKey &&
+        (_socket!.connected || _socket!.active)) {
+      debugPrint(
+        'SOCKET_DEBUG connect() skipped existing connection key=$nextConnectionKey connected=${_socket!.connected} active=${_socket!.active}',
+      );
+      return;
+    }
+
     debugPrint(
       'SOCKET_DEBUG connect() username=$username baseUrl=$baseUrl path=$path hasCookie=${cookie?.isNotEmpty == true}',
     );
@@ -33,10 +44,14 @@ class SocketService {
 
     final options = io.OptionBuilder()
         .setPath(path)
-        .setTransports(['websocket', 'polling'])
+        // Reverse-proxied websocket transport is closing repeatedly in production.
+        // Long-polling is slower but much more reliable for call signalling/events.
+        .setTransports(['polling'])
         .enableAutoConnect()
-        .enableForceNew()
         .enableReconnection()
+        .setReconnectionAttempts(999999)
+        .setReconnectionDelay(1000)
+        .setReconnectionDelayMax(5000)
         .setExtraHeaders(
           cookie == null || cookie.isEmpty
               ? const <String, String>{}
@@ -45,6 +60,7 @@ class SocketService {
         .build();
 
     _socket = io.io(baseUrl, options);
+    _connectionKey = nextConnectionKey;
     debugPrint('SOCKET_DEBUG socket instance created');
     _registerDefaultListeners(username);
   }
@@ -66,6 +82,7 @@ class SocketService {
     _socket?.dispose();
     _socket?.disconnect();
     _socket = null;
+    _connectionKey = null;
   }
 
   void dispose() {

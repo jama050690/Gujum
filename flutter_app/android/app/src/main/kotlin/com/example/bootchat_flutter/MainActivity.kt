@@ -82,6 +82,8 @@ class MainActivity : FlutterActivity() {
         }
 
         audioManager?.mode = AudioManager.MODE_NORMAL
+        @Suppress("DEPRECATION")
+        audioManager?.isSpeakerphoneOn = true
         volumeControlStream = AudioManager.STREAM_RING
 
         if (incomingRingtone?.isPlaying != true) {
@@ -114,8 +116,10 @@ class MainActivity : FlutterActivity() {
             outgoingRingtone?.isLooping = true
         }
 
-        audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
-        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+        audioManager?.mode = AudioManager.MODE_NORMAL
+        @Suppress("DEPRECATION")
+        audioManager?.isSpeakerphoneOn = true
+        volumeControlStream = AudioManager.STREAM_RING
 
         if (outgoingRingtone?.isPlaying != true) {
             outgoingRingtone?.play()
@@ -157,6 +161,28 @@ class MainActivity : FlutterActivity() {
         }
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.availableCommunicationDevices
+                .firstOrNull { device ->
+                    if (speakerOn) {
+                        device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                    } else {
+                        device.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                            device.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                            device.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                            device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                            device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                    }
+                }
+                ?.let { device ->
+                    audioManager.setCommunicationDevice(device)
+                }
+        }
+        if (speakerOn) {
+            audioManager.stopBluetoothSco()
+            @Suppress("DEPRECATION")
+            audioManager.isBluetoothScoOn = false
+        }
         @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = speakerOn
         @Suppress("DEPRECATION")
@@ -171,6 +197,12 @@ class MainActivity : FlutterActivity() {
         audioManager.isSpeakerphoneOn = false
         @Suppress("DEPRECATION")
         audioManager.isMicrophoneMute = false
+        audioManager.stopBluetoothSco()
+        @Suppress("DEPRECATION")
+        audioManager.isBluetoothScoOn = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.clearCommunicationDevice()
+        }
         audioManager.mode = AudioManager.MODE_NORMAL
         volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
 

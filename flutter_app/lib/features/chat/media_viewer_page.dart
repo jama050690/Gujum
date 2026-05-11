@@ -20,6 +20,16 @@ class ImageViewerPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        actions: [
+          if (imageUri != null)
+            IconButton(
+              onPressed: () => launchUrl(
+                imageUri,
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.open_in_new_rounded),
+            ),
+        ],
       ),
       body: Center(
         child: InteractiveViewer(
@@ -32,33 +42,12 @@ class ImageViewerPage extends StatelessWidget {
               fit: BoxFit.contain,
               filterQuality: FilterQuality.low,
               errorBuilder: (context, error, stackTrace) {
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.broken_image_outlined,
-                        color: Colors.white70,
-                        size: 42,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Image could not be decoded in the app.',
-                        style: TextStyle(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (imageUri != null) ...[
-                        const SizedBox(height: 16),
-                        FilledButton.tonal(
-                          onPressed: () => launchUrl(
-                            imageUri,
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          child: const Text('Open externally'),
-                        ),
-                      ],
-                    ],
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white70,
+                    size: 42,
                   ),
                 );
               },
