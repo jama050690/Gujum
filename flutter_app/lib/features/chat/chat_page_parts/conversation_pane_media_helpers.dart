@@ -154,11 +154,10 @@ Widget _buildVideoAttachment(
 Widget _buildAudioAttachment(String audioPath, bool isMine) {
   final audioUrl =
       AppConfig.resolveMediaUrl(audioPath, widget.settings.baseUrl);
-  final safeAudioUrl = Uri.encodeFull(audioUrl);
   return Padding(
     padding: const EdgeInsets.only(top: 8),
     child: _InlineAudioMessage(
-      audioUrl: safeAudioUrl,
+      audioUrl: audioUrl,
       isMine: isMine,
       label: _fileNameFromPath(audioPath),
     ),

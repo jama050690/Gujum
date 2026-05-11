@@ -27,18 +27,32 @@ export default function CallScreen({
   const [duration, setDuration] = useState(0);
   const [hasRemoteVideoTrack, setHasRemoteVideoTrack] = useState(false);
 
+  const attachAndPlay = async (element, stream, { muted = false } = {}) => {
+    if (!element || !stream) return;
+    if (element.srcObject !== stream) {
+      element.srcObject = stream;
+    }
+    element.muted = muted;
+    try {
+      await element.play();
+    } catch (error) {
+      console.warn("Media play error:", error);
+    }
+  };
+
   // 1. Local Video ulanishi
   useEffect(() => {
     if (localVideoRef.current && localStream && !isCameraOff) {
-      localVideoRef.current.srcObject = localStream;
+      attachAndPlay(localVideoRef.current, localStream, { muted: true });
+    } else if (localVideoRef.current && localVideoRef.current.srcObject) {
+      localVideoRef.current.srcObject = null;
     }
   }, [localStream, isCameraOff, isVideo]);
 
   // 2. Remote Audio ulanishi
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(e => console.warn("Audio play error:", e));
+      attachAndPlay(remoteAudioRef.current, remoteStream);
     }
   }, [remoteStream]);
 
@@ -55,10 +69,9 @@ export default function CallScreen({
       setHasRemoteVideoTrack(hasActiveVideo);
 
       if (hasActiveVideo && remoteVideoRef.current && isVideo) {
-        // Muhim: Agar srcObject allaqachon biriktirilgan bo'lsa, qayta biriktirmaymiz (miltillashni oldini oladi)
-        if (remoteVideoRef.current.srcObject !== remoteStream) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
+        attachAndPlay(remoteVideoRef.current, remoteStream);
+      } else if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+        remoteVideoRef.current.srcObject = null;
       }
     };
 

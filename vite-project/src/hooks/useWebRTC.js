@@ -8,13 +8,18 @@ const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
+    { urls: `stun:${TURN_HOST}:3478` },
     {
-      urls: `turns:${TURN_HOST}:5349`,
+      urls: [
+        `turn:${TURN_HOST}:3478?transport=udp`,
+        `turn:${TURN_HOST}:3478?transport=tcp`,
+        `turns:${TURN_HOST}:5349`,
+      ],
       username: TURN_USERNAME,
       credential: TURN_CREDENTIAL,
     }
   ],
-  iceTransportPolicy: "relay"
+  iceTransportPolicy: "all"
 };
  
 export function useWebRTC(socket, currentUser) {
@@ -164,7 +169,9 @@ export function useWebRTC(socket, currentUser) {
  
         // ✅ Caller tomonda ham callStartedAt o'rnatiladi
         // (connectedAt server dan keladi, yo'q bo'lsa Date.now())
-        if (data.connectedAt) {
+        if (data.answeredAt) {
+          setCallStartedAt(data.answeredAt);
+        } else if (data.connectedAt) {
           setCallStartedAt(data.connectedAt);
         }
       } catch (e) {
