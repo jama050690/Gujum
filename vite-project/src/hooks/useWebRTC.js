@@ -43,6 +43,30 @@ export function useWebRTC(socket, currentUser) {
   const localStreamRef = useRef(null);
   const ringtoneRef = useRef(null);
 
+  const logStreamTracks = useCallback((label, stream) => {
+    if (!stream) {
+      console.log(`${label}: stream yo'q`);
+      return;
+    }
+    console.log(
+      `${label}: id=${stream.id} audio=${stream.getAudioTracks().length} video=${stream.getVideoTracks().length}`,
+      {
+        audioTracks: stream.getAudioTracks().map((track) => ({
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        })),
+        videoTracks: stream.getVideoTracks().map((track) => ({
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        })),
+      },
+    );
+  }, []);
+
   useEffect(() => {
     callStateRef.current = callState;
   }, [callState]);
@@ -102,11 +126,51 @@ export function useWebRTC(socket, currentUser) {
     };
  
     pc.ontrack = (event) => {
-      console.log("Remote track keldi:", event.streams[0]);
-      if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
-        markCallConnected();
+      const [firstStream] = event.streams || [];
+      const incomingTrack = event.track;
+      console.log("Remote track keldi:", {
+        kind: incomingTrack?.kind,
+        id: incomingTrack?.id,
+        enabled: incomingTrack?.enabled,
+        muted: incomingTrack?.muted,
+        readyState: incomingTrack?.readyState,
+        streamId: firstStream?.id,
+      });
+
+      const stream = firstStream || new MediaStream();
+      if (!firstStream && incomingTrack) {
+        stream.addTrack(incomingTrack);
       }
+
+      if (incomingTrack) {
+        incomingTrack.onmute = () => {
+          console.log("Remote track muted:", incomingTrack.kind, incomingTrack.id);
+        };
+        incomingTrack.onunmute = () => {
+          console.log("Remote track unmuted:", incomingTrack.kind, incomingTrack.id);
+        };
+        incomingTrack.onended = () => {
+          console.log("Remote track ended:", incomingTrack.kind, incomingTrack.id);
+        };
+      }
+
+      logStreamTracks("Remote stream update", stream);
+      setRemoteStream((previous) => {
+        if (!previous) {
+          return stream;
+        }
+
+        const merged = new MediaStream(previous.getTracks());
+        for (const track of stream.getTracks()) {
+          const exists = merged.getTracks().some((item) => item.id === track.id);
+          if (!exists) {
+            merged.addTrack(track);
+          }
+        }
+        logStreamTracks("Remote stream merged", merged);
+        return merged;
+      });
+      markCallConnected();
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -133,7 +197,7 @@ export function useWebRTC(socket, currentUser) {
  
     pcRef.current = pc;
     return pc;
-  }, [socket, stopRingtone, cleanup]);
+  }, [socket, stopRingtone, cleanup, logStreamTracks]);
  
   // Socket tinglovchilari
   useEffect(() => {
@@ -234,6 +298,7 @@ export function useWebRTC(socket, currentUser) {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true, video: video
       });
+      logStreamTracks("Local outgoing stream", stream);
  
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -267,7 +332,7 @@ export function useWebRTC(socket, currentUser) {
       setCallError("Media ruxsati berilmadi");
       cleanup();
     }
-  }, [socket, currentUser, createPeerConnection, cleanup, stopRingtone]);
+  }, [socket, currentUser, createPeerConnection, cleanup, stopRingtone, logStreamTracks]);
  
   const acceptCall = useCallback(async () => {
     stopRingtone();
@@ -276,6 +341,7 @@ export function useWebRTC(socket, currentUser) {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true, video: incomingCall.isVideo
       });
+      logStreamTracks("Local accepted stream", stream);
  
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -314,7 +380,7 @@ export function useWebRTC(socket, currentUser) {
       });
       cleanup();
     }
-  }, [incomingCall, createPeerConnection, socket, cleanup, stopRingtone]);
+  }, [incomingCall, createPeerConnection, socket, cleanup, stopRingtone, logStreamTracks]);
  
   const toggleMute = () => {
     if (localStreamRef.current) {

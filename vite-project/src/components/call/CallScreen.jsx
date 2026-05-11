@@ -65,6 +65,15 @@ export default function CallScreen({
 
     const checkTracks = () => {
       const videoTracks = remoteStream.getVideoTracks();
+      console.log(
+        "CallScreen remote video tracks:",
+        videoTracks.map((track) => ({
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        })),
+      );
       const hasActiveVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
       setHasRemoteVideoTrack(hasActiveVideo);
 
