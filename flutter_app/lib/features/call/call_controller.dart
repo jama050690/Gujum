@@ -76,13 +76,19 @@ class CallController extends ChangeNotifier {
     'sdpSemantics': 'unified-plan',
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:jamshiddin.uz:3478'},
       {
-        'urls': 'turns:jamshiddin.uz:5349',
+        'urls': [
+          'turn:jamshiddin.uz:3478?transport=udp',
+          'turn:jamshiddin.uz:3478?transport=tcp',
+          'turns:jamshiddin.uz:5349',
+        ],
         'username': 'bootchat',
         'credential': 'Bootchat2024!',
       },
     ],
-    'iceTransportPolicy': 'relay',
+    // Allow direct ICE paths when TURN is flaky, while keeping TURN as a fallback.
+    'iceTransportPolicy': 'all',
     'iceCandidatePoolSize': 10,
   };
 
@@ -118,6 +124,7 @@ class CallController extends ChangeNotifier {
   IncomingCallData? get incomingCall => _incomingCall;
   MediaStream? get localStream => _localStream;
   MediaStream? get remoteStream => _remoteStream;
+  bool get hasRemoteVideo => _remoteStream?.getVideoTracks().isNotEmpty == true;
   bool get isVideo => _isVideo;
   bool get isMuted => _isMuted;
   bool get isCameraOff => _isCameraOff;
@@ -245,6 +252,8 @@ class CallController extends ChangeNotifier {
           'avatar': _authController.user?.avatar,
         },
       });
+      _connectedAt ??= DateTime.now();
+      notifyListeners();
       debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
     } on CallSetupException catch (error) {
       debugPrint(
@@ -336,6 +345,15 @@ class CallController extends ChangeNotifier {
       case 'CALL_ANSWER':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
+        final answeredAt = data['answeredAt'];
+        if (answeredAt is String) {
+          _connectedAt ??= DateTime.tryParse(answeredAt)?.toLocal();
+        } else if (answeredAt is num) {
+          _connectedAt ??=
+              DateTime.fromMillisecondsSinceEpoch(answeredAt.toInt());
+        } else {
+          _connectedAt ??= DateTime.now();
+        }
         _peerConnection
             ?.setRemoteDescription(
                 RTCSessionDescription(answer['sdp'], answer['type']))
@@ -487,6 +505,12 @@ class CallController extends ChangeNotifier {
       if (track.kind == 'audio') {
         unawaited(_applyAudioRoute());
       }
+      unawaited(_markCallConnected());
+      notifyListeners();
+    };
+
+    pc.onAddStream = (stream) {
+      _remoteStream = stream;
       unawaited(_markCallConnected());
       notifyListeners();
     };

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 class ImageViewerPage extends StatelessWidget {
@@ -13,6 +14,7 @@ class ImageViewerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUri = Uri.tryParse(imageUrl);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -26,8 +28,40 @@ class ImageViewerPage extends StatelessWidget {
           child: Hero(
             tag: heroTag,
             child: Image.network(
-              Uri.encodeFull(imageUrl),
+              imageUrl,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.low,
+              errorBuilder: (context, error, stackTrace) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 42,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Image could not be decoded in the app.',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (imageUri != null) ...[
+                        const SizedBox(height: 16),
+                        FilledButton.tonal(
+                          onPressed: () => launchUrl(
+                            imageUri,
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          child: const Text('Open externally'),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),

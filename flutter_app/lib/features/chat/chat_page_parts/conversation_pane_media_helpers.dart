@@ -49,7 +49,6 @@ Widget _buildImageAttachment(
 }) {
   final imageUrl =
       AppConfig.resolveMediaUrl(imagePath, widget.settings.baseUrl);
-  final safeImageUrl = Uri.encodeFull(imageUrl);
   final heroTag = 'image-$imagePath';
 
   return Padding(
@@ -69,8 +68,9 @@ Widget _buildImageAttachment(
                 Hero(
                   tag: heroTag,
                   child: Image.network(
-                    safeImageUrl,
+                    imageUrl,
                     fit: BoxFit.cover,
+                    filterQuality: FilterQuality.low,
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) {
                         return child;

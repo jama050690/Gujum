@@ -197,7 +197,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final peer = ctrl.remotePeer;
     final settings = context.watch<SettingsController>();
     final avatarUrl = AppConfig.resolveMediaUrl(peer?.avatar, settings.baseUrl);
-    final showRemoteVideo = ctrl.isVideo && ctrl.remoteStream != null && _ready;
+    final showRemoteVideo = ctrl.isVideo && ctrl.hasRemoteVideo && _ready;
     final statusText = _buildStatusText(context, ctrl);
     final timerText = _buildTimerText(ctrl.connectedAt);
     final titleText = peer?.displayName ?? peer?.username ?? '';

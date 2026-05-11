@@ -168,7 +168,12 @@ Future<void> _sendLocation(
 }
 
 Future<XFile?> _pickImageAttachment() {
-  return _imagePicker.pickImage(source: ImageSource.gallery);
+  return _imagePicker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 88,
+    maxWidth: 2048,
+    maxHeight: 2048,
+  );
 }
 
 Future<XFile?> _pickVideoAttachment() {
