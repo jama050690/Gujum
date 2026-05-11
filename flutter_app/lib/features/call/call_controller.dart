@@ -106,6 +106,7 @@ class CallController extends ChangeNotifier {
   CallPeer? _remotePeer;
   IncomingCallData? _incomingCall;
   bool _remoteDescriptionReady = false;
+  bool _connectedSignalSent = false;
   bool _isVideo = false;
   bool _isMuted = false;
   bool _isCameraOff = false;
@@ -346,6 +347,19 @@ class CallController extends ChangeNotifier {
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
         final answeredAt = data['answeredAt'];
+        final callId = data['callId']?.toString();
+        if (callId != null && _callId != null && callId != _callId) {
+          debugPrint(
+              'CALL_DEBUG begona CALL_ANSWER e\'tiborsiz qoldirildi callId=$callId current=$_callId');
+          break;
+        }
+        if (_remoteDescriptionReady) {
+          debugPrint(
+              'CALL_DEBUG dublikat CALL_ANSWER e\'tiborsiz qoldirildi callId=$callId');
+          _state = CallSessionState.connecting;
+          notifyListeners();
+          break;
+        }
         if (answeredAt is String) {
           _connectedAt ??= DateTime.tryParse(answeredAt)?.toLocal();
         } else if (answeredAt is num) {
@@ -421,6 +435,21 @@ class CallController extends ChangeNotifier {
         } else if (startedAt is num) {
           _connectedAt = DateTime.fromMillisecondsSinceEpoch(startedAt.toInt());
         }
+        notifyListeners();
+        break;
+      case 'CALL_CONNECTED':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final connectedAt = data['connectedAt'];
+        if (connectedAt is String) {
+          _connectedAt ??= DateTime.tryParse(connectedAt)?.toLocal();
+        } else if (connectedAt is num) {
+          _connectedAt ??=
+              DateTime.fromMillisecondsSinceEpoch(connectedAt.toInt());
+        } else {
+          _connectedAt ??= DateTime.now();
+        }
+        _state = CallSessionState.connected;
+        unawaited(_stopAlertTone());
         notifyListeners();
         break;
     }
@@ -542,6 +571,13 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _markCallConnected() async {
+    if (!_connectedSignalSent && _targetUsername != null && _callId != null) {
+      _connectedSignalSent = true;
+      _socketService.emit('CALL_CONNECTED', {
+        'callId': _callId,
+        'target': _targetUsername,
+      });
+    }
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
@@ -694,6 +730,7 @@ class CallController extends ChangeNotifier {
     _connectedAt = null;
     _pendingCandidates.clear();
     _remoteDescriptionReady = false;
+    _connectedSignalSent = false;
   }
 
   void _reportError(String key) {

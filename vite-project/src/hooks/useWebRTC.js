@@ -42,6 +42,8 @@ export function useWebRTC(socket, currentUser) {
   const targetUserRef = useRef(null);
   const localStreamRef = useRef(null);
   const ringtoneRef = useRef(null);
+  const answeredCallIdsRef = useRef(new Set());
+  const connectedCallIdsRef = useRef(new Set());
 
   const logStreamTracks = useCallback((label, stream) => {
     if (!stream) {
@@ -84,6 +86,7 @@ export function useWebRTC(socket, currentUser) {
       pcRef.current.onicecandidate = null;
       pcRef.current.ontrack = null;
       pcRef.current.oniceconnectionstatechange = null;
+      pcRef.current.onconnectionstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }
@@ -103,13 +106,39 @@ export function useWebRTC(socket, currentUser) {
     setIsCameraOff(false);
     targetUserRef.current = null;
     callIdRef.current = null;
+    answeredCallIdsRef.current.clear();
+    connectedCallIdsRef.current.clear();
   }, [stopRingtone]);
  
   const createPeerConnection = useCallback((target) => {
-    if (pcRef.current) return pcRef.current;
+    // Eski PC yopilgan bo'lsa yangi yasat
+    if (pcRef.current && pcRef.current.connectionState !== "closed") {
+      return pcRef.current;
+    }
+    if (pcRef.current) {
+      pcRef.current.onicecandidate = null;
+      pcRef.current.ontrack = null;
+      pcRef.current.oniceconnectionstatechange = null;
+      pcRef.current.onconnectionstatechange = null;
+      pcRef.current.close();
+      pcRef.current = null;
+    }
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
+
     const markCallConnected = () => {
+      if (
+        socket &&
+        targetUserRef.current &&
+        callIdRef.current &&
+        !connectedCallIdsRef.current.has(callIdRef.current)
+      ) {
+        connectedCallIdsRef.current.add(callIdRef.current);
+        socket.emit("CALL_CONNECTED", {
+          target: targetUserRef.current,
+          callId: callIdRef.current,
+        });
+      }
       stopRingtone();
       setCallState("connected");
       setCallStartedAt(prev => prev || Date.now());
@@ -159,7 +188,6 @@ export function useWebRTC(socket, currentUser) {
         if (!previous) {
           return stream;
         }
-
         const merged = new MediaStream(previous.getTracks());
         for (const track of stream.getTracks()) {
           const exists = merged.getTracks().some((item) => item.id === track.id);
@@ -175,10 +203,10 @@ export function useWebRTC(socket, currentUser) {
 
     pc.oniceconnectionstatechange = () => {
       console.log("ICE Connection State:", pc.iceConnectionState);
-      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         markCallConnected();
       }
-      if (pc.iceConnectionState === 'failed') {
+      if (pc.iceConnectionState === "failed") {
         setCallError("Ulanish muvaffaqiyatsiz");
         cleanup();
       }
@@ -222,17 +250,36 @@ export function useWebRTC(socket, currentUser) {
       stopRingtone();
       try {
         if (!pcRef.current) return;
+
+        // 1. Begona callId — e'tiborsiz qoldir
+        if (data.callId && data.callId !== callIdRef.current) {
+          console.log("Begona CALL_ANSWER e'tiborsiz qoldirildi:", data.callId);
+          return;
+        }
+
+        // 2. Dublikat — faqat answeredCallIds va remoteDescSet tekshir
+        if (answeredCallIdsRef.current.has(data.callId) || remoteDescSet.current) {
+          console.log("Dublikat CALL_ANSWER e'tiborsiz qoldirildi:", data.callId);
+          return;
+        }
+
+        // 3. signalingState noto'g'ri bo'lsa qayta urinma
+        if (pcRef.current.signalingState !== "have-local-offer") {
+          console.warn("CALL_ANSWER: signalingState noto'g'ri:", pcRef.current.signalingState);
+          return;
+        }
+
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+        answeredCallIdsRef.current.add(data.callId);
         remoteDescSet.current = true;
         setCallState("connecting");
  
+        // ICE queue ni bo'shat
         while (iceQueue.current.length > 0) {
           const cand = iceQueue.current.shift();
           await pcRef.current.addIceCandidate(cand);
         }
  
-        // ✅ Caller tomonda ham callStartedAt o'rnatiladi
-        // (connectedAt server dan keladi, yo'q bo'lsa Date.now())
         if (data.answeredAt) {
           setCallStartedAt(data.answeredAt);
         } else if (data.connectedAt) {
@@ -274,8 +321,16 @@ export function useWebRTC(socket, currentUser) {
       setTimeout(cleanup, 2000);
     };
 
+    const handleCallConnected = (data) => {
+      if (data.callId && data.callId !== callIdRef.current) return;
+      stopRingtone();
+      setCallState("connected");
+      setCallStartedAt((previous) => previous || data.connectedAt || Date.now());
+    };
+
     socket.on("ICE_CANDIDATE", handleIceCandidate);
     socket.on("CALL_ANSWER", handleCallAnswer);
+    socket.on("CALL_CONNECTED", handleCallConnected);
     socket.on("CALL_OFFER", handleCallOffer);
     socket.on("CALL_END", handleCallEnd);
     socket.on("CALL_REJECT", handleCallReject);
@@ -283,6 +338,7 @@ export function useWebRTC(socket, currentUser) {
     return () => {
       socket.off("ICE_CANDIDATE", handleIceCandidate);
       socket.off("CALL_ANSWER", handleCallAnswer);
+      socket.off("CALL_CONNECTED", handleCallConnected);
       socket.off("CALL_OFFER", handleCallOffer);
       socket.off("CALL_END", handleCallEnd);
       socket.off("CALL_REJECT", handleCallReject);
@@ -290,9 +346,7 @@ export function useWebRTC(socket, currentUser) {
   }, [socket, cleanup, stopRingtone]);
  
   const startCall = useCallback(async (targetUser, video = false) => {
-    if (callStateRef.current) {
-      return;
-    }
+    if (callStateRef.current) return;
     try {
       cleanup();
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -324,11 +378,12 @@ export function useWebRTC(socket, currentUser) {
         callId: callIdRef.current,
         caller: {
           username: currentUser,
-          full_name: localStorage.getItem('full_name') || currentUser,
-          avatar: localStorage.getItem('app_avatar')
+          full_name: localStorage.getItem("full_name") || currentUser,
+          avatar: localStorage.getItem("app_avatar"),
         }
       });
     } catch (e) {
+      console.error("startCall xatosi:", e);
       setCallError("Media ruxsati berilmadi");
       cleanup();
     }
@@ -350,12 +405,14 @@ export function useWebRTC(socket, currentUser) {
       setCallState("connecting");
  
       const pc = createPeerConnection(incomingCall.caller.username);
- 
+
+      // ✅ Track'larni avval qo'sh, keyin setRemoteDescription
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
       remoteDescSet.current = true;
-
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
  
+      // ICE queue ni bo'shat
       while (iceQueue.current.length > 0) {
         const cand = iceQueue.current.shift();
         await pc.addIceCandidate(cand);
@@ -367,8 +424,9 @@ export function useWebRTC(socket, currentUser) {
       socket.emit("CALL_ANSWER", {
         target: incomingCall.caller.username,
         answer,
-        callId: callIdRef.current
+        callId: callIdRef.current,
       });
+
       setCallStartedAt(prev => prev || Date.now());
       setIncomingCall(null);
     } catch (e) {
@@ -404,7 +462,10 @@ export function useWebRTC(socket, currentUser) {
  
   const hangUp = useCallback(() => {
     if (targetUserRef.current) {
-      socket.emit("CALL_END", { target: targetUserRef.current, callId: callIdRef.current });
+      socket.emit("CALL_END", {
+        target: targetUserRef.current,
+        callId: callIdRef.current,
+      });
     }
     cleanup();
   }, [socket, cleanup]);
