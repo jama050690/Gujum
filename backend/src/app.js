@@ -4,9 +4,9 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Route importlari
 import authRoutes from "./routes/auth.routes.js";
 import otpRoutes from "./routes/otp.routes.js";
-
 import userRoutes from "./routes/user.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import groupRoutes from "./routes/group.routes.js";
@@ -22,22 +22,27 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Global middleware
+// 1. CORS sozlamalari (Socket.io ulanishi uchun juda muhim)
+// Flutter va Web versiyalaringiz turli domenlarda bo'lsa, origin qismini aniq ko'rsatish tavsiya etiladi
 app.use(
   cors({
-    origin: true,
+    origin: ["https://jamshiddin.uz", "http://localhost:3000", "http://localhost:5173"], 
     credentials: true,
   }),
 );
+
+// 2. Standart Middleware'lar
 app.use(cookieParser());
-app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+app.use(express.json({ limit: "50mb" })); // Katta hajmli JSON (masalan, base64 rasmlar) uchun limitni oshirish
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// 3. Statik fayllar (Rasm va videolar uchun)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/static", express.static(path.join(__dirname, "public")));
 
-// Routes
+// 4. API Routes
 app.use("/api", authRoutes);
 app.use("/api", otpRoutes);
-
 app.use("/api", messageRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/users", userRoutes);
@@ -48,5 +53,20 @@ app.use("/api/spam", spamRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api", pushRoutes);
 app.use("/api/admin", adminRoutes);
+
+// 5. Salomatlik tekshiruvi (Health Check)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Server is running" });
+});
+
+// 6. Xatoliklarni ushlash (Error Handling Middleware)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: "Ichki server xatosi yuz berdi",
+    error: process.env.NODE_ENV === "development" ? err.message : {}
+  });
+});
 
 export default app;
