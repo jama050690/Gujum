@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import '../../core/config/app_config.dart';
@@ -17,6 +18,7 @@ class CallOverlayHost extends StatefulWidget {
 class _CallOverlayHostState extends State<CallOverlayHost> {
   CallController? _controller;
   int _lastErrorVersion = 0;
+  bool _wasOverlayVisible = false;
 
   @override
   void didChangeDependencies() {
@@ -41,6 +43,11 @@ class _CallOverlayHostState extends State<CallOverlayHost> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+  }
+
   @override
   void dispose() {
     _controller?.removeListener(_onChanged);
@@ -51,6 +58,18 @@ class _CallOverlayHostState extends State<CallOverlayHost> {
   Widget build(BuildContext context) {
     final controller = context.watch<CallController?>();
     if (controller == null) return widget.child;
+    final isOverlayVisible =
+        controller.hasIncomingCall || controller.hasSession;
+
+    if (isOverlayVisible && !_wasOverlayVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _dismissKeyboard();
+        }
+      });
+    }
+    _wasOverlayVisible = isOverlayVisible;
+
     return PopScope(
       canPop: !controller.hasSession && !controller.hasIncomingCall,
       child: Stack(children: [

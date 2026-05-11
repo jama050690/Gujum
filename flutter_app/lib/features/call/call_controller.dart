@@ -53,6 +53,12 @@ class IncomingCallData {
   final bool isVideo;
 }
 
+class CallSetupException implements Exception {
+  const CallSetupException(this.errorKey);
+
+  final String errorKey;
+}
+
 class CallController extends ChangeNotifier {
   CallController({
     required SocketService socketService,
@@ -104,6 +110,8 @@ class CallController extends ChangeNotifier {
   String? _callId;
   String? _targetUsername;
   DateTime? _connectedAt;
+  String? _errorKey;
+  int _errorVersion = 0;
 
   CallSessionState? get state => _state;
   CallPeer? get remotePeer => _remotePeer;
@@ -121,11 +129,17 @@ class CallController extends ChangeNotifier {
   bool get hasSession => _state != null && _incomingCall == null;
   bool get hasIncomingCall => _incomingCall != null;
   DateTime? get connectedAt => _connectedAt;
-  String? get errorKey => null;
-  int get errorVersion => 0;
+  bool get canToggleCamera =>
+      (_localStream?.getVideoTracks().isNotEmpty ?? false) || _isVideo;
+  String? get errorKey => _errorKey;
+  int get errorVersion => _errorVersion;
 
   Future<void> startCall(CallPeer peer, {required bool video}) async {
     if (hasSession || hasIncomingCall) return;
+    if (!_socketService.isConnected) {
+      _reportError('call_not_connected');
+      return;
+    }
     debugPrint(
       'CALL_DEBUG startCall() target=${peer.username} video=$video socketConnected=${_socketService.isConnected}',
     );
@@ -140,7 +154,10 @@ class CallController extends ChangeNotifier {
 
     try {
       await _requestMediaPermissions(video: video);
-      _localStream = await _openLocalMedia(video: video);
+      final mediaState = await _openPreferredLocalMedia(video: video);
+      _localStream = mediaState.stream;
+      _isVideo = mediaState.videoEnabled;
+      _isCameraOff = !_isVideo;
       await _applyAudioRoute();
       final pc = await _createPeerConnection();
       _localStream!
@@ -155,7 +172,7 @@ class CallController extends ChangeNotifier {
         'callId': _callId,
         'target': peer.username,
         'offer': {'sdp': offer.sdp, 'type': offer.type},
-        'isVideo': video,
+        'isVideo': _isVideo,
         'caller': {
           'username': _authController.user?.username,
           'fullName': _authController.user?.displayName,
@@ -163,8 +180,13 @@ class CallController extends ChangeNotifier {
         }
       });
       debugPrint('CALL_DEBUG CALL_OFFER emitted callId=$_callId');
+    } on CallSetupException catch (error) {
+      debugPrint('CALL_DEBUG startCall() setup error=${error.errorKey}');
+      _reportError(error.errorKey);
+      await _resetSession(notifyRemote: true, reason: 'setup_failed');
     } catch (error) {
       debugPrint('CALL_DEBUG startCall() failed error=$error');
+      _reportError('call_failed');
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
   }
@@ -188,7 +210,11 @@ class CallController extends ChangeNotifier {
 
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
-      _localStream = await _openLocalMedia(video: incoming.isVideo);
+      final mediaState =
+          await _openPreferredLocalMedia(video: incoming.isVideo);
+      _localStream = mediaState.stream;
+      _isVideo = mediaState.videoEnabled;
+      _isCameraOff = !_isVideo;
       await _applyAudioRoute();
       final pc = await _createPeerConnection();
       await pc.setRemoteDescription(
@@ -220,8 +246,15 @@ class CallController extends ChangeNotifier {
         },
       });
       debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
+    } on CallSetupException catch (error) {
+      debugPrint(
+        'CALL_DEBUG acceptIncomingCall() setup error=${error.errorKey}',
+      );
+      _reportError(error.errorKey);
+      rejectIncomingCall();
     } catch (error) {
       debugPrint('CALL_DEBUG acceptIncomingCall() failed error=$error');
+      _reportError('call_failed');
       rejectIncomingCall();
     }
   }
@@ -257,18 +290,17 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> toggleSpeaker() async {
-    if (hasExternalAudioRoute) {
-      _isSpeakerOn = !_isSpeakerOn;
-    } else {
-      _isSpeakerOn = true;
-    }
+    _isSpeakerOn = !_isSpeakerOn;
+    debugPrint(
+      'CALL_DEBUG toggleSpeaker() speakerOn=$_isSpeakerOn hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
+    );
     await _applyAudioRoute();
     notifyListeners();
   }
 
   Future<void> switchCallMode(bool video) async {
-    _isVideo = video;
-    notifyListeners();
+    if (!video || _isVideo) return;
+    _reportError('call_video_fallback');
   }
 
   Future<void> hangUp() async {
@@ -277,9 +309,9 @@ class CallController extends ChangeNotifier {
 
   void _handlePacket(SocketPacket packet) {
     debugPrint('CALL_DEBUG packet event=${packet.event} payload=${packet.payload}');
-    final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
     switch (packet.event) {
       case 'CALL_OFFER':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         if (hasSession || hasIncomingCall) {
           _socketService.emit('CALL_REJECT', {
             'callId': data['callId'],
@@ -302,6 +334,7 @@ class CallController extends ChangeNotifier {
         notifyListeners();
         break;
       case 'CALL_ANSWER':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
         _peerConnection
             ?.setRemoteDescription(
@@ -317,6 +350,7 @@ class CallController extends ChangeNotifier {
         });
         break;
       case 'ICE_CANDIDATE':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final cand = Map<String, dynamic>.from(data['candidate'] as Map? ?? {});
         final candidate = RTCIceCandidate(
           cand['candidate'],
@@ -330,12 +364,26 @@ class CallController extends ChangeNotifier {
         }
         break;
       case 'CALL_REJECT':
+        _reportError('call_rejected');
+        unawaited(_resetSession());
+        break;
       case 'CALL_END':
+        final endData = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        if ((endData['reason'] ?? '').toString() == 'connection_lost') {
+          _reportError('call_connection_lost');
+        }
+        unawaited(_resetSession());
+        break;
       case 'CALL_BLOCKED':
+        _reportError('call_blocked');
+        unawaited(_resetSession());
+        break;
       case 'CALL_NOT_DELIVERED':
+        _reportError('call_not_delivered');
         unawaited(_resetSession());
         break;
       case 'CALL_SESSION_SYNC':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final peer = CallPeer.fromMap(
             Map<String, dynamic>.from(data['peer'] as Map? ?? {}));
         _remotePeer = peer;
@@ -452,9 +500,23 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _startOutgoingTone() async {
-    await _audioPlayer.stop();
-    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-    await _audioPlayer.play(AssetSource('sounds/dialing.mp3'));
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        debugPrint('CALL_DEBUG _startOutgoingTone() using native outgoing tone');
+        await _audioChannel.invokeMethod<void>('startOutgoingTone');
+        return;
+      } catch (error) {
+        debugPrint('CALL_DEBUG _startOutgoingTone() native failed error=$error');
+      }
+    }
+
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('sounds/dialing.mp3'));
+    } catch (error) {
+      debugPrint('CALL_DEBUG _startOutgoingTone() asset failed error=$error');
+    }
   }
 
   Future<void> _startIncomingTone() async {
@@ -463,12 +525,20 @@ class CallController extends ChangeNotifier {
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
+        debugPrint('CALL_DEBUG startIncomingTone() using native ringtone');
         await _audioChannel.invokeMethod<void>('startIncomingRingtone');
         return;
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('CALL_DEBUG startIncomingTone() native ringtone failed error=$error');
+      }
     }
 
-    await _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+    debugPrint('CALL_DEBUG startIncomingTone() using asset ringtone fallback');
+    try {
+      await _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+    } catch (error) {
+      debugPrint('CALL_DEBUG startIncomingTone() asset ringtone failed error=$error');
+    }
   }
 
   Future<void> _stopAlertTone() async {
@@ -477,6 +547,7 @@ class CallController extends ChangeNotifier {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         await _audioChannel.invokeMethod<void>('stopIncomingRingtone');
+        await _audioChannel.invokeMethod<void>('stopOutgoingTone');
       } catch (_) {}
     }
   }
@@ -488,11 +559,14 @@ class CallController extends ChangeNotifier {
       final result = await _audioChannel.invokeMapMethod<String, dynamic>(
         'activateCallAudio',
         {
-        'speakerOn': _isVideo || _isSpeakerOn,
+          'speakerOn': _isVideo || _isSpeakerOn,
         },
       );
+      debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');
       _syncAudioRouteInfo(result);
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
+    }
   }
 
   Future<void> _restoreAudioRoute() async {

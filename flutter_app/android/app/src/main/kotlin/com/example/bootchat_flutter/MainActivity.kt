@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var incomingRingtone: Ringtone? = null
+    private var outgoingRingtone: Ringtone? = null
     private var audioFocusRequest: AudioFocusRequest? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -30,6 +31,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "stopIncomingRingtone" -> {
                     stopIncomingRingtone()
+                    result.success(null)
+                }
+                "startOutgoingTone" -> {
+                    startOutgoingTone()
+                    result.success(null)
+                }
+                "stopOutgoingTone" -> {
+                    stopOutgoingTone()
                     result.success(null)
                 }
                 "activateCallAudio" -> {
@@ -52,6 +61,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startIncomingRingtone() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
@@ -60,9 +70,19 @@ class MainActivity : FlutterActivity() {
             incomingRingtone = RingtoneManager.getRingtone(applicationContext, ringtoneUri)
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            incomingRingtone?.audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             incomingRingtone?.isLooping = true
         }
+
+        audioManager?.mode = AudioManager.MODE_NORMAL
+        volumeControlStream = AudioManager.STREAM_RING
 
         if (incomingRingtone?.isPlaying != true) {
             incomingRingtone?.play()
@@ -71,6 +91,39 @@ class MainActivity : FlutterActivity() {
 
     private fun stopIncomingRingtone() {
         incomingRingtone?.stop()
+    }
+
+    private fun startOutgoingTone() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        val toneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: return
+
+        if (outgoingRingtone == null) {
+            outgoingRingtone = RingtoneManager.getRingtone(applicationContext, toneUri)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            outgoingRingtone?.audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            outgoingRingtone?.isLooping = true
+        }
+
+        audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+
+        if (outgoingRingtone?.isPlaying != true) {
+            outgoingRingtone?.play()
+        }
+    }
+
+    private fun stopOutgoingTone() {
+        outgoingRingtone?.stop()
     }
 
     private fun activateCallAudio(speakerOn: Boolean): Map<String, Any> {
@@ -108,6 +161,7 @@ class MainActivity : FlutterActivity() {
         audioManager.isSpeakerphoneOn = speakerOn
         @Suppress("DEPRECATION")
         audioManager.isMicrophoneMute = false
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
         return getAudioRouteInfo()
     }
 
@@ -118,6 +172,7 @@ class MainActivity : FlutterActivity() {
         @Suppress("DEPRECATION")
         audioManager.isMicrophoneMute = false
         audioManager.mode = AudioManager.MODE_NORMAL
+        volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
@@ -169,8 +224,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         stopIncomingRingtone()
+        stopOutgoingTone()
         restoreAudioRoute()
         incomingRingtone = null
+        outgoingRingtone = null
         super.onDestroy()
     }
 }

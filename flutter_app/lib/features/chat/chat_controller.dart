@@ -261,6 +261,8 @@ class ChatController extends ChangeNotifier {
         _audioPlayer.resume().then((_) {
           _audioPlayer.play(AssetSource('sounds/message.mp3'),
               mode: PlayerMode.lowLatency);
+        }).catchError((e) {
+          debugPrint("DEBUG: Message sound xatosi: $e");
         });
         break;
 
