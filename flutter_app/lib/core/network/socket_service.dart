@@ -42,22 +42,20 @@ class SocketService {
     );
     disconnect();
 
-    final options = io.OptionBuilder()
-        .setPath(path)
-        // Reverse-proxied websocket transport is closing repeatedly in production.
-        // Long-polling is slower but much more reliable for call signalling/events.
-        .setTransports(['polling'])
-        .enableAutoConnect()
-        .enableReconnection()
-        .setReconnectionAttempts(999999)
-        .setReconnectionDelay(1000)
-        .setReconnectionDelayMax(5000)
-        .setExtraHeaders(
-          cookie == null || cookie.isEmpty
-              ? const <String, String>{}
-              : {'Cookie': cookie},
-        )
-        .build();
+final options = io.OptionBuilder()
+    .setPath(path) // Bu yerda AppConfig.defaultSocketPath /api/bootchat/socket.io/ ekanligini tekshiring
+    .setTransports(['websocket']) // 'polling' ni 'websocket' ga almashtiring!
+    .enableAutoConnect()
+    .enableReconnection()
+    .setReconnectionAttempts(999999)
+    .setReconnectionDelay(1000)
+    .setReconnectionDelayMax(5000)
+    .setExtraHeaders(
+      cookie == null || cookie.isEmpty
+          ? const <String, String>{}
+          : {'Cookie': cookie},
+    )
+    .build();
 
     _socket = io.io(baseUrl, options);
     _connectionKey = nextConnectionKey;
