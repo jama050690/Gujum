@@ -327,7 +327,7 @@ class CallController extends ChangeNotifier {
 
       final videoStream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
         'audio': false,
-        'video': <String, dynamic>{'width': 1280, 'height': 720, 'frameRate': 30},
+        'video': <String, dynamic>{'facingMode': 'user'},
       });
       final videoTrack = videoStream.getVideoTracks().first;
       await stream.addTrack(videoTrack);
@@ -523,7 +523,7 @@ class CallController extends ChangeNotifier {
               final videoStream = await navigator.mediaDevices
                   .getUserMedia(<String, dynamic>{
                 'audio': false,
-                'video': <String, dynamic>{'width': 1280, 'height': 720},
+                'video': <String, dynamic>{'facingMode': 'user'},
               });
               final videoTrack = videoStream.getVideoTracks().first;
               if (_localStream != null) {
