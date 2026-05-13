@@ -504,6 +504,51 @@ class CallController extends ChangeNotifier {
         notifyListeners();
         break;
 
+      case 'CALL_RENEGOTIATE':
+        final reData = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final reCallId = reData['callId']?.toString();
+        if (reCallId != null && reCallId != _callId) break;
+        final reOfferMap =
+            Map<String, dynamic>.from(reData['offer'] as Map? ?? {});
+        final reIsVideo = reData['isVideo'] == true;
+        unawaited(() async {
+          final pc = _peerConnection;
+          if (pc == null) return;
+          try {
+            await pc.setRemoteDescription(RTCSessionDescription(
+              reOfferMap['sdp']?.toString() ?? '',
+              reOfferMap['type']?.toString() ?? 'offer',
+            ));
+            if (reIsVideo && !_isVideo) {
+              final videoStream = await navigator.mediaDevices
+                  .getUserMedia(<String, dynamic>{
+                'audio': false,
+                'video': <String, dynamic>{'width': 1280, 'height': 720},
+              });
+              final videoTrack = videoStream.getVideoTracks().first;
+              if (_localStream != null) {
+                await _localStream!.addTrack(videoTrack);
+                await pc.addTrack(videoTrack, _localStream!);
+              }
+            }
+            final reAnswer = await pc.createAnswer();
+            await pc.setLocalDescription(reAnswer);
+            _socketService.emit('CALL_RENEGOTIATE_ANSWER', {
+              'callId': _callId,
+              'target': _targetUsername,
+              'answer': {'sdp': reAnswer.sdp, 'type': reAnswer.type},
+            });
+            if (reIsVideo && !_isVideo) {
+              _isVideo = true;
+              _isCameraOff = false;
+              notifyListeners();
+            }
+          } catch (e) {
+            debugPrint('CALL_DEBUG CALL_RENEGOTIATE error=$e');
+          }
+        }());
+        break;
+
       case 'CALL_RENEGOTIATE_ANSWER':
         if (!_isUpgradingToVideo) break;
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -613,9 +658,6 @@ class CallController extends ChangeNotifier {
         _remoteStream ??= await createLocalMediaStream('bootchat_remote');
         _remoteStream!.addTrack(track);
       }
-      if (track.kind == 'audio') {
-        unawaited(_applyAudioRoute());
-      }
       unawaited(_markCallConnected());
       notifyListeners();
     };
@@ -651,6 +693,7 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _markCallConnected() async {
+    final alreadyConnected = _state == CallSessionState.connected;
     if (!_connectedSignalSent && _targetUsername != null && _callId != null) {
       _connectedSignalSent = true;
       _socketService.emit('CALL_CONNECTED', {
@@ -661,7 +704,7 @@ class CallController extends ChangeNotifier {
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
-    await _applyAudioRoute();
+    if (!alreadyConnected) await _applyAudioRoute();
     notifyListeners();
   }
 

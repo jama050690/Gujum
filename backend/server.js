@@ -64,8 +64,18 @@ async function start() {
 }
 
 // Xatoliklarni ushlash (Server o'chib qolmasligi uchun)
-process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled Rejection:", reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  // EADDRINUSE — port band, 3 soniya kutib qayta urinish
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} band! 3 soniyadan keyin qayta uriniladi...`);
+    setTimeout(() => start().catch(console.error), 3000);
+  }
+  // Boshqa xatolar uchun PM2 restart qilsin
 });
 
 start().catch((error) => {

@@ -278,6 +278,22 @@ class ChatController extends ChangeNotifier {
             e['username'].toString(): _parseLastActive(e['lastActive'])
         };
         break;
+
+      case 'USER_STATUS_CHANGED':
+        final statusData =
+            Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final changedUser = statusData['username']?.toString();
+        final isOnline = statusData['online'] == true;
+        if (changedUser != null) {
+          final updated = Set<String>.from(_onlineUsers);
+          if (isOnline) {
+            updated.add(changedUser);
+          } else {
+            updated.remove(changedUser);
+          }
+          _onlineUsers = updated;
+        }
+        break;
     }
     notifyListeners();
   }

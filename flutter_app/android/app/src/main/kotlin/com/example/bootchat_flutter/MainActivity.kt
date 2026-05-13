@@ -16,6 +16,7 @@ class MainActivity : FlutterActivity() {
     private var incomingRingtone: Ringtone? = null
     private var outgoingRingtone: Ringtone? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var callAudioFocusHeld = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -116,10 +117,18 @@ class MainActivity : FlutterActivity() {
             outgoingRingtone?.isLooping = true
         }
 
-        audioManager?.mode = AudioManager.MODE_NORMAL
+        // Use VOICE_CALL stream so the dial tone is audible even when ring volume is 0
+        audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
         @Suppress("DEPRECATION")
         audioManager?.isSpeakerphoneOn = true
-        volumeControlStream = AudioManager.STREAM_RING
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+
+        // Ensure volume is audible (set to 70% of max if currently 0)
+        val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) ?: 0
+        val curVol = audioManager?.getStreamVolume(AudioManager.STREAM_VOICE_CALL) ?: 0
+        if (curVol == 0 && maxVol > 0) {
+            audioManager?.setStreamVolume(AudioManager.STREAM_VOICE_CALL, maxVol * 7 / 10, 0)
+        }
 
         if (outgoingRingtone?.isPlaying != true) {
             outgoingRingtone?.play()
@@ -138,26 +147,35 @@ class MainActivity : FlutterActivity() {
                 "hasHeadset" to false,
             )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
+        if (!callAudioFocusHeld) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAcceptsDelayedFocusGain(false)
+                    .setOnAudioFocusChangeListener { focusChange ->
+                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
+                            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                            // Re-request focus to maintain call audio
+                            audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
+                        }
+                    }
+                    .build()
+                audioFocusRequest = focusRequest
+                audioManager.requestAudioFocus(focusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    null,
+                    AudioManager.STREAM_VOICE_CALL,
+                    AudioManager.AUDIOFOCUS_GAIN
                 )
-                .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener { }
-                .build()
-            audioFocusRequest = focusRequest
-            audioManager.requestAudioFocus(focusRequest)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                null,
-                AudioManager.STREAM_VOICE_CALL,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-            )
+            }
+            callAudioFocusHeld = true
         }
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
@@ -213,6 +231,7 @@ class MainActivity : FlutterActivity() {
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(null)
         }
+        callAudioFocusHeld = false
     }
 
     private fun getAudioRouteInfo(): Map<String, Any> {
