@@ -113,6 +113,7 @@ class CallController extends ChangeNotifier {
   bool _isSpeakerOn = true;
   bool _hasBluetoothAudio = false;
   bool _hasHeadsetAudio = false;
+  bool _isUpgradingToVideo = false;
   CallAudioRoute _audioRoute = CallAudioRoute.speaker;
   String? _callId;
   String? _targetUsername;
@@ -138,7 +139,9 @@ class CallController extends ChangeNotifier {
   bool get hasIncomingCall => _incomingCall != null;
   DateTime? get connectedAt => _connectedAt;
   bool get canToggleCamera =>
-      (_localStream?.getVideoTracks().isNotEmpty ?? false) || _isVideo;
+      _state == CallSessionState.connected &&
+      (_peerConnection != null) &&
+      !_isUpgradingToVideo;
   String? get errorKey => _errorKey;
   int get errorVersion => _errorVersion;
 
@@ -291,12 +294,60 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> toggleCamera() async {
-    _isCameraOff = !_isCameraOff;
-    for (final track
-        in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
-      track.enabled = !_isCameraOff;
+    if (_isVideo) {
+      // Video call — kamerani yoq/o'chir
+      _isCameraOff = !_isCameraOff;
+      for (final track
+          in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
+        track.enabled = !_isCameraOff;
+      }
+      notifyListeners();
+    } else {
+      // Audio call → videoga o'tkazish
+      await _upgradeToVideo();
     }
+  }
+
+  Future<void> _upgradeToVideo() async {
+    final pc = _peerConnection;
+    final stream = _localStream;
+    if (pc == null || stream == null || _targetUsername == null) return;
+
+    _isUpgradingToVideo = true;
     notifyListeners();
+    debugPrint('CALL_DEBUG _upgradeToVideo() start');
+
+    try {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        _isUpgradingToVideo = false;
+        notifyListeners();
+        return;
+      }
+
+      final videoStream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
+        'audio': false,
+        'video': <String, dynamic>{'width': 1280, 'height': 720, 'frameRate': 30},
+      });
+      final videoTrack = videoStream.getVideoTracks().first;
+      await stream.addTrack(videoTrack);
+      await pc.addTrack(videoTrack, stream);
+
+      final offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      _socketService.emit('CALL_RENEGOTIATE', {
+        'callId': _callId,
+        'target': _targetUsername,
+        'offer': {'sdp': offer.sdp, 'type': offer.type},
+        'isVideo': true,
+      });
+      debugPrint('CALL_DEBUG CALL_RENEGOTIATE emitted');
+    } catch (error) {
+      debugPrint('CALL_DEBUG _upgradeToVideo() error=$error');
+      _isUpgradingToVideo = false;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleSpeaker() async {
@@ -452,6 +503,32 @@ class CallController extends ChangeNotifier {
         unawaited(_stopAlertTone());
         notifyListeners();
         break;
+
+      case 'CALL_RENEGOTIATE_ANSWER':
+        if (!_isUpgradingToVideo) break;
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final callId = data['callId']?.toString();
+        if (callId != null && callId != _callId) break;
+        final answerMap = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
+        final answer = RTCSessionDescription(
+          answerMap['sdp']?.toString() ?? '',
+          answerMap['type']?.toString() ?? 'answer',
+        );
+        unawaited(() async {
+          try {
+            await _peerConnection?.setRemoteDescription(answer);
+            _isVideo = true;
+            _isCameraOff = false;
+            _isUpgradingToVideo = false;
+            debugPrint('CALL_DEBUG video upgrade complete');
+            notifyListeners();
+          } catch (e) {
+            debugPrint('CALL_DEBUG CALL_RENEGOTIATE_ANSWER error=$e');
+            _isUpgradingToVideo = false;
+            notifyListeners();
+          }
+        }());
+        break;
     }
   }
 
@@ -465,10 +542,11 @@ class CallController extends ChangeNotifier {
     _isVideo = video;
     _isMuted = false;
     _isCameraOff = false;
-    _isSpeakerOn = video;
+    _isSpeakerOn = true;
     _hasBluetoothAudio = false;
     _hasHeadsetAudio = false;
-    _audioRoute = video ? CallAudioRoute.speaker : CallAudioRoute.earpiece;
+    _isUpgradingToVideo = false;
+    _audioRoute = CallAudioRoute.speaker;
     if (!preserveIncoming) {
       _incomingCall = null;
     }

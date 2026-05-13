@@ -623,7 +623,9 @@ class _ControlsDock extends StatelessWidget {
     final List<Widget> actions = <Widget>[
       _RoundActionButton(
         icon: speakerIcon,
-        backgroundColor: Colors.transparent,
+        backgroundColor: ctrl.isSpeakerOn
+            ? Colors.white.withAlpha(50)
+            : Colors.transparent,
         size: 58,
         onPressed: () => ctrl.toggleSpeaker(),
       ),
@@ -638,7 +640,7 @@ class _ControlsDock extends StatelessWidget {
             ? (ctrl.isCameraOff
                 ? Icons.videocam_off_rounded
                 : Icons.videocam_rounded)
-            : Icons.videocam_rounded,
+            : Icons.videocam_outlined,
         backgroundColor: ctrl.isVideo && ctrl.isCameraOff
             ? Colors.white
             : Colors.transparent,
@@ -692,6 +694,8 @@ class _ControlsDock extends StatelessWidget {
         !ctrl.isSpeakerOn) {
       return Icons.headset_rounded;
     }
-    return Icons.volume_up_rounded;
+    return ctrl.isSpeakerOn
+        ? Icons.volume_up_rounded
+        : Icons.volume_off_rounded;
   }
 }

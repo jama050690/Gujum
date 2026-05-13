@@ -189,6 +189,16 @@ function registerSocketHandlers(io) {
       }
     });
 
+    browser.on("CALL_RENEGOTIATE", (data) => {
+      const { target, offer, callId, isVideo } = data;
+      if (target) emitToUser(target, "CALL_RENEGOTIATE", { offer, callId, isVideo });
+    });
+
+    browser.on("CALL_RENEGOTIATE_ANSWER", (data) => {
+      const { target, answer, callId } = data;
+      if (target) emitToUser(target, "CALL_RENEGOTIATE_ANSWER", { answer, callId });
+    });
+
     browser.on("disconnect", () => {
       const username = browser.username;
       const index = browsers.indexOf(browser);

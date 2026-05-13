@@ -132,6 +132,8 @@ class SocketService {
       'CALL_SESSION_SYNC',
       'CALL_PARTICIPANT_RECONNECTING',
       'CALL_PARTICIPANT_REJOINED',
+      'CALL_RENEGOTIATE',
+      'CALL_RENEGOTIATE_ANSWER',
     ]) {
       socket.on(event, (data) {
         debugPrint('SOCKET_DEBUG onEvent event=$event data=$data');

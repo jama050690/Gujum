@@ -328,13 +328,55 @@ export function useWebRTC(socket, currentUser) {
       setCallStartedAt((previous) => previous || data.connectedAt || Date.now());
     };
 
+    const handleRenegotiate = async (data) => {
+      const pc = pcRef.current;
+      if (!pc || !data.offer) return;
+      if (data.callId && data.callId !== callIdRef.current) return;
+      try {
+        // Agar video track yo'q bo'lsa — kamera qo'shamiz
+        if (data.isVideo) {
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+          } catch (_) {}
+          if (stream) {
+            const [videoTrack] = stream.getVideoTracks();
+            if (videoTrack) {
+              pc.addTrack(videoTrack, localStreamRef.current || new MediaStream([videoTrack]));
+              if (localStreamRef.current) localStreamRef.current.addTrack(videoTrack);
+              setLocalStream(prev => {
+                if (!prev) return stream;
+                const merged = new MediaStream(prev.getTracks());
+                merged.addTrack(videoTrack);
+                return merged;
+              });
+              setIsVideo(true);
+              setIsCameraOff(false);
+            }
+          }
+        }
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("CALL_RENEGOTIATE_ANSWER", {
+          target: targetUserRef.current,
+          answer,
+          callId: callIdRef.current,
+        });
+        console.log("CALL_RENEGOTIATE: video upgrade answer yuborildi");
+      } catch (e) {
+        console.error("CALL_RENEGOTIATE xatosi:", e);
+      }
+    };
+
     socket.on("ICE_CANDIDATE", handleIceCandidate);
     socket.on("CALL_ANSWER", handleCallAnswer);
     socket.on("CALL_CONNECTED", handleCallConnected);
     socket.on("CALL_OFFER", handleCallOffer);
     socket.on("CALL_END", handleCallEnd);
     socket.on("CALL_REJECT", handleCallReject);
- 
+    socket.on("CALL_RENEGOTIATE", handleRenegotiate);
+
     return () => {
       socket.off("ICE_CANDIDATE", handleIceCandidate);
       socket.off("CALL_ANSWER", handleCallAnswer);
@@ -342,6 +384,7 @@ export function useWebRTC(socket, currentUser) {
       socket.off("CALL_OFFER", handleCallOffer);
       socket.off("CALL_END", handleCallEnd);
       socket.off("CALL_REJECT", handleCallReject);
+      socket.off("CALL_RENEGOTIATE", handleRenegotiate);
     };
   }, [socket, cleanup, stopRingtone]);
  
