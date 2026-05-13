@@ -113,6 +113,7 @@ class _ConversationPane extends StatefulWidget {
     required this.showBack,
     required this.showSavedMessages,
     required this.onBack,
+    this.onMoreActions,
   });
 
   final SettingsController settings;
@@ -120,6 +121,7 @@ class _ConversationPane extends StatefulWidget {
   final bool showBack;
   final bool showSavedMessages;
   final VoidCallback onBack;
+  final VoidCallback? onMoreActions;
 
   @override
   State<_ConversationPane> createState() => _ConversationPaneState();

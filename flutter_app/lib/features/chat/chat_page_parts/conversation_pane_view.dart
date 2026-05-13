@@ -103,9 +103,7 @@ extension _ConversationPaneView on _ConversationPaneState {
         // Menyu tugmasi
         IconButton(
           icon: const Icon(Icons.more_vert),
-          onPressed: () {
-             // Chat menyusi logikasi
-          },
+          onPressed: () => widget.onMoreActions?.call(),
         ),
       ],
     );

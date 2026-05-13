@@ -110,6 +110,12 @@ extension _ChatPageStateBuild on _ChatPageState {
             showBack: !wide,
             showSavedMessages: _showSavedMessages,
             onBack: () => _closeConversation(chat),
+            onMoreActions: () {
+              final item = chat.activeChat;
+              if (item != null) {
+                _showChatActions(context, chat, item, settings);
+              }
+            },
           );
 
           if (wide) {

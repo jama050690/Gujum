@@ -42,20 +42,17 @@ class SocketService {
     );
     disconnect();
 
-final options = io.OptionBuilder()
-    .setPath(path)
-    // Pollingni birinchi o'ringa qo'yamiz - bu timeoutni to'xtatishning yagona yo'li
-    .setTransports(['polling', 'websocket']) 
-    .enableAutoConnect()
-    .enableReconnection()
-    .setReconnectionDelay(3000)
-    // Cookie-larni tekshiring, agar ular noto'g'ri bo'lsa server ulanishni rad etadi
-    .setExtraHeaders(
-      cookie == null || cookie.isEmpty
-          ? const <String, String>{}
-          : {'Cookie': cookie},
-    )
-    .build();
+    final options = io.OptionBuilder()
+        .setPath(path)
+        // WebSocket birinchi, polling fallback
+        .setTransports(['websocket', 'polling'])
+        .enableAutoConnect()
+        .enableReconnection()
+        .setReconnectionAttempts(999999)
+        .setReconnectionDelay(2000)
+        .setReconnectionDelayMax(10000)
+        .setTimeout(20000)
+        .build();
 
     _socket = io.io(baseUrl, options);
     _connectionKey = nextConnectionKey;
@@ -126,6 +123,7 @@ final options = io.OptionBuilder()
       'FRIEND_ACCEPTED',
       'CALL_OFFER',
       'CALL_ANSWER',
+      'CALL_CONNECTED',
       'ICE_CANDIDATE',
       'CALL_REJECT',
       'CALL_END',

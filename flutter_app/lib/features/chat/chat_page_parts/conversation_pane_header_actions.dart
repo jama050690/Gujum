@@ -19,7 +19,7 @@ Widget _buildHeaderActions(String Function(String) t) {
       ),
       _HeaderActionButton(
         icon: Icons.more_vert_rounded,
-        onPressed: () => _showInfoSnackBar(t('chat_action_unavailable')),
+        onPressed: () => widget.onMoreActions?.call(),
       ),
     ],
   );

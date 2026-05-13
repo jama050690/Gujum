@@ -549,20 +549,22 @@ class CallController extends ChangeNotifier {
     };
 
     pc.onIceConnectionState = (state) {
+      debugPrint('CALL_DEBUG ICE state: $state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         unawaited(_markCallConnected());
-      } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
-          state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        // disconnected — o'tkinchi holat, o'z-o'zidan tuzalishi mumkin
         unawaited(_resetSession());
       }
     };
 
     pc.onConnectionState = (state) {
+      debugPrint('CALL_DEBUG peer connection state: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         unawaited(_markCallConnected());
-      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        // disconnected — o'tkinchi holat, o'z-o'zidan tuzalishi mumkin
         unawaited(_resetSession());
       }
     };
