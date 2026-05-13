@@ -599,7 +599,7 @@ class CallController extends ChangeNotifier {
     try {
       await _audioPlayer.stop();
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource('sounds/dialing.mp3'));
+      await _audioPlayer.play(AssetSource('sounds/dialing.wav'));
     } catch (error) {
       debugPrint('CALL_DEBUG _startOutgoingTone() asset failed error=$error');
     }
@@ -621,7 +621,7 @@ class CallController extends ChangeNotifier {
 
     debugPrint('CALL_DEBUG startIncomingTone() using asset ringtone fallback');
     try {
-      await _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+      await _audioPlayer.play(AssetSource('sounds/ringtone.wav'));
     } catch (error) {
       debugPrint('CALL_DEBUG startIncomingTone() asset ringtone failed error=$error');
     }

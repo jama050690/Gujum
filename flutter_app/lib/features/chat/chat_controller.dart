@@ -237,7 +237,7 @@ class ChatController extends ChangeNotifier {
 
         // WEB UCHUN AUDIO CONTEXT RESUME (Eng muhim joyi!)
         _audioPlayer.resume().then((_) {
-          _audioPlayer.play(AssetSource('sounds/ringtone.mp3'));
+          _audioPlayer.play(AssetSource('sounds/ringtone.wav'));
           debugPrint("DEBUG: Ringtone chalyapti");
         }).catchError((e) {
           debugPrint("DEBUG: Audio uyg'otishda xato: $e");

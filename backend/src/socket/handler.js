@@ -151,13 +151,26 @@ function registerSocketHandlers(io) {
     browser.on("CALL_ANSWER", (data) => {
       const { target, answer, callId } = data;
       const session = activeCalls.get(callId);
-      if (session) session.status = "connected";
-      emitToUser(target, "CALL_ANSWER", { answer, callId });
+      if (session) {
+        session.status = "connected";
+        session.connectedAt = Date.now();
+      }
+      emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now() });
+    });
+
+    browser.on("CALL_CONNECTED", (data) => {
+      const { target, callId } = data;
+      const connectedAt = Date.now();
+      const session = activeCalls.get(callId);
+      if (session) {
+        session.status = "connected";
+        session.connectedAt = session.connectedAt || connectedAt;
+      }
+      emitToUser(target, "CALL_CONNECTED", { callId, connectedAt });
     });
 
     browser.on("ICE_CANDIDATE", (data) => {
       const { target, candidate, callId } = data;
-      // ICE candidate xabarlari WebRTC ulanish poydevori
       if (target) emitToUser(target, "ICE_CANDIDATE", { candidate, callId });
     });
 

@@ -43,13 +43,13 @@ class SocketService {
     disconnect();
 
 final options = io.OptionBuilder()
-    .setPath(path) // Bu yerda AppConfig.defaultSocketPath /api/bootchat/socket.io/ ekanligini tekshiring
-    .setTransports(['websocket']) // 'polling' ni 'websocket' ga almashtiring!
+    .setPath(path)
+    // Pollingni birinchi o'ringa qo'yamiz - bu timeoutni to'xtatishning yagona yo'li
+    .setTransports(['polling', 'websocket']) 
     .enableAutoConnect()
     .enableReconnection()
-    .setReconnectionAttempts(999999)
-    .setReconnectionDelay(1000)
-    .setReconnectionDelayMax(5000)
+    .setReconnectionDelay(3000)
+    // Cookie-larni tekshiring, agar ular noto'g'ri bo'lsa server ulanishni rad etadi
     .setExtraHeaders(
       cookie == null || cookie.isEmpty
           ? const <String, String>{}
