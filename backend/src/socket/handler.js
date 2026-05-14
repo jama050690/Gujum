@@ -202,9 +202,38 @@ function registerSocketHandlers(io) {
     browser.on("NEW_MESSAGE", async (data) => {
       const senderUsername = browser.username;
       if (!senderUsername) return;
-      const { receiver, message = "", image, audio, video, replyTo } = data || {};
+      const { receiver, message = "", image, audio, video, replyTo, persisted, id: persistedId, created_at: persistedAt, avatar: clientAvatar } = data || {};
       if (!receiver) return;
       try {
+        // Web frontend REST API orqali allaqachon saqlagan — faqat receiverga yetkazish
+        if (persisted && persistedId) {
+          const senderRes = await pool.query(
+            `SELECT username, avatar, full_name FROM ${USERS_TABLE} WHERE username = $1`, [senderUsername]
+          );
+          if (senderRes.rowCount === 0) return;
+          const sender = senderRes.rows[0];
+          const text = typeof message === "string" ? message.trim() : "";
+          const payload = {
+            id: persistedId,
+            created_at: persistedAt,
+            user: sender.username,
+            username: sender.username,
+            full_name: sender.full_name,
+            avatar: sender.avatar || clientAvatar,
+            receiver,
+            content: text,
+            message: text,
+            image: image || null,
+            audio: audio || null,
+            video: video || null,
+            reply_to_username: replyTo?.username || null,
+            reply_to_content: replyTo?.content || null,
+          };
+          emitToUser(receiver, "NEW_MESSAGE", payload);
+          return;
+        }
+
+        // Flutter / REST-siz: DB ga saqla, sender ga echo qaytarsin
         const [senderRes, receiverRes] = await Promise.all([
           pool.query(`SELECT id, username, avatar, full_name FROM ${USERS_TABLE} WHERE username = $1`, [senderUsername]),
           pool.query(`SELECT id FROM ${USERS_TABLE} WHERE username = $1`, [receiver]),
