@@ -208,6 +208,9 @@ export function useWebRTC(socket, currentUser) {
       }
       if (pc.iceConnectionState === "failed") {
         setCallError("Ulanish muvaffaqiyatsiz");
+        if (socket && targetUserRef.current && callIdRef.current) {
+          socket.emit("CALL_END", { target: targetUserRef.current, callId: callIdRef.current, reason: "connection_lost" });
+        }
         cleanup();
       }
     };
@@ -219,6 +222,9 @@ export function useWebRTC(socket, currentUser) {
       }
       if (pc.connectionState === "failed") {
         setCallError("Ulanish muvaffaqiyatsiz");
+        if (socket && targetUserRef.current && callIdRef.current) {
+          socket.emit("CALL_END", { target: targetUserRef.current, callId: callIdRef.current, reason: "connection_lost" });
+        }
         cleanup();
       }
     };

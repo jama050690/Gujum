@@ -674,8 +674,7 @@ class CallController extends ChangeNotifier {
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         unawaited(_markCallConnected());
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-        // disconnected — o'tkinchi holat, o'z-o'zidan tuzalishi mumkin
-        unawaited(_resetSession());
+        unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
       }
     };
 
@@ -684,8 +683,7 @@ class CallController extends ChangeNotifier {
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         unawaited(_markCallConnected());
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-        // disconnected — o'tkinchi holat, o'z-o'zidan tuzalishi mumkin
-        unawaited(_resetSession());
+        unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
       }
     };
 
