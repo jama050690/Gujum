@@ -1,18 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/config/app_config.dart';
 
 class GoogleAuthService {
-  GoogleAuthService()
-      : _googleSignIn = GoogleSignIn(
-          scopes: const ['email'],
-          serverClientId: AppConfig.googleServerClientId.isEmpty
-              ? null
-              : AppConfig.googleServerClientId,
-        );
+  GoogleAuthService() : _googleSignIn = _createGoogleSignIn();
 
   final GoogleSignIn _googleSignIn;
+
+  static GoogleSignIn _createGoogleSignIn() {
+    if (kIsWeb) {
+      return GoogleSignIn(
+        scopes: const ['email'],
+      );
+    }
+
+    return GoogleSignIn(
+      scopes: const ['email'],
+      serverClientId: AppConfig.googleServerClientId.isEmpty
+          ? null
+          : AppConfig.googleServerClientId,
+    );
+  }
 
   bool get isConfigured => AppConfig.googleServerClientId.isNotEmpty;
 
