@@ -46,6 +46,57 @@ function emitToUser(username, event, data) {
   return delivered;
 }
 
+async function sendPushToUser(username, notification) {
+  if (!username || !notification) return;
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+
+  try {
+    const userResult = await pool.query(
+      `SELECT id FROM ${USERS_TABLE} WHERE username = $1`,
+      [username]
+    );
+    if (userResult.rowCount === 0) return;
+
+    const userId = userResult.rows[0].id;
+    const subscriptionResult = await pool.query(
+      `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (subscriptionResult.rowCount === 0) return;
+
+    const payload = JSON.stringify(notification);
+    await Promise.allSettled(
+      subscriptionResult.rows.map(async (subscription) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: subscription.endpoint,
+              keys: {
+                p256dh: subscription.p256dh,
+                auth: subscription.auth,
+              },
+            },
+            payload
+          );
+        } catch (error) {
+          const statusCode = error?.statusCode;
+          if (statusCode === 404 || statusCode === 410) {
+            await pool.query(
+              "DELETE FROM push_subscriptions WHERE endpoint = $1",
+              [subscription.endpoint]
+            );
+            return;
+          }
+          console.error("Push yuborishda xato:", error);
+        }
+      })
+    );
+  } catch (error) {
+    console.error("sendPushToUser xato:", error);
+  }
+}
+
 function finalizeCallSession(callId) {
   const call = activeCalls.get(callId);
   if (!call) return null;
