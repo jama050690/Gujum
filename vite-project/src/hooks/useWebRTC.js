@@ -334,6 +334,20 @@ export function useWebRTC(socket, currentUser) {
       setCallStartedAt((previous) => previous || data.connectedAt || Date.now());
     };
 
+    const handleRenegotiateAnswer = async (data) => {
+      const pc = pcRef.current;
+      if (!pc || !data.answer) return;
+      if (data.callId && data.callId !== callIdRef.current) return;
+      try {
+        if (pc.signalingState === "have-local-offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log("CALL_RENEGOTIATE_ANSWER: video upgrade qo'llandi");
+        }
+      } catch (e) {
+        console.error("CALL_RENEGOTIATE_ANSWER xatosi:", e);
+      }
+    };
+
     const handleRenegotiate = async (data) => {
       const pc = pcRef.current;
       if (!pc || !data.offer) return;
@@ -382,6 +396,7 @@ export function useWebRTC(socket, currentUser) {
     socket.on("CALL_END", handleCallEnd);
     socket.on("CALL_REJECT", handleCallReject);
     socket.on("CALL_RENEGOTIATE", handleRenegotiate);
+    socket.on("CALL_RENEGOTIATE_ANSWER", handleRenegotiateAnswer);
 
     return () => {
       socket.off("ICE_CANDIDATE", handleIceCandidate);
@@ -391,6 +406,7 @@ export function useWebRTC(socket, currentUser) {
       socket.off("CALL_END", handleCallEnd);
       socket.off("CALL_REJECT", handleCallReject);
       socket.off("CALL_RENEGOTIATE", handleRenegotiate);
+      socket.off("CALL_RENEGOTIATE_ANSWER", handleRenegotiateAnswer);
     };
   }, [socket, cleanup, stopRingtone]);
  
@@ -509,6 +525,49 @@ export function useWebRTC(socket, currentUser) {
     }
   };
  
+  const upgradeToVideo = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || !targetUserRef.current || !callIdRef.current || isVideo) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      const [videoTrack] = stream.getVideoTracks();
+      if (!videoTrack) return;
+
+      const baseStream = localStreamRef.current || new MediaStream();
+      pc.addTrack(videoTrack, baseStream);
+
+      if (localStreamRef.current) {
+        localStreamRef.current.addTrack(videoTrack);
+      } else {
+        localStreamRef.current = stream;
+      }
+
+      setLocalStream(prev => {
+        if (!prev) return stream;
+        const merged = new MediaStream(prev.getTracks());
+        merged.addTrack(videoTrack);
+        return merged;
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socket.emit("CALL_RENEGOTIATE", {
+        target: targetUserRef.current,
+        offer,
+        callId: callIdRef.current,
+        isVideo: true,
+      });
+
+      setIsVideo(true);
+      setIsCameraOff(false);
+      console.log("upgradeToVideo: renegotiation offer yuborildi");
+    } catch (e) {
+      console.error("upgradeToVideo xatosi:", e);
+      setCallError("Kamera ochilmadi");
+    }
+  }, [socket, isVideo]);
+
   const hangUp = useCallback(() => {
     if (targetUserRef.current) {
       socket.emit("CALL_END", {
@@ -523,6 +582,7 @@ export function useWebRTC(socket, currentUser) {
     callState, callError, remoteUser, isVideo, isMuted, isCameraOff,
     localStream, remoteStream, incomingCall, callStartedAt,
     startCall, acceptCall, hangUp, toggleMute, toggleCamera,
+    switchCallMode: upgradeToVideo,
     rejectCall: () => {
       if (incomingCall) {
         socket.emit("CALL_REJECT", {
