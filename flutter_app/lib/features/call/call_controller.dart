@@ -817,9 +817,12 @@ class CallController extends ChangeNotifier {
     bool notifyRemote = false,
     String reason = 'hangup',
   }) async {
+    if (_callId == null && _targetUsername == null) return;
     final target = _targetUsername;
     final callId = _callId;
     final wasVideo = _isVideo;
+    _callId = null;
+    _targetUsername = null;
     final duration = _connectedAt == null
         ? 0
         : DateTime.now().difference(_connectedAt!).inSeconds;
@@ -831,8 +834,6 @@ class CallController extends ChangeNotifier {
     _state = null;
     _incomingCall = null;
     _remotePeer = null;
-    _callId = null;
-    _targetUsername = null;
     _resetInternalState();
     notifyListeners();
 
