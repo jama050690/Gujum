@@ -111,6 +111,7 @@ class CallController extends ChangeNotifier {
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isSpeakerOn = true;
+  bool _isFrontCamera = true;
   bool _hasBluetoothAudio = false;
   bool _hasHeadsetAudio = false;
   bool _isUpgradingToVideo = false;
@@ -131,6 +132,7 @@ class CallController extends ChangeNotifier {
   bool get isMuted => _isMuted;
   bool get isCameraOff => _isCameraOff;
   bool get isSpeakerOn => _isSpeakerOn;
+  bool get isFrontCamera => _isFrontCamera;
   bool get hasBluetoothAudio => _hasBluetoothAudio;
   bool get hasHeadsetAudio => _hasHeadsetAudio;
   CallAudioRoute get audioRoute => _audioRoute;
@@ -308,6 +310,19 @@ class CallController extends ChangeNotifier {
     }
   }
 
+  Future<void> flipCamera() async {
+    if (!_isVideo || _isCameraOff) return;
+    final tracks = _localStream?.getVideoTracks() ?? [];
+    if (tracks.isEmpty) return;
+    try {
+      await Helper.switchCamera(tracks.first);
+      _isFrontCamera = !_isFrontCamera;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('CALL_DEBUG flipCamera() error=$e');
+    }
+  }
+
   Future<void> _upgradeToVideo() async {
     final pc = _peerConnection;
     final stream = _localStream;
@@ -356,6 +371,26 @@ class CallController extends ChangeNotifier {
       'CALL_DEBUG toggleSpeaker() speakerOn=$_isSpeakerOn hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
     );
     await _applyAudioRoute();
+    notifyListeners();
+  }
+
+  Future<void> setAudioRoute(CallAudioRoute route) async {
+    if (kIsWeb) return;
+    try {
+      if (route == CallAudioRoute.bluetooth) {
+        await _audioChannel.invokeMethod<void>('activateBluetooth');
+        _audioRoute = CallAudioRoute.bluetooth;
+        _isSpeakerOn = false;
+      } else if (route == CallAudioRoute.speaker) {
+        _isSpeakerOn = true;
+        await _applyAudioRoute();
+      } else {
+        _isSpeakerOn = false;
+        await _applyAudioRoute();
+      }
+    } catch (e) {
+      debugPrint('CALL_DEBUG setAudioRoute() error=$e');
+    }
     notifyListeners();
   }
 
@@ -767,8 +802,8 @@ class CallController extends ChangeNotifier {
 
     if (defaultTargetPlatform != TargetPlatform.android) {
       try {
-        await Helper.setSpeakerphoneOn(_isVideo || _isSpeakerOn);
-        _audioRoute = _isVideo || _isSpeakerOn
+        await Helper.setSpeakerphoneOn(_isSpeakerOn);
+        _audioRoute = _isSpeakerOn
             ? CallAudioRoute.speaker
             : CallAudioRoute.earpiece;
       } catch (error) {
@@ -781,7 +816,7 @@ class CallController extends ChangeNotifier {
       final result = await _audioChannel.invokeMapMethod<String, dynamic>(
         'activateCallAudio',
         {
-          'speakerOn': _isVideo || _isSpeakerOn,
+          'speakerOn': _isSpeakerOn,
         },
       );
       debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');

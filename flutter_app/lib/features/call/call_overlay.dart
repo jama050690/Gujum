@@ -290,7 +290,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
             bottom: 188,
             width: 132,
             height: 188,
-            child: _LocalPreviewCard(renderer: _local),
+            child: _LocalPreviewCard(renderer: _local, ctrl: ctrl),
           ),
         Positioned(
           bottom: 36,
@@ -550,9 +550,10 @@ class _AvatarGlow extends StatelessWidget {
 }
 
 class _LocalPreviewCard extends StatelessWidget {
-  const _LocalPreviewCard({required this.renderer});
+  const _LocalPreviewCard({required this.renderer, required this.ctrl});
 
   final RTCVideoRenderer renderer;
+  final CallController ctrl;
 
   @override
   Widget build(BuildContext context) {
@@ -581,15 +582,23 @@ class _LocalPreviewCard extends StatelessWidget {
             Positioned(
               top: 10,
               right: 10,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(130),
-                  shape: BoxShape.circle,
+              child: GestureDetector(
+                onTap: () => ctrl.flipCamera(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(130),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    ctrl.isFrontCamera
+                        ? Icons.flip_camera_ios
+                        : Icons.flip_camera_android,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-                child: const Icon(Icons.flip_camera_ios,
-                    size: 18, color: Colors.white),
               ),
             ),
             Positioned(
@@ -633,9 +642,11 @@ class _ControlsDock extends StatelessWidget {
         icon: speakerIcon,
         backgroundColor: ctrl.isSpeakerOn
             ? Colors.white.withAlpha(50)
-            : Colors.transparent,
+            : ctrl.audioRoute == CallAudioRoute.bluetooth
+                ? Colors.blue.withAlpha(80)
+                : Colors.transparent,
         size: 58,
-        onPressed: () => ctrl.toggleSpeaker(),
+        onPressed: () => _showAudioRouteSheet(context, ctrl),
       ),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
@@ -691,19 +702,103 @@ class _ControlsDock extends StatelessWidget {
     );
   }
 
+  void _showAudioRouteSheet(BuildContext context, CallController ctrl) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E2230),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _AudioRouteOption(
+                icon: Icons.volume_off_rounded,
+                label: 'Default (quloq)',
+                selected: ctrl.audioRoute == CallAudioRoute.earpiece,
+                onTap: () {
+                  Navigator.pop(context);
+                  ctrl.setAudioRoute(CallAudioRoute.earpiece);
+                },
+              ),
+              _AudioRouteOption(
+                icon: Icons.volume_up_rounded,
+                label: 'Gromkogo\'voritel',
+                selected: ctrl.audioRoute == CallAudioRoute.speaker,
+                onTap: () {
+                  Navigator.pop(context);
+                  ctrl.setAudioRoute(CallAudioRoute.speaker);
+                },
+              ),
+              if (ctrl.hasBluetoothAudio)
+                _AudioRouteOption(
+                  icon: Icons.bluetooth_audio_rounded,
+                  label: 'Bluetooth',
+                  selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
+                  onTap: () {
+                    Navigator.pop(context);
+                    ctrl.setAudioRoute(CallAudioRoute.bluetooth);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _speakerIconFor(CallController ctrl) {
-    if (ctrl.hasBluetoothAudio &&
-        ctrl.audioRoute == CallAudioRoute.bluetooth &&
-        !ctrl.isSpeakerOn) {
+    if (ctrl.audioRoute == CallAudioRoute.bluetooth) {
       return Icons.bluetooth_audio_rounded;
     }
-    if (ctrl.hasHeadsetAudio &&
-        ctrl.audioRoute == CallAudioRoute.headset &&
-        !ctrl.isSpeakerOn) {
+    if (ctrl.audioRoute == CallAudioRoute.headset) {
       return Icons.headset_rounded;
     }
     return ctrl.isSpeakerOn
         ? Icons.volume_up_rounded
         : Icons.volume_off_rounded;
+  }
+}
+
+class _AudioRouteOption extends StatelessWidget {
+  const _AudioRouteOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: selected ? Colors.blueAccent : Colors.white70),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.blueAccent : Colors.white,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      trailing: selected ? const Icon(Icons.check, color: Colors.blueAccent) : null,
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
   }
 }

@@ -49,6 +49,10 @@ class MainActivity : FlutterActivity() {
                         )
                     )
                 }
+                "activateBluetooth" -> {
+                    activateBluetooth()
+                    result.success(null)
+                }
                 "restoreAudioRoute" -> {
                     restoreAudioRoute()
                     result.success(null)
@@ -207,6 +211,16 @@ class MainActivity : FlutterActivity() {
         audioManager.isMicrophoneMute = false
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
         return getAudioRouteInfo()
+    }
+
+    private fun activateBluetooth() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        @Suppress("DEPRECATION")
+        audioManager.isSpeakerphoneOn = false
+        audioManager.startBluetoothSco()
+        @Suppress("DEPRECATION")
+        audioManager.isBluetoothScoOn = true
     }
 
     private fun restoreAudioRoute() {
