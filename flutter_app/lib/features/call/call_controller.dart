@@ -101,6 +101,7 @@ class CallController extends ChangeNotifier {
   MediaStream? _localStream;
   MediaStream? _remoteStream;
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
+  Timer? _iceConnectTimeout;
 
   CallSessionState? _state;
   CallPeer? _remotePeer;
@@ -180,6 +181,7 @@ class CallController extends ChangeNotifier {
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       _peerConnection = pc;
+      _startIceTimeout();
 
       _socketService.emit('CALL_OFFER', {
         'callId': _callId,
@@ -247,6 +249,7 @@ class CallController extends ChangeNotifier {
       final answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       _peerConnection = pc;
+      _startIceTimeout();
 
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,
@@ -258,7 +261,6 @@ class CallController extends ChangeNotifier {
           'avatar': _authController.user?.avatar,
         },
       });
-      _connectedAt ??= DateTime.now();
       notifyListeners();
       debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
     } on CallSetupException catch (error) {
@@ -706,13 +708,34 @@ class CallController extends ChangeNotifier {
       notifyListeners();
     };
 
+    // Fallback for implementations that fire onAddStream instead of onTrack
+    pc.onAddStream = (stream) {
+      debugPrint('CALL_DEBUG onAddStream id=${stream.id}');
+      if (_remoteStream?.id != stream.id) {
+        _remoteStream = stream;
+        unawaited(_markCallConnected());
+        notifyListeners();
+      }
+    };
+
     pc.onIceConnectionState = (state) {
       debugPrint('CALL_DEBUG ICE state: $state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _iceConnectTimeout?.cancel();
+        _iceConnectTimeout = null;
         unawaited(_markCallConnected());
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        _iceConnectTimeout?.cancel();
+        _iceConnectTimeout = null;
         unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        // Temporary disconnection — end call after 15 s if not recovered
+        _iceConnectTimeout ??= Timer(const Duration(seconds: 15), () {
+          if (_state != null) {
+            unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
+          }
+        });
       }
     };
 
@@ -841,7 +864,19 @@ class CallController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  void _startIceTimeout() {
+    _iceConnectTimeout?.cancel();
+    _iceConnectTimeout = Timer(const Duration(seconds: 30), () {
+      if (_state != null && _state != CallSessionState.connected) {
+        debugPrint('CALL_DEBUG ICE timeout — no connection after 30s');
+        unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
+      }
+    });
+  }
+
   Future<void> _closePeerResources() async {
+    _iceConnectTimeout?.cancel();
+    _iceConnectTimeout = null;
     await _peerConnection?.close();
     for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
       track.stop();

@@ -711,47 +711,49 @@ class _ControlsDock extends StatelessWidget {
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: Colors.white24,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              _AudioRouteOption(
-                icon: Icons.volume_off_rounded,
-                label: 'Default (quloq)',
-                selected: ctrl.audioRoute == CallAudioRoute.earpiece,
-                onTap: () {
-                  Navigator.pop(context);
-                  ctrl.setAudioRoute(CallAudioRoute.earpiece);
-                },
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _AudioRouteOption(
+                    icon: Icons.volume_off_rounded,
+                    selected: ctrl.audioRoute == CallAudioRoute.earpiece,
+                    onTap: () {
+                      Navigator.pop(context);
+                      ctrl.setAudioRoute(CallAudioRoute.earpiece);
+                    },
+                  ),
+                  _AudioRouteOption(
+                    icon: Icons.volume_up_rounded,
+                    selected: ctrl.audioRoute == CallAudioRoute.speaker,
+                    onTap: () {
+                      Navigator.pop(context);
+                      ctrl.setAudioRoute(CallAudioRoute.speaker);
+                    },
+                  ),
+                  if (ctrl.hasBluetoothAudio)
+                    _AudioRouteOption(
+                      icon: Icons.bluetooth_audio_rounded,
+                      selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
+                      onTap: () {
+                        Navigator.pop(context);
+                        ctrl.setAudioRoute(CallAudioRoute.bluetooth);
+                      },
+                    ),
+                ],
               ),
-              _AudioRouteOption(
-                icon: Icons.volume_up_rounded,
-                label: 'Gromkogo\'voritel',
-                selected: ctrl.audioRoute == CallAudioRoute.speaker,
-                onTap: () {
-                  Navigator.pop(context);
-                  ctrl.setAudioRoute(CallAudioRoute.speaker);
-                },
-              ),
-              if (ctrl.hasBluetoothAudio)
-                _AudioRouteOption(
-                  icon: Icons.bluetooth_audio_rounded,
-                  label: 'Bluetooth',
-                  selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
-                  onTap: () {
-                    Navigator.pop(context);
-                    ctrl.setAudioRoute(CallAudioRoute.bluetooth);
-                  },
-                ),
             ],
           ),
         ),
@@ -775,30 +777,32 @@ class _ControlsDock extends StatelessWidget {
 class _AudioRouteOption extends StatelessWidget {
   const _AudioRouteOption({
     required this.icon,
-    required this.label,
     required this.selected,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: selected ? Colors.blueAccent : Colors.white70),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.blueAccent : Colors.white,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: selected ? Colors.blueAccent.withAlpha(60) : Colors.white12,
+          shape: BoxShape.circle,
+          border: selected ? Border.all(color: Colors.blueAccent, width: 2) : null,
+        ),
+        child: Icon(
+          icon,
+          color: selected ? Colors.blueAccent : Colors.white70,
+          size: 28,
         ),
       ),
-      trailing: selected ? const Icon(Icons.check, color: Colors.blueAccent) : null,
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }
