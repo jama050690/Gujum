@@ -174,7 +174,15 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   void _sync() {
     if (!_ready) return;
     _local.srcObject = widget.callController.localStream;
-    _remote.srcObject = widget.callController.remoteStream;
+    final remote = widget.callController.remoteStream;
+    if (_remote.srcObject?.id != remote?.id) {
+      _remote.srcObject = remote;
+    } else if (remote != null &&
+        remote.getVideoTracks().isNotEmpty &&
+        _remote.srcObject != null) {
+      _remote.srcObject = null;
+      _remote.srcObject = remote;
+    }
   }
 
   void _syncTicker() {

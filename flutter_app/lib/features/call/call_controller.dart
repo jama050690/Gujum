@@ -653,17 +653,20 @@ class CallController extends ChangeNotifier {
     pc.onTrack = (event) async {
       final track = event.track;
       if (event.streams.isNotEmpty) {
-        _remoteStream = event.streams.first;
+        final incoming = event.streams.first;
+        if (_remoteStream == null) {
+          _remoteStream = incoming;
+        } else if (_remoteStream!.id != incoming.id) {
+          _remoteStream = incoming;
+        } else if (track.kind == 'video') {
+          // Same stream but video track just arrived — force renderer refresh
+          _remoteStream = null;
+          _remoteStream = incoming;
+        }
       } else {
         _remoteStream ??= await createLocalMediaStream('bootchat_remote');
-        _remoteStream!.addTrack(track);
+        await _remoteStream!.addTrack(track);
       }
-      unawaited(_markCallConnected());
-      notifyListeners();
-    };
-
-    pc.onAddStream = (stream) {
-      _remoteStream = stream;
       unawaited(_markCallConnected());
       notifyListeners();
     };
