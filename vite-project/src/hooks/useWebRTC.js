@@ -528,6 +528,11 @@ export function useWebRTC(socket, currentUser) {
   const upgradeToVideo = useCallback(async () => {
     const pc = pcRef.current;
     if (!pc || !targetUserRef.current || !callIdRef.current || isVideo) return;
+    const iceState = pc.iceConnectionState;
+    if (iceState !== "connected" && iceState !== "completed") {
+      console.warn("upgradeToVideo: ICE hali ulanmagan, bekor qilindi:", iceState);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
       const [videoTrack] = stream.getVideoTracks();
