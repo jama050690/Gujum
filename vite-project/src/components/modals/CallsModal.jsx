@@ -82,12 +82,12 @@ function formatCallDate(dateStr, t) {
   yesterday.setDate(now.getDate() - 1);
 
   const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  const formatted = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
 
   if (d.toDateString() === today) return time;
   if (d.toDateString() === yesterday.toDateString()) return `${t("yesterday")} ${time}`;
 
-  return `${dateStr} ${time}`;
+  return `${formatted} ${time}`;
 }
 
 export default function CallsModal({ isOpen, onClose, onStartCall }) {
