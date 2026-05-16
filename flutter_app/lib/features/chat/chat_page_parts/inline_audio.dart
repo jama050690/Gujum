@@ -40,6 +40,7 @@ class _InlineAudioMessageState extends State<_InlineAudioMessage> {
       }
       setState(() => _duration = value);
     });
+    _preloadDuration();
     _positionSub = _player.onPositionChanged.listen((value) {
       if (!mounted) {
         return;
@@ -71,6 +72,18 @@ class _InlineAudioMessageState extends State<_InlineAudioMessage> {
     }
   }
 
+  Future<void> _preloadDuration() async {
+    try {
+      await _player.setSource(UrlSource(widget.audioUrl));
+      final d = await _player.getDuration();
+      if (!mounted) return;
+      setState(() {
+        if (d != null) _duration = d;
+        _hasSource = true;
+      });
+    } catch (_) {}
+  }
+
   Future<void> _resetSource() async {
     _hasSource = false;
     _error = false;
@@ -80,6 +93,7 @@ class _InlineAudioMessageState extends State<_InlineAudioMessage> {
     if (mounted) {
       setState(() {});
     }
+    _preloadDuration();
   }
 
   Future<void> _togglePlay() async {

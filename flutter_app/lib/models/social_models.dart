@@ -24,7 +24,7 @@ class ProfileDetails {
       phone: (json['phone'] ?? '').toString(),
       bio: (json['bio'] ?? '').toString(),
       avatar: json['avatar']?.toString(),
-      birthday: (json['birthday'] ?? '').toString(),
+      birthday: (json['birthday'] ?? '').toString().split('T').first,
     );
   }
 }
