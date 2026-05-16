@@ -290,6 +290,8 @@ class ChatController extends ChangeNotifier {
             updated.add(changedUser);
           } else {
             updated.remove(changedUser);
+            _lastActiveUsers = Map<String, DateTime?>.from(_lastActiveUsers)
+              ..[changedUser] = _parseLastActive(statusData['lastSeen']) ?? DateTime.now();
           }
           _onlineUsers = updated;
         }

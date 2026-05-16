@@ -25,9 +25,14 @@ Future<void> _uploadAndSendAttachment(
         uploadedPath = await chat.uploadPickedAudio(file);
         break;
       case _AttachmentType.video:
+        const _maxVideoBytes = 500 * 1024 * 1024;
         if (platformFile != null) {
           if (!_matchesAllowedExtension(platformFile, _ConversationPaneState._videoExtensions)) {
             _showInfoSnackBar(t('chat_invalid_file_type'));
+            return;
+          }
+          if (platformFile.size > _maxVideoBytes) {
+            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
             return;
           }
           uploadedPath = await chat.uploadPickedVideo(platformFile);
@@ -39,6 +44,11 @@ Future<void> _uploadAndSendAttachment(
                 _ConversationPaneState._videoExtensions,
               )) {
             _showInfoSnackBar(t('chat_invalid_file_type'));
+            return;
+          }
+          final fileSize = await file.length();
+          if (fileSize > _maxVideoBytes) {
+            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
             return;
           }
           uploadedPath = await chat.uploadXFileVideo(file);

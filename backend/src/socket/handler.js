@@ -376,10 +376,19 @@ function registerSocketHandlers(io) {
 
         if (sockets.size === 0) {
           // Flutter backgroundga o'tganda darrov oflayn qilmaslik
-          const timeout = setTimeout(() => {
+          const timeout = setTimeout(async () => {
             onlineUsers.delete(username);
+            const lastSeen = new Date().toISOString();
+            try {
+              await pool.query(
+                `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE username = $1`,
+                [username]
+              );
+            } catch (e) {
+              console.error("last_seen yangilashda xato:", e);
+            }
             sendAllUsers();
-            io.emit("USER_STATUS_CHANGED", { username, online: false });
+            io.emit("USER_STATUS_CHANGED", { username, online: false, lastSeen });
           }, PRESENCE_OFFLINE_GRACE_MS);
           pendingOfflineTimeouts.set(username, timeout);
         }

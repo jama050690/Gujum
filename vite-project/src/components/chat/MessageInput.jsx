@@ -191,6 +191,10 @@ export default function MessageInput({
     const file = e.target.files[0];
     e.target.value = "";
     if (!file) return;
+    if (file.size > 800 * 1024 * 1024) {
+      alert(tr("video_too_large", "Video hajmi 800MB dan oshmasligi kerak"));
+      return;
+    }
     createPendingFile(file, "video");
   };
 

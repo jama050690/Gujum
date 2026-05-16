@@ -320,24 +320,19 @@ class ChatRepository {
   ) async {
     final name = file.name.trim().isNotEmpty ? file.name : 'upload.bin';
     final path = file.path.trim();
-    final shouldUseBytes = kIsWeb ||
-        path.isEmpty ||
-        path.toLowerCase().startsWith('blob:') ||
-        path.toLowerCase().startsWith('content://');
-    if (shouldUseBytes) {
+
+    if (kIsWeb || path.isEmpty || path.toLowerCase().startsWith('blob:')) {
       final bytes = await file.readAsBytes();
-      return http.MultipartFile.fromBytes(
-        field,
-        bytes,
-        filename: name,
-      );
+      return http.MultipartFile.fromBytes(field, bytes, filename: name);
     }
 
-    return http.MultipartFile.fromPath(
-      field,
-      path,
-      filename: name,
-    );
+    // Stream content:// URIs to avoid loading large files into memory
+    if (path.toLowerCase().startsWith('content://')) {
+      final length = await file.length();
+      return http.MultipartFile(field, file.openRead(), length, filename: name);
+    }
+
+    return http.MultipartFile.fromPath(field, path, filename: name);
   }
 
   Future<http.MultipartFile> _multipartFileFromPlatformFile(
