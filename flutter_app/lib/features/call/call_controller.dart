@@ -183,6 +183,7 @@ class CallController extends ChangeNotifier {
       await pc.setLocalDescription(offer);
       _peerConnection = pc;
       _startIceTimeout();
+      debugPrint('CALL_DEBUG OFFER SDP:\n${offer.sdp}');
 
       _socketService.emit('CALL_OFFER', {
         'callId': _callId,
@@ -457,6 +458,7 @@ class CallController extends ChangeNotifier {
         } else {
           _connectedAt ??= DateTime.now();
         }
+        debugPrint('CALL_DEBUG ANSWER SDP:\n${answer['sdp']}');
         _peerConnection
             ?.setRemoteDescription(
                 RTCSessionDescription(answer['sdp'], answer['type']))
