@@ -378,7 +378,7 @@ function registerSocketHandlers(io) {
           // Flutter backgroundga o'tganda darrov oflayn qilmaslik
           const timeout = setTimeout(async () => {
             onlineUsers.delete(username);
-            const lastSeen = new Date().toISOString();
+            const lastActive = new Date().toISOString();
             try {
               await pool.query(
                 `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE username = $1`,
@@ -388,7 +388,7 @@ function registerSocketHandlers(io) {
               console.error("last_seen yangilashda xato:", e);
             }
             sendAllUsers();
-            io.emit("USER_STATUS_CHANGED", { username, online: false, lastSeen });
+            io.emit("USER_STATUS_CHANGED", { username, online: false, lastActive });
           }, PRESENCE_OFFLINE_GRACE_MS);
           pendingOfflineTimeouts.set(username, timeout);
         }

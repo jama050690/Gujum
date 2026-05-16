@@ -30,6 +30,7 @@ const normalizeInboxEntry = (item) => {
       username,
     avatar: item?.avatar || null,
     online: Boolean(item?.online),
+    lastActive: item?.lastActive || item?.last_seen || null,
     unreadCount: Number(item?.unreadcount ?? item?.unreadCount ?? 0) || 0,
     lastMessage: {
       content: item?.lastContent ?? item?.lastcontent ?? "",
@@ -286,6 +287,13 @@ export default function UsersPanel({ onOpenSidebar }) {
           });
         }
       });
+      const lastActiveBatch = dedupedInbox
+        .filter((e) => e.lastActive)
+        .map((e) => ({ username: e.username, lastActive: e.lastActive }));
+      if (lastActiveBatch.length > 0) {
+        dispatch({ type: "SET_LAST_ACTIVE_BATCH", payload: lastActiveBatch });
+      }
+
       setInboxUsers(dedupedInbox);
       setChattedUsers(chatted);
     } catch (err) {

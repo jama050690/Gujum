@@ -94,6 +94,15 @@ function chatReducer(state, action) {
       newMap.delete(action.payload);
       return { ...state, lastMessages: newMap };
     }
+    case "SET_LAST_ACTIVE_BATCH": {
+      const newLastActive = new Map(state.lastActiveUsers);
+      action.payload.forEach(({ username, lastActive }) => {
+        if (lastActive && !newLastActive.has(username)) {
+          newLastActive.set(username, lastActive);
+        }
+      });
+      return { ...state, lastActiveUsers: newLastActive };
+    }
     case "TOGGLE_INFO_PANEL":
       return { ...state, showInfoPanel: !state.showInfoPanel };
     case "SET_MOBILE_VIEW":
