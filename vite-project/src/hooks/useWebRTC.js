@@ -239,13 +239,12 @@ export function useWebRTC(socket, currentUser) {
  
     const handleIceCandidate = async (data) => {
       try {
-        if (pcRef.current && data.candidate) {
-          const candidate = new RTCIceCandidate(data.candidate);
-          if (remoteDescSet.current) {
-            await pcRef.current.addIceCandidate(candidate);
-          } else {
-            iceQueue.current.push(candidate);
-          }
+        if (!data.candidate) return;
+        if (pcRef.current && remoteDescSet.current) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } else {
+          // Queue even if PC not created yet (user hasn't accepted call)
+          iceQueue.current.push(data.candidate);
         }
       } catch (e) {
         console.error("ICE Candidate qo'shishda xato:", e);
