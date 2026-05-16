@@ -425,6 +425,11 @@ async function saveCallMessage(caller, target, isVideo, duration) {
       `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content) VALUES ($1, $2, $3)`,
       [chatId, callerId, content]
     );
+    // Update last_seen for both caller and callee
+    await pool.query(
+      `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE id = ANY($1::int[])`,
+      [[callerId, targetId]]
+    );
   } catch (e) { console.error("Call log error", e); }
 }
 

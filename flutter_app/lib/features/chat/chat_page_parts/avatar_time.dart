@@ -152,6 +152,14 @@ String _formatRelativeTime(DateTime value, String localeCode) {
     };
   }
 
+  if (difference.inDays < 2) {
+    return switch (localeCode) {
+      'ru' => 'вчера',
+      'en' => 'yesterday',
+      _ => 'kecha',
+    };
+  }
+
   final day = value.day.toString().padLeft(2, '0');
   final month = value.month.toString().padLeft(2, '0');
   final year = value.year;
