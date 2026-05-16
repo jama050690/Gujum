@@ -87,8 +87,7 @@ class CallController extends ChangeNotifier {
         'credential': 'Bootchat2024!',
       },
     ],
-    // Allow direct ICE paths when TURN is flaky, while keeping TURN as a fallback.
-    'iceTransportPolicy': 'all',
+    'iceTransportPolicy': 'relay',
     'iceCandidatePoolSize': 10,
   };
 
@@ -724,7 +723,6 @@ class CallController extends ChangeNotifier {
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _iceConnectTimeout?.cancel();
         _iceConnectTimeout = null;
-        unawaited(_markCallConnected());
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         _iceConnectTimeout?.cancel();
         _iceConnectTimeout = null;
