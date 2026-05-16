@@ -97,7 +97,7 @@ function chatReducer(state, action) {
     case "SET_LAST_ACTIVE_BATCH": {
       const newLastActive = new Map(state.lastActiveUsers);
       action.payload.forEach(({ username, lastActive }) => {
-        if (lastActive && !newLastActive.has(username)) {
+        if (lastActive && !state.onlineUsers.has(username)) {
           newLastActive.set(username, lastActive);
         }
       });

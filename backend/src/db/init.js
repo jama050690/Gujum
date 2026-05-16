@@ -300,7 +300,7 @@ async function initDb() {
   await initFriendsTable();
   await initPushSubscriptionsTable();
 
-  // Backfill last_seen from last sent message for users that still have NULL
+  // Sync last_seen with the user's most recent sent message if message is newer
   await pool.query(`
     UPDATE ${USERS_TABLE} u
     SET last_seen = sub.last_msg
@@ -310,8 +310,8 @@ async function initDb() {
       GROUP BY m.sender_id
     ) sub
     WHERE u.id = sub.sender_id
-      AND u.last_seen IS NULL
       AND sub.last_msg IS NOT NULL
+      AND (u.last_seen IS NULL OR sub.last_msg > u.last_seen)
   `);
 
   console.log(`${new Date().toISOString()} Database ishga tushirildi`);
