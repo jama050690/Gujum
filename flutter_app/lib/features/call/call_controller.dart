@@ -690,6 +690,10 @@ class CallController extends ChangeNotifier {
 
     pc.onTrack = (event) async {
       final track = event.track;
+      debugPrint(
+        'CALL_DEBUG onTrack kind=${track.kind} id=${track.id} '
+        'streams=${event.streams.length} remoteStream=${_remoteStream?.id}',
+      );
       if (event.streams.isNotEmpty) {
         final incoming = event.streams.first;
         if (_remoteStream == null) {
@@ -697,7 +701,6 @@ class CallController extends ChangeNotifier {
         } else if (_remoteStream!.id != incoming.id) {
           _remoteStream = incoming;
         } else if (track.kind == 'video') {
-          // Same stream but video track just arrived — force renderer refresh
           _remoteStream = null;
           _remoteStream = incoming;
         }
@@ -705,6 +708,11 @@ class CallController extends ChangeNotifier {
         _remoteStream ??= await createLocalMediaStream('bootchat_remote');
         await _remoteStream!.addTrack(track);
       }
+      debugPrint(
+        'CALL_DEBUG onTrack done remoteStream=${_remoteStream?.id} '
+        'videoTracks=${_remoteStream?.getVideoTracks().length} '
+        'audioTracks=${_remoteStream?.getAudioTracks().length}',
+      );
       unawaited(_markCallConnected());
       notifyListeners();
     };
@@ -838,6 +846,10 @@ class CallController extends ChangeNotifier {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
+    // Sync flutter_webrtc's own audio manager with our speaker preference
+    try {
+      await Helper.setSpeakerphoneOn(_isSpeakerOn);
+    } catch (_) {}
   }
 
   Future<void> _restoreAudioRoute() async {
