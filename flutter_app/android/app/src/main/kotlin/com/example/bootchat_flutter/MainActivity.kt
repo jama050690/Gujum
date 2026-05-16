@@ -3,7 +3,6 @@ package com.example.bootchat_flutter
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
@@ -15,8 +14,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var incomingRingtone: Ringtone? = null
     private var outgoingRingtone: Ringtone? = null
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var callAudioFocusHeld = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -121,7 +118,6 @@ class MainActivity : FlutterActivity() {
             outgoingRingtone?.isLooping = true
         }
 
-        // Use VOICE_CALL stream so the dial tone is audible even when ring volume is 0
         audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
         @Suppress("DEPRECATION")
         audioManager?.isSpeakerphoneOn = true
@@ -151,37 +147,9 @@ class MainActivity : FlutterActivity() {
                 "hasHeadset" to false,
             )
 
-        if (!callAudioFocusHeld) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build()
-                    )
-                    .setAcceptsDelayedFocusGain(false)
-                    .setOnAudioFocusChangeListener { focusChange ->
-                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-                            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                            // Re-request focus to maintain call audio
-                            audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
-                        }
-                    }
-                    .build()
-                audioFocusRequest = focusRequest
-                audioManager.requestAudioFocus(focusRequest)
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.requestAudioFocus(
-                    null,
-                    AudioManager.STREAM_VOICE_CALL,
-                    AudioManager.AUDIOFOCUS_GAIN
-                )
-            }
-            callAudioFocusHeld = true
-        }
-
+        // Audio focus is managed by flutter_webrtc's AudioSwitchManager internally.
+        // We only set the routing mode here — requesting focus ourselves would steal
+        // it from WebRTC and silence incoming audio.
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.availableCommunicationDevices
@@ -237,15 +205,6 @@ class MainActivity : FlutterActivity() {
         }
         audioManager.mode = AudioManager.MODE_NORMAL
         volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-            audioFocusRequest = null
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(null)
-        }
-        callAudioFocusHeld = false
     }
 
     private fun getAudioRouteInfo(): Map<String, Any> {
