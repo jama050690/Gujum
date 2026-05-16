@@ -308,6 +308,14 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
     try {
       _inbox = await _chatRepository.fetchInbox(user.username);
+      // Populate _lastActiveUsers from inbox data (only for offline users)
+      final updated = Map<String, DateTime?>.from(_lastActiveUsers);
+      for (final item in _inbox) {
+        if (item.lastActive != null && !_onlineUsers.contains(item.username)) {
+          updated[item.username] = item.lastActive;
+        }
+      }
+      _lastActiveUsers = updated;
     } finally {
       _loadingInbox = false;
       notifyListeners();
