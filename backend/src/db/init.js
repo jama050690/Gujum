@@ -299,6 +299,21 @@ async function initDb() {
   await initSpamReportsTable();
   await initFriendsTable();
   await initPushSubscriptionsTable();
+
+  // Backfill last_seen from last sent message for users that still have NULL
+  await pool.query(`
+    UPDATE ${USERS_TABLE} u
+    SET last_seen = sub.last_msg
+    FROM (
+      SELECT m.sender_id, MAX(m.created_at) AS last_msg
+      FROM ${MESSAGES_TABLE} m
+      GROUP BY m.sender_id
+    ) sub
+    WHERE u.id = sub.sender_id
+      AND u.last_seen IS NULL
+      AND sub.last_msg IS NOT NULL
+  `);
+
   console.log(`${new Date().toISOString()} Database ishga tushirildi`);
 }
 
