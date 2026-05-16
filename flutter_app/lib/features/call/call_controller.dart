@@ -766,16 +766,6 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _startOutgoingTone() async {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      try {
-        debugPrint('CALL_DEBUG _startOutgoingTone() using native outgoing tone');
-        await _audioChannel.invokeMethod<void>('startOutgoingTone');
-        return;
-      } catch (error) {
-        debugPrint('CALL_DEBUG _startOutgoingTone() native failed error=$error');
-      }
-    }
-
     try {
       await _audioPlayer.stop();
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
