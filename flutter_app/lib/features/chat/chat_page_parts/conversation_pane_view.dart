@@ -147,31 +147,106 @@ extension _ConversationPaneView on _ConversationPaneState {
     bool selectionMode,
     EdgeInsets messagePadding,
   ) {
+    final messages = chat.messages;
     return ListView.builder(
       controller: _messagesScrollController,
       padding: messagePadding,
-      itemCount: chat.messages.length,
+      itemCount: messages.length,
       itemBuilder: (context, index) {
-        final message = chat.messages[index];
+        final message = messages[index];
         final mine = message.senderUsername == currentUser?.username;
         final isPinned =
             message.id != null && _pinnedMessageIds.contains(message.id);
-        return _buildMessageBubble(
-          context,
-          message: message,
-          isMine: mine,
-          isPinned: isPinned,
-          selectionMode: selectionMode,
-          t: t,
-          onLongPress: () {
-            if (selectionMode) {
-              _toggleSelectedMessage(message);
-              return;
-            }
-            _showMessageActions(chat, message, mine, t);
-          },
+
+        // Sana separator: oldingi xabar boshqa kun bo'lsa ko'rsat
+        final showDateSep = message.createdAt != null && (
+          index == 0 ||
+          messages[index - 1].createdAt == null ||
+          !_isSameDay(messages[index - 1].createdAt!, message.createdAt!)
+        );
+
+        return Column(
+          children: [
+            if (showDateSep && message.createdAt != null)
+              _DateSeparator(
+                date: message.createdAt!,
+                localeCode: widget.settings.localeCode,
+                isDark: widget.settings.isDarkMode,
+              ),
+            _buildMessageBubble(
+              context,
+              message: message,
+              isMine: mine,
+              isPinned: isPinned,
+              selectionMode: selectionMode,
+              t: t,
+              onLongPress: () {
+                if (selectionMode) {
+                  _toggleSelectedMessage(message);
+                  return;
+                }
+                _showMessageActions(chat, message, mine, t);
+              },
+            ),
+          ],
         );
       },
+    );
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+class _DateSeparator extends StatelessWidget {
+  const _DateSeparator({
+    required this.date,
+    required this.localeCode,
+    required this.isDark,
+  });
+
+  final DateTime date;
+  final String localeCode;
+  final bool isDark;
+
+  String _label() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    if (target == today) {
+      return switch (localeCode) { 'ru' => 'Сегодня', 'en' => 'Today', _ => 'Bugun' };
+    }
+    if (target == today.subtract(const Duration(days: 1))) {
+      return switch (localeCode) { 'ru' => 'Вчера', 'en' => 'Yesterday', _ => 'Kecha' };
+    }
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d.$m.${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xFF1E2C3A)
+                : const Color(0xFFDCEAF5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            _label(),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFF8EA3B7) : const Color(0xFF5B7A9A),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
