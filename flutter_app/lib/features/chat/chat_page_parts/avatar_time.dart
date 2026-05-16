@@ -109,6 +109,30 @@ String _formatInboxTime(DateTime? value, String localeCode) {
   return '$day.$month';
 }
 
+// Inbox uchun: bugun HH:mm, kecha, yoki DD.MM.YYYY
+String _formatLastSeenClock(DateTime? value, String localeCode) {
+  if (value == null) return AppStrings.text(localeCode, 'offline');
+
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(value.year, value.month, value.day);
+
+  if (target == today) return _formatClock(value);
+
+  if (target == today.subtract(const Duration(days: 1))) {
+    return switch (localeCode) {
+      'ru' => 'вчера',
+      'en' => 'yesterday',
+      _ => 'kecha',
+    };
+  }
+
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  return '$day.$month.${value.year}';
+}
+
+// Chat header uchun: X daqiqa/soat oldin, kecha, yoki DD.MM.YYYY
 String _formatLastSeenStatus(DateTime? value, String localeCode) {
   if (value == null) {
     return AppStrings.text(localeCode, 'offline');

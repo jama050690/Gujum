@@ -201,7 +201,7 @@ class _InboxTile extends StatelessWidget {
         return item.lastMessage.isEmpty
             ? (isOnline
                 ? t('online')
-                : _formatLastSeenStatus(lastActive, settings.localeCode))
+                : _formatLastSeenClock(lastActive, settings.localeCode))
             : item.lastMessage;
     }
   }
