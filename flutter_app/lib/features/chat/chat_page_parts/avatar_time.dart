@@ -152,22 +152,8 @@ String _formatRelativeTime(DateTime value, String localeCode) {
     };
   }
 
-  if (difference.inDays == 1) {
-    return switch (localeCode) {
-      'ru' => 'вчера',
-      'en' => 'yesterday',
-      _ => 'kecha',
-    };
-  }
-
-  if (difference.inDays < 7) {
-    final days = difference.inDays;
-    return switch (localeCode) {
-      'ru' => '$days дн назад',
-      'en' => '$days days ago',
-      _ => '$days kun oldin',
-    };
-  }
-
-  return _formatInboxTime(value, localeCode);
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final year = value.year;
+  return '$day.$month.$year';
 }

@@ -7,11 +7,11 @@ export function formatLastActive(date) {
   if (diff < 60) return "hozirgina";
   if (diff < 3600) return `${Math.floor(diff / 60)} daqiqa oldin`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} soat oldin`;
-  if (diff < 86400 * 2) return "kecha";
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} kun oldin`;
 
-  // 7 kundan oshsa — kun.oy (yilsiz)
-  return d.toLocaleDateString("uz-UZ", { day: "2-digit", month: "long" });
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 
 export function formatTimestamp(date) {
