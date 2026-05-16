@@ -104,9 +104,9 @@ String _formatInboxTime(DateTime? value, String localeCode) {
     return AppStrings.text(localeCode, 'yesterday');
   }
 
-  final month = value.month.toString().padLeft(2, '0');
   final day = value.day.toString().padLeft(2, '0');
-  return '$day.$month';
+  final month = value.month.toString().padLeft(2, '0');
+  return '$day.$month.${value.year}';
 }
 
 // Inbox uchun: bugun HH:mm, kecha, yoki DD.MM.YYYY
