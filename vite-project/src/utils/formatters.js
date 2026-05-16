@@ -15,10 +15,19 @@ export function formatLastActive(date) {
   return `${day}.${month}.${year}`;
 }
 
+function fmtTime(d) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function fmtDate(d) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.${d.getFullYear()}`;
+}
+
 export function formatTimestamp(date) {
   if (!date) return "";
-  const d = new Date(date);
-  return d.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
+  return fmtTime(new Date(date));
 }
 
 export function formatChatListTime(date) {
@@ -26,16 +35,13 @@ export function formatChatListTime(date) {
   const d = new Date(date);
   const now = new Date();
 
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) {
-    return d.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
-  }
+  if (d.toDateString() === now.toDateString()) return fmtTime(d);
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return "Kecha";
 
-  return d.toLocaleDateString("uz-UZ", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return fmtDate(d);
 }
 
 export function formatCallDuration(seconds) {

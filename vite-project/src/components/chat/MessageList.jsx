@@ -12,7 +12,9 @@ function getDateLabel(dateStr) {
   if (d.toDateString() === today.toDateString()) return "Bugun";
   if (d.toDateString() === yesterday.toDateString()) return "Kecha";
 
-  return d.toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.${d.getFullYear()}`;
 }
 
 export default function MessageList({ messages, currentUser, typingUser, onReply, onCopy, onSave, onDelete, onForward, chatBg, searchQuery, allowDownload }) {
