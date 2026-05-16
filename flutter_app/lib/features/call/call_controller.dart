@@ -87,7 +87,7 @@ class CallController extends ChangeNotifier {
         'credential': 'Bootchat2024!',
       },
     ],
-    'iceTransportPolicy': 'relay',
+    'iceTransportPolicy': 'all',
     'iceCandidatePoolSize': 10,
   };
 
@@ -723,6 +723,7 @@ class CallController extends ChangeNotifier {
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _iceConnectTimeout?.cancel();
         _iceConnectTimeout = null;
+        unawaited(_markCallConnected());
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         _iceConnectTimeout?.cancel();
         _iceConnectTimeout = null;
