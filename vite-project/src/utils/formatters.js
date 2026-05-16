@@ -7,9 +7,11 @@ export function formatLastActive(date) {
   if (diff < 60) return "hozirgina";
   if (diff < 3600) return `${Math.floor(diff / 60)} daqiqa oldin`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} soat oldin`;
+  if (diff < 86400 * 2) return "kecha";
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} kun oldin`;
 
-  // 24 soatdan oshsa — sana ko'rsatish (masalan: 20.02.2026)
-  return d.toLocaleDateString("uz-UZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // 7 kundan oshsa — kun.oy (yilsiz)
+  return d.toLocaleDateString("uz-UZ", { day: "2-digit", month: "long" });
 }
 
 export function formatTimestamp(date) {

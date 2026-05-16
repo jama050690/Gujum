@@ -104,10 +104,9 @@ String _formatInboxTime(DateTime? value, String localeCode) {
     return AppStrings.text(localeCode, 'yesterday');
   }
 
-  final year = (value.year % 100).toString().padLeft(2, '0');
   final month = value.month.toString().padLeft(2, '0');
   final day = value.day.toString().padLeft(2, '0');
-  return '$year-$month-$day';
+  return '$day.$month';
 }
 
 String _formatLastSeenStatus(DateTime? value, String localeCode) {
