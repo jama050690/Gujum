@@ -18,3 +18,6 @@ vite-project/.env.production
 
 .DS_Store
 *.log
+
+# Claude AI instructions (local only)
+CLAUDE.md
