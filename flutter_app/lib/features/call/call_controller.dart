@@ -89,7 +89,7 @@ class CallController extends ChangeNotifier {
         'credential': 'Bootchat2024!',
       },
     ],
-    'iceTransportPolicy': 'all',
+    'iceTransportPolicy': 'relay',
     'iceCandidatePoolSize': 10,
   };
 
