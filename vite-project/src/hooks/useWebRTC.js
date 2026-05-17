@@ -18,8 +18,7 @@ const ICE_SERVERS = {
       username: TURN_USERNAME,
       credential: TURN_CREDENTIAL,
     }
-  ],
-  iceTransportPolicy: "relay"
+  ]
 };
  
 export function useWebRTC(socket, currentUser) {
