@@ -237,6 +237,9 @@ class CallController extends ChangeNotifier {
       await pc.setRemoteDescription(
         RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
       );
+      // Assign _peerConnection BEFORE setting _remoteDescriptionReady so that
+      // any ICE candidates arriving during the awaits below are not dropped.
+      _peerConnection = pc;
       _remoteDescriptionReady = true;
 
       _localStream!
@@ -250,7 +253,6 @@ class CallController extends ChangeNotifier {
 
       final answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      _peerConnection = pc;
       _startIceTimeout();
 
       _socketService.emit('CALL_ANSWER', {
@@ -779,6 +781,15 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _startOutgoingTone() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        debugPrint('CALL_DEBUG startOutgoingTone() using native tone');
+        await _audioChannel.invokeMethod<void>('startOutgoingTone');
+        return;
+      } catch (error) {
+        debugPrint('CALL_DEBUG startOutgoingTone() native failed error=$error');
+      }
+    }
     try {
       await _audioPlayer.stop();
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
