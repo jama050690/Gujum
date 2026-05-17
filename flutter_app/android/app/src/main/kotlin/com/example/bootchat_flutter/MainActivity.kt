@@ -6,14 +6,18 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.media.ToneGenerator
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.Timer
+import java.util.TimerTask
 
 class MainActivity : FlutterActivity() {
     private var incomingRingtone: Ringtone? = null
-    private var outgoingRingtone: Ringtone? = null
+    private var outgoingToneGenerator: ToneGenerator? = null
+    private var outgoingToneTimer: Timer? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -97,46 +101,43 @@ class MainActivity : FlutterActivity() {
         incomingRingtone?.stop()
     }
 
+    // Plays the standard ringback tone ("tuu...tuu...") that callers hear
+    // while waiting for the other side to answer.
     private fun startOutgoingTone() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        val toneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ?: return
-
-        if (outgoingRingtone == null) {
-            outgoingRingtone = RingtoneManager.getRingtone(applicationContext, toneUri)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            outgoingRingtone?.audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            outgoingRingtone?.isLooping = true
-        }
 
         audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
         @Suppress("DEPRECATION")
         audioManager?.isSpeakerphoneOn = true
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
 
-        // Ensure volume is audible (set to 70% of max if currently 0)
         val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) ?: 0
         val curVol = audioManager?.getStreamVolume(AudioManager.STREAM_VOICE_CALL) ?: 0
         if (curVol == 0 && maxVol > 0) {
             audioManager?.setStreamVolume(AudioManager.STREAM_VOICE_CALL, maxVol * 7 / 10, 0)
         }
 
-        if (outgoingRingtone?.isPlaying != true) {
-            outgoingRingtone?.play()
+        stopOutgoingTone()
+
+        try {
+            outgoingToneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 100)
+            outgoingToneTimer = Timer()
+            // Play 1-second ringback beep, pause 3 seconds, repeat
+            outgoingToneTimer?.scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    outgoingToneGenerator?.startTone(ToneGenerator.TONE_SUP_RINGTONE, 1000)
+                }
+            }, 0L, 4000L)
+        } catch (e: Exception) {
+            // ToneGenerator may fail on some devices; fall through silently
         }
     }
 
     private fun stopOutgoingTone() {
-        outgoingRingtone?.stop()
+        outgoingToneTimer?.cancel()
+        outgoingToneTimer = null
+        outgoingToneGenerator?.release()
+        outgoingToneGenerator = null
     }
 
     private fun activateCallAudio(speakerOn: Boolean): Map<String, Any> {
@@ -147,9 +148,6 @@ class MainActivity : FlutterActivity() {
                 "hasHeadset" to false,
             )
 
-        // Audio focus is managed by flutter_webrtc's AudioSwitchManager internally.
-        // We only set the routing mode here — requesting focus ourselves would steal
-        // it from WebRTC and silence incoming audio.
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.availableCommunicationDevices
@@ -251,7 +249,6 @@ class MainActivity : FlutterActivity() {
         stopOutgoingTone()
         restoreAudioRoute()
         incomingRingtone = null
-        outgoingRingtone = null
         super.onDestroy()
     }
 }
