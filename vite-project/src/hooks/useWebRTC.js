@@ -19,7 +19,9 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
-  iceTransportPolicy: "relay"
+  iceTransportPolicy: "relay",
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require"
 };
  
 export function useWebRTC(socket, currentUser) {

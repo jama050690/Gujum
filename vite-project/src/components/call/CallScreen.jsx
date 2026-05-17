@@ -53,12 +53,6 @@ export default function CallScreen({
       const videoTracks = remoteStream.getVideoTracks();
       const hasActiveVideo = videoTracks.some(t => t.enabled && t.readyState === 'live');
       setHasRemoteVideoTrack(hasActiveVideo);
-
-      if (hasActiveVideo && remoteVideoRef.current && isVideo) {
-        if (remoteVideoRef.current.srcObject !== remoteStream) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-      }
     };
 
     checkTracks();
@@ -73,7 +67,16 @@ export default function CallScreen({
       remoteStream.onremovetrack = null;
       clearInterval(trackInterval);
     };
-  }, [remoteStream, isVideo]);
+  }, [remoteStream]);
+
+  // 4. Video element mount bo'lganda srcObject ni darhol o'rnatish
+  useEffect(() => {
+    if (hasRemoteVideoTrack && isVideo && remoteVideoRef.current && remoteStream) {
+      if (remoteVideoRef.current.srcObject !== remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }
+  }, [hasRemoteVideoTrack, isVideo, remoteStream]);
 
   // 4. Qo'ng'iroq davomiyligi (Taymer)
   useEffect(() => {
