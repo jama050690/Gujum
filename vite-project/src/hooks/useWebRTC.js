@@ -81,6 +81,7 @@ export function useWebRTC(socket, currentUser) {
   }, []);
  
   const cleanup = useCallback(() => {
+    callStateRef.current = null;
     stopRingtone();
     if (pcRef.current) {
       pcRef.current.onicecandidate = null;
