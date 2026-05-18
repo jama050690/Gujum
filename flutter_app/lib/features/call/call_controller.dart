@@ -234,6 +234,13 @@ class CallController extends ChangeNotifier {
       _isCameraOff = !_isVideo;
       await _applyAudioRoute();
       final pc = await _createPeerConnection();
+
+      // Add local tracks before applying the remote offer so transceivers line up
+      // consistently with the web client during Web <-> Flutter negotiation.
+      _localStream!
+          .getTracks()
+          .forEach((track) => pc.addTrack(track, _localStream!));
+
       await pc.setRemoteDescription(
         RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
       );
@@ -241,10 +248,6 @@ class CallController extends ChangeNotifier {
       // any ICE candidates arriving during the awaits below are not dropped.
       _peerConnection = pc;
       _remoteDescriptionReady = true;
-
-      _localStream!
-          .getTracks()
-          .forEach((track) => pc.addTrack(track, _localStream!));
 
       for (final candidate in _pendingCandidates) {
         await pc.addCandidate(candidate);
