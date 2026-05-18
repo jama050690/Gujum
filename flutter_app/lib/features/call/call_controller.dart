@@ -74,8 +74,6 @@ class CallController extends ChangeNotifier {
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
-    'bundlePolicy': 'max-bundle',
-    'rtcpMuxPolicy': 'require',
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
       {'urls': 'stun:jamshiddin.uz:3478'},
