@@ -18,6 +18,9 @@ const SMTP_SECURE = String(process.env.SMTP_SECURE || "false").toLowerCase() ===
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
+const ALLOW_DEV_OTP_FALLBACK =
+  String(process.env.ALLOW_DEV_OTP_FALLBACK || "false").toLowerCase() === "true";
+let transporterVerified = false;
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -33,6 +36,14 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function ensureEmailTransport() {
+  if (transporterVerified) return true;
+
+  await transporter.verify();
+  transporterVerified = true;
+  return true;
+}
+
 async function sendOtpEmail({ to, subject, html }) {
   const hasEmailConfig = Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && SMTP_FROM);
   if (!hasEmailConfig) {
@@ -41,6 +52,7 @@ async function sendOtpEmail({ to, subject, html }) {
   }
 
   try {
+    await ensureEmailTransport();
     const info = await transporter.sendMail({
       from: `"Bootchat" <${SMTP_FROM}>`,
       to,
@@ -53,6 +65,37 @@ async function sendOtpEmail({ to, subject, html }) {
     console.error(`❌ Email yuborilmadi: ${to} | Xato: ${err?.message}`);
     return { sent: false, reason: err?.message || "send_failed" };
   }
+}
+
+function buildOtpResponse({ mailResult, successMessage, fallbackMessage, extra = {} }) {
+  if (mailResult.sent) {
+    return {
+      status: 200,
+      body: {
+        message: successMessage,
+        ...extra,
+      },
+    };
+  }
+
+  if (ALLOW_DEV_OTP_FALLBACK) {
+    return {
+      status: 200,
+      body: {
+        message: fallbackMessage,
+        emailStatus: mailResult.reason,
+        ...extra,
+      },
+    };
+  }
+
+  return {
+    status: 503,
+    body: {
+      message: "Email yuborish sozlanmagan yoki vaqtincha ishlamayapti",
+      emailStatus: mailResult.reason,
+    },
+  };
 }
 
 router.post("/send-otp", upload.single("profilePic"), async (req, res) => {
@@ -116,13 +159,16 @@ router.post("/send-otp", upload.single("profilePic"), async (req, res) => {
       `,
     });
 
-    return res.json({
-      message: mailResult.sent
-        ? "Tasdiqlash kodi yuborildi"
-        : "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
-      email: normalizedEmail,
-      ...(mailResult.sent ? {} : { devOtp: code, emailStatus: mailResult.reason }),
+    const response = buildOtpResponse({
+      mailResult,
+      successMessage: "Tasdiqlash kodi yuborildi",
+      fallbackMessage: "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
+      extra: {
+        email: normalizedEmail,
+        ...(mailResult.sent ? {} : { devOtp: code }),
+      },
     });
+    return res.status(response.status).json(response.body);
   } catch (err) {
     console.error("OTP yuborishda xato:", err?.message || err);
     return res.status(500).json({
@@ -228,12 +274,15 @@ router.post("/resend-otp", async (req, res) => {
       `,
     });
 
-    return res.json({
-      message: mailResult.sent
-        ? "Yangi kod yuborildi"
-        : "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
-      ...(mailResult.sent ? {} : { devOtp: code, emailStatus: mailResult.reason }),
+    const response = buildOtpResponse({
+      mailResult,
+      successMessage: "Yangi kod yuborildi",
+      fallbackMessage: "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
+      extra: {
+        ...(mailResult.sent ? {} : { devOtp: code }),
+      },
     });
+    return res.status(response.status).json(response.body);
   } catch (err) {
     console.error("OTP qayta yuborishda xato:", err?.message || err);
     return res.status(500).json({
@@ -290,13 +339,16 @@ router.post("/forgot-password", async (req, res) => {
       `,
     });
 
-    return res.json({
-      message: mailResult.sent
-        ? "Parolni tiklash kodi yuborildi"
-        : "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
-      email,
-      ...(mailResult.sent ? {} : { devOtp: code, emailStatus: mailResult.reason }),
+    const response = buildOtpResponse({
+      mailResult,
+      successMessage: "Parolni tiklash kodi yuborildi",
+      fallbackMessage: "Email sozlanmagani uchun OTP server javobida qaytarildi (dev)",
+      extra: {
+        email,
+        ...(mailResult.sent ? {} : { devOtp: code }),
+      },
     });
+    return res.status(response.status).json(response.body);
   } catch (err) {
     console.error("Forgot password xato:", err?.message || err);
     return res.status(500).json({ message: "Server xatolik berdi" });
