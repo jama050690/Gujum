@@ -19,7 +19,7 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
-  iceTransportPolicy: "relay"
+  iceTransportPolicy: "all"
 };
  
 export function useWebRTC(socket, currentUser) {
@@ -412,8 +412,9 @@ export function useWebRTC(socket, currentUser) {
  
   const startCall = useCallback(async (targetUser, video = false) => {
     if (callStateRef.current) return;
+    cleanup();
+    callStateRef.current = "calling";
     try {
-      cleanup();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true, video: video
       });
