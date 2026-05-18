@@ -6,9 +6,8 @@ const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "bootchat";
 const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
  
 const ICE_SERVERS = {
+  sdpSemantics: "unified-plan",
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: `stun:${TURN_HOST}:3478` },
     {
       urls: [
         `turn:${TURN_HOST}:3478?transport=udp`,
@@ -19,7 +18,7 @@ const ICE_SERVERS = {
       credential: TURN_CREDENTIAL,
     }
   ],
-  iceTransportPolicy: "all"
+  iceTransportPolicy: "relay",
 };
  
 export function useWebRTC(socket, currentUser) {

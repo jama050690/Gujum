@@ -75,8 +75,6 @@ class CallController extends ChangeNotifier {
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
     'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:jamshiddin.uz:3478'},
       {
         'urls': [
           'turn:jamshiddin.uz:3478?transport=udp',
@@ -87,7 +85,7 @@ class CallController extends ChangeNotifier {
         'credential': 'Bootchat2024!',
       },
     ],
-    'iceTransportPolicy': 'all',
+    'iceTransportPolicy': 'relay',
     'iceCandidatePoolSize': 10,
   };
 

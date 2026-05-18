@@ -180,15 +180,6 @@ export default function CallScreen({
           <i className={`fas ${isMuted ? "fa-microphone-slash" : "fa-microphone"} text-xl`} />
         </button>
 
-        {/* Audio/Video rejimiga o'tish */}
-        <button
-            onClick={() => onSwitchCallMode?.(!isVideo)}
-            className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-all border border-white/10 shadow-lg active:scale-90"
-            title={isVideo ? "Audio rejimga o'tish" : "Video rejimga o'tish"}
-        >
-            <i className={`fas ${isVideo ? "fa-phone-alt" : "fa-video"} text-xl`} />
-        </button>
-
         {/* Kamerani yoqish/o'chirish (faqat video rejimida) */}
         {isVideo && (
             <button
