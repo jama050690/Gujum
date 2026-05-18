@@ -18,7 +18,8 @@ const ICE_SERVERS = {
       username: TURN_USERNAME,
       credential: TURN_CREDENTIAL,
     }
-  ]
+  ],
+  iceTransportPolicy: "relay"
 };
  
 export function useWebRTC(socket, currentUser) {
@@ -276,7 +277,7 @@ export function useWebRTC(socket, currentUser) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
         answeredCallIdsRef.current.add(data.callId);
         remoteDescSet.current = true;
-        setCallState("connecting");
+        setCallState(prev => prev === "connected" ? prev : "connecting");
  
         // ICE queue ni bo'shat
         while (iceQueue.current.length > 0) {
