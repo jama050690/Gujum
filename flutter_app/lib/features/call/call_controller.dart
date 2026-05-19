@@ -230,15 +230,16 @@ class CallController extends ChangeNotifier {
       await _applyAudioRoute();
       final pc = await _createPeerConnection();
 
-      // Add local tracks before applying the remote offer so transceivers line up
-      // consistently with the web client during Web <-> Flutter negotiation.
+      // setRemoteDescription avval, keyin addTrack — flutter_webrtc transceiver
+      // lar to'g'ri bog'lanishi va onTrack ishla shi uchun shart.
+      await pc.setRemoteDescription(
+        RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
+      );
+
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
       }
 
-      await pc.setRemoteDescription(
-        RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
-      );
       // Assign _peerConnection BEFORE setting _remoteDescriptionReady so that
       // any ICE candidates arriving during the awaits below are not dropped.
       _peerConnection = pc;
