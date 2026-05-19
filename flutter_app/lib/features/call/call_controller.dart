@@ -680,7 +680,6 @@ class CallController extends ChangeNotifier {
 
     pc.onIceCandidate = (candidate) {
       if (candidate.candidate == null || _targetUsername == null) return;
-      if (!candidate.candidate!.contains('typ relay')) return;
       _socketService.emit('ICE_CANDIDATE', {
         'callId': _callId,
         'target': _targetUsername,
