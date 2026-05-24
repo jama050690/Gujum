@@ -216,8 +216,18 @@ router.post("/login/google", async (req, res) => {
   try {
     const credential = String(req.body?.credential || "").trim();
     const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+    const googleAndroidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID;
 
-    const googlePayload = await verifyGoogleCredential(credential, googleClientId);
+    let googlePayload;
+    try {
+      googlePayload = await verifyGoogleCredential(credential, googleClientId);
+    } catch (err) {
+      if (googleAndroidClientId) {
+        googlePayload = await verifyGoogleCredential(credential, googleAndroidClientId);
+      } else {
+        throw err;
+      }
+    }
 
     const normalizedEmail = String(googlePayload.email || "").trim().toLowerCase();
     if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
