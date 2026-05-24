@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1096233590187",
+    "project_id": "bootchat-cb887",
+    "storage_bucket": "bootchat-cb887.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096233590187:android:e74fb06aca73ddca8406ee",
+        "android_client_info": {
+          "package_name": "com.example.bootchat_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1096233590187-l91t6b0v0lb2i6tul1knibkf9v4u64ba.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bootchat_flutter",
+            "certificate_hash": "8dcefeae9fa87646b7fc76f202632db5f006a8e9"
+          }
+        },
+        {
+          "client_id": "1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKwvwgI-k02rRSOHBbCSZsLM6ijlBeQUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

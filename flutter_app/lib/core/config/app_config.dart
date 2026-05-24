@@ -12,7 +12,7 @@ class AppConfig {
   static const googleServerClientId = String.fromEnvironment(
     'BOOTCHAT_GOOGLE_CLIENT_ID',
     defaultValue:
-        '850901436789-c3al966j46tt4cfn0pqu42obr0guc790.apps.googleusercontent.com',
+        '1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com',
   );
 
   static String defaultBaseUrl() {
