@@ -36,10 +36,13 @@ export default function CallScreen({
 
   // 2. Remote Audio ulanishi
   useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(e => console.warn("Audio play error:", e));
-    }
+    if (!remoteAudioRef.current || !remoteStream) return;
+    remoteAudioRef.current.srcObject = remoteStream;
+    remoteAudioRef.current.play().catch(e => {
+      if (e.name !== 'AbortError') {
+        console.warn("Audio play error:", e.name, e.message);
+      }
+    });
   }, [remoteStream]);
 
   // 3. Remote Video ulanishi va Tracklarni kuzatish

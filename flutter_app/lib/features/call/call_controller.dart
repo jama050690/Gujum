@@ -164,11 +164,11 @@ class CallController extends ChangeNotifier {
 
     try {
       await _requestMediaPermissions(video: video);
+      await _applyAudioRoute();
       final mediaState = await _openPreferredLocalMedia(video: video);
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
-      await _applyAudioRoute();
       final pc = await _createPeerConnection();
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
@@ -222,12 +222,12 @@ class CallController extends ChangeNotifier {
 
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
+      await _applyAudioRoute();
       final mediaState =
           await _openPreferredLocalMedia(video: incoming.isVideo);
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
-      await _applyAudioRoute();
       final pc = await _createPeerConnection();
 
       // setRemoteDescription avval, keyin addTrack — flutter_webrtc transceiver
