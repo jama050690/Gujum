@@ -7,6 +7,7 @@ const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
  
 const ICE_SERVERS = {
   sdpSemantics: "unified-plan",
+  iceTransportPolicy: "relay",
   iceServers: [
     {
       urls: [
