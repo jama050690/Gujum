@@ -140,6 +140,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   final _remote = RTCVideoRenderer();
   bool _ready = false;
   Timer? _ticker;
+  bool _audioInitialized = false;
 
   @override
   void initState() {
@@ -175,13 +176,20 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     if (!_ready) return;
     _local.srcObject = widget.callController.localStream;
     final remote = widget.callController.remoteStream;
+    final isConnected =
+        widget.callController.state == CallSessionState.connected;
+
     if (_remote.srcObject?.id != remote?.id) {
-      _remote.srcObject = remote;
-    } else if (remote != null &&
-        remote.getVideoTracks().isNotEmpty &&
-        _remote.srcObject != null) {
       _remote.srcObject = null;
       _remote.srcObject = remote;
+      _audioInitialized = false;
+    } else if (remote != null && _remote.srcObject != null) {
+      final hasVideo = remote.getVideoTracks().isNotEmpty;
+      if (hasVideo || (isConnected && !_audioInitialized)) {
+        _remote.srcObject = null;
+        _remote.srcObject = remote;
+        _audioInitialized = true;
+      }
     }
   }
 

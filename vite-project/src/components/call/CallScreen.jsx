@@ -37,13 +37,36 @@ export default function CallScreen({
   // 2. Remote Audio ulanishi
   useEffect(() => {
     if (!remoteAudioRef.current || !remoteStream) return;
-    remoteAudioRef.current.srcObject = remoteStream;
-    remoteAudioRef.current.play().catch(e => {
-      if (e.name !== 'AbortError') {
-        console.warn("Audio play error:", e.name, e.message);
+    const audio = remoteAudioRef.current;
+    audio.srcObject = remoteStream;
+
+    const tryPlay = () => {
+      if (audio.paused && audio.srcObject) {
+        audio.play().catch(e => {
+          if (e.name !== 'AbortError') {
+            console.warn("Audio play error:", e.name, e.message);
+          }
+        });
       }
-    });
+    };
+
+    tryPlay();
+
+    const tracks = remoteStream.getAudioTracks();
+    tracks.forEach(t => t.addEventListener('unmute', tryPlay));
+    return () => tracks.forEach(t => t.removeEventListener('unmute', tryPlay));
   }, [remoteStream]);
+
+  // 2.5. ICE connected bo'lganda audio qayta urinish
+  useEffect(() => {
+    if (callState !== 'connected' || !remoteAudioRef.current?.srcObject) return;
+    const audio = remoteAudioRef.current;
+    if (audio.paused) {
+      audio.play().catch(e => {
+        if (e.name !== 'AbortError') console.warn("Audio retry:", e.name);
+      });
+    }
+  }, [callState]);
 
   // 3. Remote Video ulanishi va Tracklarni kuzatish
   useEffect(() => {
