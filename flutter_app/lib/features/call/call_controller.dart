@@ -654,7 +654,11 @@ class CallController extends ChangeNotifier {
 
   Future<MediaStream> _openLocalMedia({required bool video}) {
     return navigator.mediaDevices.getUserMedia({
-      'audio': true,
+      'audio': {
+        'echoCancellation': true,
+        'noiseSuppression': true,
+        'autoGainControl': true,
+      },
       'video': video ? {'facingMode': 'user'} : false,
     });
   }

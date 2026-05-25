@@ -98,7 +98,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun stopIncomingRingtone() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            incomingRingtone?.isLooping = false
+        }
         incomingRingtone?.stop()
+        incomingRingtone = null
     }
 
     // Plays the standard ringback tone ("tuu...tuu...") that callers hear
