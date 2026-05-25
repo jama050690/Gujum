@@ -658,6 +658,10 @@ class CallController extends ChangeNotifier {
         'echoCancellation': true,
         'noiseSuppression': true,
         'autoGainControl': true,
+        'googEchoCancellation': true,
+        'googNoiseSuppression': true,
+        'googAutoGainControl': true,
+        'googHighpassFilter': true,
       },
       'video': video ? {'facingMode': 'user'} : false,
     });
