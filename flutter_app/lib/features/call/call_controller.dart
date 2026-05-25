@@ -251,13 +251,16 @@ class CallController extends ChangeNotifier {
       _pendingCandidates.clear();
 
       final answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      final fixedSdp = answer.sdp?.replaceAll('a=recvonly', 'a=sendrecv');
+      final fixedAnswer = RTCSessionDescription(fixedSdp, answer.type);
+      await pc.setLocalDescription(fixedAnswer);
       _startIceTimeout();
+      debugPrint('CALL_DEBUG ANSWER SDP fixed:\n$fixedSdp');
 
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,
         'target': _targetUsername,
-        'answer': {'sdp': answer.sdp, 'type': answer.type},
+        'answer': {'sdp': fixedSdp, 'type': answer.type},
         'user': {
           'username': _authController.user?.username,
           'full_name': _authController.user?.displayName,
