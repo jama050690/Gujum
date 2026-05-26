@@ -157,10 +157,16 @@ class ChatController extends ChangeNotifier {
           user1: user.username, user2: item.username);
       _messageCache[item.username] = List.from(_messages);
       _updateInboxPreview(peer: item.username, unreadCount: 0);
+    } catch (e) {
+      debugPrint('CHAT_DEBUG openChat() fetchMessages xatosi: $e');
     } finally {
       _loadingMessages = false;
       notifyListeners();
     }
+  }
+
+  Future<void> reloadActiveChat() async {
+    if (_activeChat != null) await openChat(_activeChat!);
   }
 
   Future<bool> sendMessage({

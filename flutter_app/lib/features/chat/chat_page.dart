@@ -135,7 +135,8 @@ enum _AttachmentType {
   location,
 }
 
-class _ConversationPaneState extends State<_ConversationPane> {
+class _ConversationPaneState extends State<_ConversationPane>
+    with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final ScrollController _messagesScrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -206,12 +207,20 @@ class _ConversationPaneState extends State<_ConversationPane> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _lastMessageCount = widget.chat.messages.length;
     _lastLoadingMessages = widget.chat.loadingMessages;
     _lastActiveChatUsername = widget.chat.activeChat?.username;
     _messagesScrollController.addListener(_handleScrollChanged);
     if (_lastActiveChatUsername != null) {
       _scrollWhenLoadCompletes = true;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(widget.chat.reloadActiveChat());
     }
   }
 
@@ -270,6 +279,7 @@ class _ConversationPaneState extends State<_ConversationPane> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _recordingTimer?.cancel();
     _audioRecorder.dispose();
     _messagesScrollController
