@@ -240,14 +240,10 @@ class CallController extends ChangeNotifier {
         RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
       );
 
-      // Engine darajasida transceiver direction ni SendRecv qilib o'rnatamiz.
-      // flutter_webrtc createAnswer() ba'zan recvonly chiqaradi — bu to'g'ridan fix.
+      // Engine darajasida barcha transceiver direction SendRecv qilib o'rnatamiz.
+      // flutter_webrtc createAnswer() recvonly chiqarishi mumkin — bu to'g'ridan fix.
       for (final t in await pc.getTransceivers()) {
-        final dir = t.direction;
-        if (dir == TransceiverDirection.RecvOnly ||
-            dir == TransceiverDirection.Inactive) {
-          await t.setDirection(TransceiverDirection.SendRecv);
-        }
+        await t.setDirection(TransceiverDirection.SendRecv);
       }
 
       _peerConnection = pc;
