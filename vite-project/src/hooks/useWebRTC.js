@@ -7,7 +7,7 @@ const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "Bootchat2024!";
  
 const ICE_SERVERS = {
   sdpSemantics: "unified-plan",
-  iceTransportPolicy: "relay",
+  iceTransportPolicy: "all",
   iceServers: [
     {
       urls: [
@@ -146,8 +146,6 @@ export function useWebRTC(socket, currentUser) {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socket && callIdRef.current) {
-        // Faqat TURN relay kandidatlarni yuboramiz — host/srflx ishlamas tarmoqlarda kerak emas
-        if (!event.candidate.candidate.includes('typ relay')) return;
         socket.emit("ICE_CANDIDATE", {
           target,
           candidate: event.candidate,
