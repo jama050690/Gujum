@@ -6,6 +6,7 @@ const initialState = {
   users: [],
   activeChat: null,
   messages: [],
+  messageCache: new Map(), // username -> messages[]
   onlineUsers: new Set(),
   lastActiveUsers: new Map(),
   typingUsers: new Map(),
@@ -19,17 +20,30 @@ function chatReducer(state, action) {
   switch (action.type) {
     case "SET_USERS":
       return { ...state, users: action.payload };
-    case "SET_ACTIVE_CHAT":
-      return { ...state, activeChat: action.payload, messages: [], mobileView: "chat" };
-    case "CLOSE_CHAT":
-      return { ...state, activeChat: null, messages: [], mobileView: "users", showInfoPanel: false };
-    case "SET_MESSAGES":
-      return { ...state, messages: action.payload };
+    case "SET_ACTIVE_CHAT": {
+      const cached = state.messageCache.get(action.payload?.username) || [];
+      return { ...state, activeChat: action.payload, messages: cached, mobileView: "chat" };
+    }
+    case "CLOSE_CHAT": {
+      const newCache = new Map(state.messageCache);
+      if (state.activeChat?.username && state.messages.length > 0) {
+        newCache.set(state.activeChat.username, state.messages);
+      }
+      return { ...state, activeChat: null, messages: [], messageCache: newCache, mobileView: "users", showInfoPanel: false };
+    }
+    case "SET_MESSAGES": {
+      const newCache = new Map(state.messageCache);
+      if (state.activeChat?.username) newCache.set(state.activeChat.username, action.payload);
+      return { ...state, messages: action.payload, messageCache: newCache };
+    }
     case "ADD_MESSAGE": {
       if (action.payload.id && state.messages.some(m => m.id === action.payload.id)) {
         return state;
       }
-      return { ...state, messages: [...state.messages, action.payload] };
+      const newMessages = [...state.messages, action.payload];
+      const newCache = new Map(state.messageCache);
+      if (state.activeChat?.username) newCache.set(state.activeChat.username, newMessages);
+      return { ...state, messages: newMessages, messageCache: newCache };
     }
     case "DELETE_MESSAGE":
       return { ...state, messages: state.messages.filter(m => m.id !== action.payload) };

@@ -421,8 +421,8 @@ async function saveCallMessage(caller, target, isVideo, duration) {
     } else {
       chatId = chatResult.rows[0].id;
     }
-    await pool.query(
-      `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content) VALUES ($1, $2, $3)`,
+    const msgResult = await pool.query(
+      `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content) VALUES ($1, $2, $3) RETURNING id, created_at`,
       [chatId, callerId, content]
     );
     // Update last_seen for both caller and callee
@@ -430,6 +430,21 @@ async function saveCallMessage(caller, target, isVideo, duration) {
       `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE id = ANY($1::int[])`,
       [[callerId, targetId]]
     );
+    // Ikki tarafga ham real-time bildiramiz — refresh kerak emas
+    const callMsg = {
+      id: msgResult.rows[0].id,
+      created_at: msgResult.rows[0].created_at,
+      user: caller,
+      username: caller,
+      receiver: target,
+      content,
+      message: content,
+      image: null,
+      audio: null,
+      video: null,
+    };
+    emitToUser(caller, "NEW_MESSAGE", callMsg);
+    emitToUser(target, "NEW_MESSAGE", callMsg);
   } catch (e) { console.error("Call log error", e); }
 }
 

@@ -16,6 +16,7 @@ import java.util.TimerTask
 
 class MainActivity : FlutterActivity() {
     private var incomingRingtone: Ringtone? = null
+    private var ringtoneStopped = false
     private var outgoingToneGenerator: ToneGenerator? = null
     private var outgoingToneTimer: Timer? = null
 
@@ -67,6 +68,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startIncomingRingtone() {
+        // Agar stop avval chaqirilgan bo'lsa (race condition) — boshlamaymiz
+        if (ringtoneStopped) {
+            ringtoneStopped = false
+            return
+        }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -98,6 +104,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun stopIncomingRingtone() {
+        ringtoneStopped = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             incomingRingtone?.isLooping = false
         }

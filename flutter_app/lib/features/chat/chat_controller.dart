@@ -42,6 +42,7 @@ class ChatController extends ChangeNotifier {
   List<InboxItem> _inbox = const [];
   List<ChatMessage> _messages = const [];
   InboxItem? _activeChat;
+  final Map<String, List<ChatMessage>> _messageCache = {};
   Set<String> _onlineUsers = <String>{};
   Map<String, DateTime?> _lastActiveUsers = const <String, DateTime?>{};
   bool _loadingInbox = false;
@@ -91,6 +92,9 @@ class ChatController extends ChangeNotifier {
   }
 
   void closeChat() {
+    if (_activeChat != null && _messages.isNotEmpty) {
+      _messageCache[_activeChat!.username] = List.from(_messages);
+    }
     _activeChat = null;
     _messages = const [];
     notifyListeners();
@@ -98,6 +102,7 @@ class ChatController extends ChangeNotifier {
 
   Future<void> clearChatHistory(String username) async {
     await _chatRepository.clearChatHistory(username);
+    _messageCache.remove(username);
     if (_activeChat?.username == username) _messages = const [];
     _updateInboxPreview(
         peer: username, preview: '', at: DateTime.now(), unreadCount: 0);
@@ -143,11 +148,14 @@ class ChatController extends ChangeNotifier {
     final user = _authController.user;
     if (user == null) return;
     _activeChat = item.copyWith(unreadCount: 0);
-    _loadingMessages = true;
+    final cached = _messageCache[item.username];
+    _messages = cached ?? const [];
+    _loadingMessages = cached == null;
     notifyListeners();
     try {
       _messages = await _chatRepository.fetchMessages(
           user1: user.username, user2: item.username);
+      _messageCache[item.username] = List.from(_messages);
       _updateInboxPreview(peer: item.username, unreadCount: 0);
     } finally {
       _loadingMessages = false;
@@ -331,7 +339,10 @@ class ChatController extends ChangeNotifier {
     if (peer == null) return;
     _updateInboxPreview(
         peer: peer, preview: message.content, at: message.createdAt);
-    if (_activeChat?.username == peer) _messages = [..._messages, message];
+    if (_activeChat?.username == peer) {
+      _messages = [..._messages, message];
+      _messageCache[peer] = List.from(_messages);
+    }
     notifyListeners();
   }
 
