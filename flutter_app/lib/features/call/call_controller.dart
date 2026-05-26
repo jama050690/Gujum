@@ -108,6 +108,7 @@ class CallController extends ChangeNotifier {
   bool _isVideo = false;
   bool _isMuted = false;
   bool _isCameraOff = false;
+  bool _toneActive = false;
   bool _isSpeakerOn = true;
   bool _isFrontCamera = true;
   bool _hasBluetoothAudio = false;
@@ -231,8 +232,6 @@ class CallController extends ChangeNotifier {
       _isCameraOff = !_isVideo;
       final pc = await _createPeerConnection();
 
-      // addTrack avval — transceiver sendrecv bo'lishi uchun (audio yuborish).
-      // Keyin setRemoteDescription — onTrack va ICE ishlashi uchun.
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
       }
@@ -241,8 +240,16 @@ class CallController extends ChangeNotifier {
         RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
       );
 
-      // Assign _peerConnection BEFORE setting _remoteDescriptionReady so that
-      // any ICE candidates arriving during the awaits below are not dropped.
+      // Engine darajasida transceiver direction ni SendRecv qilib o'rnatamiz.
+      // flutter_webrtc createAnswer() ba'zan recvonly chiqaradi — bu to'g'ridan fix.
+      for (final t in await pc.getTransceivers()) {
+        final dir = t.direction;
+        if (dir == TransceiverDirection.RecvOnly ||
+            dir == TransceiverDirection.Inactive) {
+          await t.setDirection(TransceiverDirection.SendRecv);
+        }
+      }
+
       _peerConnection = pc;
       _remoteDescriptionReady = true;
 
@@ -252,16 +259,14 @@ class CallController extends ChangeNotifier {
       _pendingCandidates.clear();
 
       final answer = await pc.createAnswer();
-      final fixedSdp = answer.sdp?.replaceAll('a=recvonly', 'a=sendrecv');
-      final fixedAnswer = RTCSessionDescription(fixedSdp, answer.type);
-      await pc.setLocalDescription(fixedAnswer);
+      await pc.setLocalDescription(answer);
       _startIceTimeout();
-      debugPrint('CALL_DEBUG ANSWER SDP fixed:\n$fixedSdp');
+      debugPrint('CALL_DEBUG ANSWER SDP:\n${answer.sdp}');
 
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,
         'target': _targetUsername,
-        'answer': {'sdp': fixedSdp, 'type': answer.type},
+        'answer': {'sdp': answer.sdp, 'type': answer.type},
         'user': {
           'username': _authController.user?.username,
           'full_name': _authController.user?.displayName,
@@ -435,7 +440,8 @@ class CallController extends ChangeNotifier {
         );
         _remotePeer = _incomingCall!.caller;
         _state = CallSessionState.ringing;
-        unawaited(_startIncomingTone());
+        _toneActive = true;
+        _startIncomingTone();
         notifyListeners();
         break;
       case 'CALL_ANSWER':
@@ -814,6 +820,9 @@ class CallController extends ChangeNotifier {
     await _audioPlayer.stop();
     await _audioPlayer.setReleaseMode(ReleaseMode.loop);
 
+    // Race condition tekshiruvi: agar stop allaqachon chaqirilgan bo'lsa, boshlamaymiz
+    if (!_toneActive) return;
+
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         debugPrint('CALL_DEBUG startIncomingTone() using native ringtone');
@@ -824,6 +833,8 @@ class CallController extends ChangeNotifier {
       }
     }
 
+    if (!_toneActive) return;
+
     debugPrint('CALL_DEBUG startIncomingTone() using asset ringtone fallback');
     try {
       await _audioPlayer.play(AssetSource('sounds/ringtone.wav'));
@@ -833,6 +844,7 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _stopAlertTone() async {
+    _toneActive = false;
     await _audioPlayer.stop();
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
