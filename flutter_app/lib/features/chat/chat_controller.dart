@@ -252,6 +252,7 @@ class ChatController extends ChangeNotifier {
         });
         break;
 
+      case 'CALL_CONNECTED':
       case 'CALL_ACCEPTED':
       case 'CALL_ENDED':
       case 'CALL_REJECT':
