@@ -163,6 +163,21 @@ class ChatController extends ChangeNotifier {
       _loadingMessages = false;
       notifyListeners();
     }
+    // Xabarlar bo'sh bo'lsa — 2 soniyadan keyin bir marta qayta urinish
+    if (_messages.isEmpty && _activeChat?.username == item.username) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (_activeChat?.username != item.username) return;
+      try {
+        _messages = await _chatRepository.fetchMessages(
+            user1: user.username, user2: item.username);
+        _messageCache[item.username] = List.from(_messages);
+        _updateInboxPreview(peer: item.username, unreadCount: 0);
+        notifyListeners();
+        debugPrint('CHAT_DEBUG openChat() retry muvaffaqiyatli');
+      } catch (e) {
+        debugPrint('CHAT_DEBUG openChat() retry xatosi: $e');
+      }
+    }
   }
 
   Future<void> reloadActiveChat() async {
