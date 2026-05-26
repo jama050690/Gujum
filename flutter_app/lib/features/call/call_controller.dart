@@ -74,7 +74,7 @@ class CallController extends ChangeNotifier {
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
-    'iceTransportPolicy': 'all',
+    'iceTransportPolicy': 'relay',
     'iceServers': [
       {
         'urls': [
