@@ -238,27 +238,12 @@ class ChatController extends ChangeNotifier {
       case 'error':
         _connectionLabel = 'Socket ulanmayapti';
         break;
-      case 'CALL_OFFER':
-      case 'INCOMING_CALL':
-        debugPrint("DEBUG: Qo'ng'iroq signali keldi");
-        _audioPlayer.setReleaseMode(ReleaseMode.loop);
-
-        // WEB UCHUN AUDIO CONTEXT RESUME (Eng muhim joyi!)
-        _audioPlayer.resume().then((_) {
-          _audioPlayer.play(AssetSource('sounds/ringtone.wav'));
-          debugPrint("DEBUG: Ringtone chalyapti");
-        }).catchError((e) {
-          debugPrint("DEBUG: Audio uyg'otishda xato: $e");
-        });
-        break;
-
       case 'CALL_CONNECTED':
       case 'CALL_ACCEPTED':
       case 'CALL_ENDED':
       case 'CALL_REJECT':
       case 'CALL_END':
         _audioPlayer.stop();
-        debugPrint("DEBUG: Ovoz to'xtatildi");
         break;
 
       case 'NEW_MESSAGE':
