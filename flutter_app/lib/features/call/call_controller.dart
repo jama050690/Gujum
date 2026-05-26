@@ -254,10 +254,16 @@ class CallController extends ChangeNotifier {
       }
       _pendingCandidates.clear();
 
-      final answer = await pc.createAnswer();
+      final rawAnswer = await pc.createAnswer();
+      // flutter_webrtc createAnswer() ba'zan a=recvonly chiqaradi — bu bug.
+      // SDP ni qo'lda tuzatamiz: sendrecv bo'lishi kerak.
+      final fixedSdp = (rawAnswer.sdp ?? '')
+          .replaceAll('a=recvonly', 'a=sendrecv')
+          .replaceAll('a=inactive', 'a=sendrecv');
+      final answer = RTCSessionDescription(fixedSdp, rawAnswer.type);
       await pc.setLocalDescription(answer);
       _startIceTimeout();
-      debugPrint('CALL_DEBUG ANSWER SDP:\n${answer.sdp}');
+      debugPrint('CALL_DEBUG ANSWER SDP (fixed):\n${answer.sdp}');
 
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,
