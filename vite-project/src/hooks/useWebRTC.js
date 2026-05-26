@@ -146,6 +146,8 @@ export function useWebRTC(socket, currentUser) {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socket && callIdRef.current) {
+        // Faqat TURN relay kandidatlarni yuboramiz — host/srflx ishlamas tarmoqlarda kerak emas
+        if (!event.candidate.candidate.includes('typ relay')) return;
         socket.emit("ICE_CANDIDATE", {
           target,
           candidate: event.candidate,
