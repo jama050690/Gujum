@@ -181,7 +181,8 @@ class ChatController extends ChangeNotifier {
   }
 
   Future<void> reloadActiveChat() async {
-    if (_activeChat != null) await openChat(_activeChat!);
+    if (_activeChat == null || _loadingMessages) return;
+    await openChat(_activeChat!);
   }
 
   Future<bool> sendMessage({
@@ -251,6 +252,7 @@ class ChatController extends ChangeNotifier {
     switch (packet.event) {
       case 'connect':
         _connectionLabel = null;
+        if (_activeChat != null && !_loadingMessages) unawaited(reloadActiveChat());
         break;
       case 'disconnect':
         _connectionLabel = 'Socket uzildi';

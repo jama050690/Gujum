@@ -734,7 +734,12 @@ class CallController extends ChangeNotifier {
         }
       } else {
         _remoteStream ??= await createLocalMediaStream('bootchat_remote');
-        await _remoteStream!.addTrack(track);
+        try {
+          await _remoteStream!.addTrack(track);
+        } catch (e) {
+          // onAddStream fallback bu streamni to'g'irlaydi
+          debugPrint('CALL_DEBUG addTrack xatosi (onAddStream kutilmoqda): $e');
+        }
       }
       debugPrint(
         'CALL_DEBUG onTrack done remoteStream=${_remoteStream?.id} '
