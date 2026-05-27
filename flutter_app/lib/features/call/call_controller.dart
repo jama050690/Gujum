@@ -74,7 +74,7 @@ class CallController extends ChangeNotifier {
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
-    'iceTransportPolicy': 'relay',
+    'iceTransportPolicy': 'all',
     'iceServers': [
       {
         'urls': [
@@ -736,7 +736,6 @@ class CallController extends ChangeNotifier {
         'videoTracks=${_remoteStream?.getVideoTracks().length} '
         'audioTracks=${_remoteStream?.getAudioTracks().length}',
       );
-      unawaited(_markCallConnected());
       notifyListeners();
     };
 
@@ -745,7 +744,6 @@ class CallController extends ChangeNotifier {
       debugPrint('CALL_DEBUG onAddStream id=${stream.id}');
       if (_remoteStream?.id != stream.id) {
         _remoteStream = stream;
-        unawaited(_markCallConnected());
         notifyListeners();
       }
     };
