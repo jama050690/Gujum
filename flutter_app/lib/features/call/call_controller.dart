@@ -225,20 +225,25 @@ class CallController extends ChangeNotifier {
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
       await _applyAudioRoute();
+
+      // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
+      final pc = await _createPeerConnection();
+
+      // Remote description darhol o'rnatamiz — kamera ochilishini kutmaymiz
+      await pc.setRemoteDescription(
+        RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
+      );
+
+      // Endi kamerani ochamiz (remote desc va ICE bilan parallel)
       final mediaState =
           await _openPreferredLocalMedia(video: incoming.isVideo);
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
-      final pc = await _createPeerConnection();
 
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
       }
-
-      await pc.setRemoteDescription(
-        RTCSessionDescription(incoming.offer['sdp'], incoming.offer['type']),
-      );
 
       // Engine darajasida barcha transceiver direction SendRecv qilib o'rnatamiz.
       // flutter_webrtc createAnswer() recvonly chiqarishi mumkin — bu to'g'ridan fix.

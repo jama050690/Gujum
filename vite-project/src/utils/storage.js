@@ -17,7 +17,7 @@ const KEYS = {
   CHAT_BG: "app_chat_bg",
 };
 
-const LOCAL_API_FALLBACK = "http://localhost:4000";
+const LOCAL_API_FALLBACK = "http://localhost:3003";
 
 function trimTrailingSlashes(value = "") {
   return value.trim().replace(/\/+$/, "");

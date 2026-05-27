@@ -183,14 +183,13 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = false;
-    } else if (remote != null && _remote.srcObject != null) {
-      final hasVideo = remote.getVideoTracks().isNotEmpty;
-      if (hasVideo || (isConnected && !_audioInitialized)) {
-        _remote.srcObject = null;
-        _remote.srcObject = remote;
-        _audioInitialized = true;
-      }
+    } else if (!_audioInitialized && isConnected && remote != null) {
+      // flutter_webrtc audio/video init bug: bir marta null→qayta set qilish kerak
+      _remote.srcObject = null;
+      _remote.srcObject = remote;
+      _audioInitialized = true;
     }
+    // _audioInitialized = true bo'lgandan keyin srcObject qayta reset QILINMAYDI
   }
 
   void _syncTicker() {
