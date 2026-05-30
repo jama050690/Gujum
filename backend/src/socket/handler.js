@@ -256,7 +256,12 @@ function registerSocketHandlers(io) {
       emitToUser(target, "CALL_END", { callId });
       const session = finalizeCallSession(callId);
       if (session) {
-        saveCallMessage(session.caller, session.callee, session.isVideo, data.duration || 0);
+        // Server tomonida hisoblash — client yuborgan duration ishonchsiz
+        const serverDuration = session.connectedAt
+          ? Math.round((Date.now() - session.connectedAt) / 1000)
+          : 0;
+        const duration = serverDuration > 0 ? serverDuration : (data.duration || 0);
+        saveCallMessage(session.caller, session.callee, session.isVideo, duration);
       }
     });
 
