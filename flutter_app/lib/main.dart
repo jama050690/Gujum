@@ -13,6 +13,7 @@ import 'features/auth/auth_controller.dart';
 import 'features/auth/google_auth_service.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/call/call_controller.dart';
+import 'features/call/call_kit_service.dart';
 import 'features/chat/chat_controller.dart';
 import 'features/chat/chat_repository.dart';
 import 'features/settings/settings_controller.dart';
@@ -45,6 +46,7 @@ Future<void> main() async {
     socketService: socketService,
     authController: authController,
   );
+  CallKitService.instance.init();
 
   final chatController = ChatController(
     chatRepository: chatRepository,

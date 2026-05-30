@@ -1,49 +1,44 @@
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 
-// Top-level — background izolatsiyada ishlaydi
+// Top-level — background/killed holatda ishlaydi
 @pragma('vm:entry-point')
 Future<void> onBackgroundMessage(RemoteMessage message) async {
+  // Callkit plugin background isolate da ishlashi uchun shart
+  WidgetsFlutterBinding.ensureInitialized();
+
   if (message.data['type'] != 'incoming_call') return;
-  await _showCallNotification(
-    callerName: message.data['callerName'] ?? '',
-    isVideo: message.data['isVideo'] == 'true',
-    callId: message.data['callId'] ?? '0',
-  );
+  final callId = message.data['callId'] ?? '';
+  final callerName = message.data['callerName'] ?? '';
+  final isVideo = message.data['isVideo'] == 'true';
+
+  await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
+    id: callId,
+    nameCaller: callerName,
+    appName: 'Bootchat',
+    handle: callerName,
+    type: isVideo ? 1 : 0,
+    duration: 30000,
+    android: AndroidParams(
+      isCustomNotification: false,
+      isShowFullLockedScreen: true,
+      ringtonePath: 'system_ringtone_default',
+      backgroundColor: '#0C111A',
+      actionColor: '#4D82E3',
+      textAccept: "Qabul qilish",
+      textDecline: "Rad etish",
+      incomingCallNotificationChannelName: "Qo'ng'iroq",
+      missedCallNotificationChannelName: "O'tkazib yuborilgan",
+    ),
+  ));
 }
 
-Future<void> _showCallNotification({
-  required String callerName,
-  required bool isVideo,
-  required String callId,
-}) async {
-  final plugin = FlutterLocalNotificationsPlugin();
-  await plugin.initialize(
-    const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-    ),
-  );
-  await plugin.show(
-    callId.hashCode & 0x7FFFFFFF,
-    callerName,
-    isVideo ? "Video qo'ng'iroq keldi" : "Ovozli qo'ng'iroq keldi",
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'incoming_calls',
-        'Incoming Calls',
-        importance: Importance.max,
-        priority: Priority.max,
-        fullScreenIntent: true,
-        category: AndroidNotificationCategory.call,
-        autoCancel: true,
-      ),
-    ),
-  );
-}
 
 class FcmService {
   FcmService._();
@@ -81,11 +76,21 @@ class FcmService {
       sound: true,
     );
 
-    // App notification yopiq bo'lganda ochilsa
+    // Android 13+ uchun notification permission
+    await FlutterCallkitIncoming.requestNotificationPermission({
+      'rationaleMessagePermission': "Qo'ng'iroqlar uchun bildirishnoma ruxsati kerak",
+      'postNotificationMessagePermission': "Bildirishnomalar uchun ruxsat bering",
+    });
+
+    // Android 14+ uchun to'liq ekran ruxsati (lock screen da ko'rinishi uchun)
+    try {
+      await FlutterCallkitIncoming.requestFullIntentPermission();
+    } catch (_) {}
+
+    // App notification orqali ochilganda
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message?.data['type'] == 'incoming_call') {
-        // Socket ulanadi va pending CALL_OFFER yetkaziladi
-        debugPrint('[FCM] App notificationdan ochildi: ${message?.data}');
+        debugPrint('[FCM] App callkit notificationdan ochildi: ${message?.data}');
       }
     });
   }

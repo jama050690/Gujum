@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/network/socket_service.dart';
 import '../auth/auth_controller.dart';
+import 'call_kit_service.dart';
 
 enum CallSessionState { calling, ringing, connecting, connected }
 
@@ -66,6 +68,7 @@ class CallController extends ChangeNotifier {
   })  : _socketService = socketService,
         _authController = authController {
     _subscription = _socketService.packets.listen(_handlePacket);
+    _callKitSub = CallKitService.instance.events.listen(_handleCallKitEvent);
     _audioPlayer = AudioPlayer();
   }
 
@@ -92,7 +95,10 @@ class CallController extends ChangeNotifier {
   final SocketService _socketService;
   final AuthController _authController;
   late final StreamSubscription<SocketPacket> _subscription;
+  late final StreamSubscription<({String action, String callId})> _callKitSub;
   late final AudioPlayer _audioPlayer;
+
+  String? _pendingAutoAcceptCallId;
 
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -226,6 +232,9 @@ class CallController extends ChangeNotifier {
     _state = CallSessionState.connecting;
     _incomingCall = null;
     notifyListeners();
+
+    // Callkit incoming notification ni yashiramiz (in-app qabul bo'lsa)
+    unawaited(CallKitService.hideIncoming(incoming.callId));
 
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
@@ -451,10 +460,32 @@ class CallController extends ChangeNotifier {
           isVideo: data['isVideo'] == true,
         );
         _remotePeer = _incomingCall!.caller;
+
+        // Callkit orqali qabul qilingan bo'lsa — avtomatik javob berish
+        if (_pendingAutoAcceptCallId == _incomingCall!.callId) {
+          _pendingAutoAcceptCallId = null;
+          _state = CallSessionState.connecting;
+          notifyListeners();
+          unawaited(acceptIncomingCall());
+          break;
+        }
+
         _state = CallSessionState.ringing;
         _toneActive = true;
-        _startIncomingTone();
         notifyListeners();
+
+        // Background holatda callkit ko'rsatish (u o'zi ringtone o'ynaydi)
+        // Foreground da esa o'zimizning UI + ringtone ishlatamiz
+        final lifecycle = WidgetsBinding.instance.lifecycleState;
+        if (lifecycle != AppLifecycleState.resumed) {
+          unawaited(CallKitService.showIncoming(
+            callId: _incomingCall!.callId,
+            callerName: _incomingCall!.caller.displayName,
+            isVideo: _incomingCall!.isVideo,
+          ));
+        } else {
+          _startIncomingTone();
+        }
         break;
       case 'CALL_ANSWER':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -821,6 +852,8 @@ class CallController extends ChangeNotifier {
         'callId': _callId,
         'target': _targetUsername,
       });
+      // Callkit ga qo'ng'iroq ulandi deb xabar beramiz
+      unawaited(CallKitService.setConnected(_callId!));
     }
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
@@ -967,6 +1000,8 @@ class CallController extends ChangeNotifier {
     final wasVideo = _isVideo;
     _callId = null;
     _targetUsername = null;
+    _pendingAutoAcceptCallId = null;
+    if (callId != null) unawaited(CallKitService.endCall(callId));
     final duration = _connectedAt == null
         ? 0
         : DateTime.now().difference(_connectedAt!).inSeconds;
@@ -1032,9 +1067,40 @@ class CallController extends ChangeNotifier {
     }
   }
 
+  void _handleCallKitEvent(({String action, String callId}) event) {
+    debugPrint('[CallKit] action=${event.action} callId=${event.callId}');
+    switch (event.action) {
+      case 'accept':
+        if (_incomingCall?.callId == event.callId) {
+          unawaited(acceptIncomingCall());
+        } else {
+          // App o'ldirilgan holatda qabul qilingan — CALL_OFFER kelishini kutamiz
+          _pendingAutoAcceptCallId = event.callId;
+        }
+      case 'decline':
+        if (_incomingCall?.callId == event.callId) {
+          rejectIncomingCall();
+        } else {
+          _pendingAutoAcceptCallId = null;
+          _socketService.emit('CALL_REJECT', {
+            'callId': event.callId,
+            'target': null,
+            'isVideo': false,
+          });
+        }
+      case 'timeout':
+        if (_incomingCall?.callId == event.callId) {
+          unawaited(_resetSession());
+        } else {
+          _pendingAutoAcceptCallId = null;
+        }
+    }
+  }
+
   @override
   void dispose() {
     _subscription.cancel();
+    _callKitSub.cancel();
     unawaited(_resetSession());
     _audioPlayer.dispose();
     super.dispose();

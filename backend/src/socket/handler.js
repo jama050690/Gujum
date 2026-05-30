@@ -165,6 +165,10 @@ function registerSocketHandlers(io) {
       const pending = pendingCallOffers.get(username);
       if (pending) {
         browser.emit("CALL_OFFER", pending.payload);
+        // Offline paytida yo'qolgan ICE candidatelarni ham yuborish
+        for (const cand of pending.candidates || []) {
+          browser.emit("ICE_CANDIDATE", { candidate: cand, callId: pending.payload.callId });
+        }
         clearTimeout(pending.timeout);
         pendingCallOffers.delete(username);
       }
@@ -215,7 +219,7 @@ function registerSocketHandlers(io) {
           }
         }, CALL_OFFER_DELIVERY_GRACE_MS);
 
-        pendingCallOffers.set(target, { payload: { callId, caller, offer, isVideo }, timeout });
+        pendingCallOffers.set(target, { payload: { callId, caller, offer, isVideo }, candidates: [], timeout });
       }
     });
 
@@ -242,7 +246,15 @@ function registerSocketHandlers(io) {
 
     browser.on("ICE_CANDIDATE", (data) => {
       const { target, candidate, callId } = data;
-      if (target) emitToUser(target, "ICE_CANDIDATE", { candidate, callId });
+      if (!target) return;
+      const delivered = emitToUser(target, "ICE_CANDIDATE", { candidate, callId });
+      if (!delivered) {
+        // Target offline — pending offer bilan birga saqlab qo'yamiz
+        const pending = pendingCallOffers.get(target);
+        if (pending && pending.payload.callId === callId) {
+          pending.candidates.push(candidate);
+        }
+      }
     });
 
     browser.on("CALL_REJECT", (data) => {

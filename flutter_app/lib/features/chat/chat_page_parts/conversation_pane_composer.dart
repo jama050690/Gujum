@@ -86,7 +86,7 @@ extension _ConversationPaneComposer on _ConversationPaneState {
                     ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: _buildComposerInput(context, compactHeight, t),
+                      child: _buildComposerInput(context, compactHeight, chat, t),
                     ),
                     const SizedBox(width: 6),
                     _ComposerActionButton(
@@ -141,6 +141,7 @@ extension _ConversationPaneComposer on _ConversationPaneState {
   Widget _buildComposerInput(
     BuildContext context,
     bool compactHeight,
+    ChatController chat,
     String Function(String) t,
   ) {
     if (_isRecordingVoice) {
@@ -198,6 +199,8 @@ extension _ConversationPaneComposer on _ConversationPaneState {
         controller: _messageController,
         minLines: 1,
         maxLines: compactHeight ? 3 : 5,
+        textInputAction: TextInputAction.send,
+        onSubmitted: (_) => _sendCurrentMessage(chat, t),
         decoration: InputDecoration(
           hintText: t('type_message'),
           border: InputBorder.none,
