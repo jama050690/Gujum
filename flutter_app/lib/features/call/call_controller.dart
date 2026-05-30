@@ -212,9 +212,14 @@ class CallController extends ChangeNotifier {
     );
 
     final incoming = _incomingCall!;
+    // Ringing fazasida kelgan caller ICE kandidatlarini saqlash.
+    // _prepareForNewSession() → _resetInternalState() ularni o'chiradi,
+    // lekin yangi PC uchun bu kandidatlar kerak.
+    final savedCandidates = List<RTCIceCandidate>.from(_pendingCandidates);
     await _stopAlertTone();
     await _prepareForNewSession(
         video: incoming.isVideo, preserveIncoming: true);
+    _pendingCandidates.addAll(savedCandidates);
     _remotePeer = incoming.caller;
     _callId = incoming.callId;
     _targetUsername = incoming.caller.username;
