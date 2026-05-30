@@ -26,19 +26,12 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
+    // data-only: notification yo'q — Flutter onBackgroundMessage ishga tushadi
+    // va fullScreenIntent bilan to'g'ri call notification ko'rsatadi
     await messaging.send({
       token,
       android: {
         priority: 'high',
-        notification: {
-          channelId: 'incoming_calls',
-          priority: 'max',
-          visibility: 'public',
-          defaultSound: false,
-          tag: `call_${callId}`,
-          title: String(callerName),
-          body: isVideo ? "Video qo'ng'iroq keldi" : "Ovozli qo'ng'iroq keldi",
-        },
       },
       data: {
         type: 'incoming_call',

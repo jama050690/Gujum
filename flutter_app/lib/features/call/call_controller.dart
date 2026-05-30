@@ -531,13 +531,18 @@ class CallController extends ChangeNotifier {
         break;
       case 'CALL_SESSION_SYNC':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final direction = (data['direction'] ?? '').toString();
+        final status = (data['status'] ?? '').toString();
+        // incoming + ringing: CALL_OFFER shu zahotiyoq keladi, u o'zi handle qiladi.
+        // Bu yerda state o'rnatilsa hasSession=true bo'lib CALL_OFFER reject bo'ladi.
+        if (direction == 'incoming' && status == 'ringing') break;
         final peer = CallPeer.fromMap(
             Map<String, dynamic>.from(data['peer'] as Map? ?? {}));
         _remotePeer = peer;
         _callId = data['callId']?.toString();
         _targetUsername = peer.username;
         _isVideo = data['isVideo'] == true;
-        _state = data['status'] == 'connected'
+        _state = status == 'connected'
             ? CallSessionState.connected
             : CallSessionState.connecting;
         final startedAt = data['startedAt'];
