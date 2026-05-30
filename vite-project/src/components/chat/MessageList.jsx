@@ -19,12 +19,18 @@ function getDateLabel(dateStr) {
 
 export default function MessageList({ messages, currentUser, typingUser, onReply, onCopy, onSave, onDelete, onForward, chatBg, searchQuery, allowDownload }) {
   const bottomRef = useRef(null);
+  const prevMessagesLenRef = useRef(0);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const selectMode = selectedIds.size > 0;
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const prevLen = prevMessagesLenRef.current;
+    const isInitialLoad = prevLen === 0 && messages.length > 0;
+    prevMessagesLenRef.current = messages.length;
+    bottomRef.current?.scrollIntoView({
+      behavior: isInitialLoad ? "instant" : "smooth",
+    });
   }, [messages, typingUser]);
 
   const toggleSelect = useCallback((msg) => {
