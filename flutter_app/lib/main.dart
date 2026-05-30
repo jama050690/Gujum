@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,9 +17,13 @@ import 'features/chat/chat_controller.dart';
 import 'features/chat/chat_repository.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/social/social_repository.dart';
+import 'features/app/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(onBackgroundMessage);
 
   final sessionStore = await SessionStore.create();
   final settingsController = SettingsController(sessionStore)..load();
@@ -46,6 +54,25 @@ Future<void> main() async {
     sessionStore: sessionStore,
   );
   await chatController.bootstrap();
+
+  // FCM init va token ro'yxatga olish
+  await FcmService.instance.init();
+  if (authController.isAuthenticated && authController.user != null) {
+    unawaited(FcmService.instance.register(
+      baseUrl: settingsController.baseUrl,
+      username: authController.user!.username,
+    ));
+  }
+  authController.addListener(() {
+    if (authController.isAuthenticated && authController.user != null) {
+      FcmService.instance.register(
+        baseUrl: settingsController.baseUrl,
+        username: authController.user!.username,
+      );
+    } else {
+      FcmService.instance.unregister();
+    }
+  });
 
   runApp(
     MultiProvider(

@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { sendCallFcm } from "../config/fcm.js";
 import "../config/env.js";
 import {
   pool, USERS_TABLE, CHATS_TABLE, MESSAGES_TABLE,
@@ -97,6 +98,19 @@ async function sendPushToUser(username, notification) {
   }
 }
 
+async function sendFcmCallToUser(username, data) {
+  try {
+    const res = await pool.query('SELECT token FROM fcm_tokens WHERE username = $1', [username]);
+    if (res.rowCount === 0) return;
+    const result = await sendCallFcm(res.rows[0].token, data);
+    if (result === 'expired') {
+      await pool.query('DELETE FROM fcm_tokens WHERE username = $1', [username]);
+    }
+  } catch (e) {
+    console.error('[FCM] sendFcmCallToUser error:', e.message);
+  }
+}
+
 function finalizeCallSession(callId) {
   const call = activeCalls.get(callId);
   if (!call) return null;
@@ -181,16 +195,22 @@ function registerSocketHandlers(io) {
       const delivered = emitToUser(target, "CALL_OFFER", { callId, caller, offer, isVideo });
 
       if (!delivered) {
-        // Flutter backgroundda bo'lsa yoki oflayn bo'lsa
+        // FCM ni darhol yuborish — qurilmani uyg'otish uchun
+        sendFcmCallToUser(target, {
+          callerName: callerUsername,
+          isVideo: !!isVideo,
+          callId,
+        });
+
         const timeout = setTimeout(() => {
           if (pendingCallOffers.has(target)) {
             pendingCallOffers.delete(target);
             finalizeCallSession(callId);
             emitToUser(callerUsername, "CALL_NOT_DELIVERED", { target });
-            sendPushToUser(target, { 
-              title: callerUsername, 
+            sendPushToUser(target, {
+              title: callerUsername,
               body: isVideo ? "Video qo'ng'iroq..." : "Ovozli qo'ng'iroq...",
-              tag: "call_" + callerUsername 
+              tag: "call_" + callerUsername,
             });
           }
         }, CALL_OFFER_DELIVERY_GRACE_MS);
