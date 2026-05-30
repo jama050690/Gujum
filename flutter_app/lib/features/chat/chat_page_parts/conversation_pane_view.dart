@@ -85,30 +85,6 @@ extension _ConversationPaneView on _ConversationPaneState {
     );
   }
 
-  // --- HEADER ACTIONS (Build xatolarsiz variant) ---
-  Widget _buildHeaderActions(String Function(String) t) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Audio qo'ng'iroq (video: false)
-        IconButton(
-          icon: const Icon(Icons.phone_outlined),
-          onPressed: () => _startCall(video: false), 
-        ),
-        // Video qo'ng'iroq (video: true)
-        IconButton(
-          icon: const Icon(Icons.videocam_outlined),
-          onPressed: () => _startCall(video: true), 
-        ),
-        // Menyu tugmasi
-        IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: () => widget.onMoreActions?.call(),
-        ),
-      ],
-    );
-  }
-
   Widget _buildConversationBody(
     BuildContext context,
     ChatController chat,

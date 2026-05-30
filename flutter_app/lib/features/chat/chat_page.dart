@@ -243,6 +243,10 @@ class _ConversationPaneState extends State<_ConversationPane>
 
     if (activeChatChanged) {
       _scrollWhenLoadCompletes = activeChatUsername != null;
+      if (activeChatUsername != null && !loadingMessages && messageCount > 0) {
+        _scheduleScrollToBottom(animated: false);
+        _scrollWhenLoadCompletes = false;
+      }
       if (activeChatUsername == null) {
         _scrollAfterNextMessage = false;
       }

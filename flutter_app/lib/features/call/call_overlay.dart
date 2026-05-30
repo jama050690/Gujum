@@ -18,7 +18,7 @@ class CallOverlayHost extends StatefulWidget {
 class _CallOverlayHostState extends State<CallOverlayHost> {
   CallController? _controller;
   int _lastErrorVersion = 0;
-  bool _wasOverlayVisible = false;
+  OverlayEntry? _callOverlayEntry;
 
   @override
   void didChangeDependencies() {
@@ -32,15 +32,51 @@ class _CallOverlayHostState extends State<CallOverlayHost> {
   }
 
   void _onChanged() {
-    if (!mounted ||
-        _controller?.errorKey == null ||
-        _controller?.errorVersion == _lastErrorVersion) {
-      return;
+    if (!mounted) return;
+    if (_controller?.errorKey != null &&
+        _controller?.errorVersion != _lastErrorVersion) {
+      _lastErrorVersion = _controller!.errorVersion;
+      final msg = AppStrings.text(
+          context.read<SettingsController>().localeCode, _controller!.errorKey!);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
-    _lastErrorVersion = _controller!.errorVersion;
-    final msg = AppStrings.text(
-        context.read<SettingsController>().localeCode, _controller!.errorKey!);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    _updateOverlay();
+  }
+
+  void _updateOverlay() {
+    if (!mounted) return;
+    final ctrl = _controller;
+    final shouldShow = ctrl != null && (ctrl.hasIncomingCall || ctrl.hasSession);
+    if (shouldShow && _callOverlayEntry == null) {
+      _showCallOverlay();
+    } else if (!shouldShow && _callOverlayEntry != null) {
+      _removeCallOverlay();
+    } else if (_callOverlayEntry != null) {
+      _callOverlayEntry!.markNeedsBuild();
+    }
+  }
+
+  void _showCallOverlay() {
+    final ctrl = _controller;
+    if (ctrl == null || !mounted) return;
+    _dismissKeyboard();
+    _callOverlayEntry = OverlayEntry(
+      builder: (ctx) {
+        if (ctrl.hasIncomingCall) {
+          return _IncomingCallSheet(callController: ctrl);
+        }
+        if (ctrl.hasSession) {
+          return _ActiveCallSheet(callController: ctrl);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+    Overlay.of(context, rootOverlay: true).insert(_callOverlayEntry!);
+  }
+
+  void _removeCallOverlay() {
+    _callOverlayEntry?.remove();
+    _callOverlayEntry = null;
   }
 
   void _dismissKeyboard() {
@@ -51,35 +87,17 @@ class _CallOverlayHostState extends State<CallOverlayHost> {
   @override
   void dispose() {
     _controller?.removeListener(_onChanged);
+    _removeCallOverlay();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CallController?>();
-    if (controller == null) return widget.child;
-    final isOverlayVisible =
-        controller.hasIncomingCall || controller.hasSession;
-
-    if (isOverlayVisible && !_wasOverlayVisible) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _dismissKeyboard();
-        }
-      });
-    }
-    _wasOverlayVisible = isOverlayVisible;
-
     return PopScope(
-      canPop: !controller.hasSession && !controller.hasIncomingCall,
-      child: Stack(children: [
-        widget.child,
-        if (controller.hasIncomingCall)
-          Positioned.fill(
-              child: _IncomingCallSheet(callController: controller)),
-        if (controller.hasSession)
-          Positioned.fill(child: _ActiveCallSheet(callController: controller)),
-      ]),
+      canPop: controller == null ||
+          (!controller.hasSession && !controller.hasIncomingCall),
+      child: widget.child,
     );
   }
 }

@@ -477,10 +477,12 @@ class CallController extends ChangeNotifier {
           _connectedAt ??= DateTime.now();
         }
         debugPrint('CALL_DEBUG ANSWER SDP:\n${answer['sdp']}');
+        final sessionCallId = _callId;
         _peerConnection
             ?.setRemoteDescription(
                 RTCSessionDescription(answer['sdp'], answer['type']))
             .then((_) async {
+          if (_callId != sessionCallId) return;
           _remoteDescriptionReady = true;
           for (final candidate in _pendingCandidates) {
             await _peerConnection?.addCandidate(candidate);
