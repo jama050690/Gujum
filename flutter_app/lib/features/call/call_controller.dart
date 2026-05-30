@@ -749,8 +749,18 @@ class CallController extends ChangeNotifier {
         try {
           await _remoteStream!.addTrack(track);
         } catch (e) {
-          // onAddStream fallback bu streamni to'g'irlaydi
           debugPrint('CALL_DEBUG addTrack xatosi (onAddStream kutilmoqda): $e');
+          // Renegotiation case: native remote stream ga track qo'shib bo'lmaydi.
+          // Video track uchun alohida local stream yaratamiz — audio native o'ynaydi.
+          if (track.kind == 'video' && _remoteStream!.getVideoTracks().isEmpty) {
+            try {
+              final vs = await createLocalMediaStream('remote_video_${track.id}');
+              await vs.addTrack(track);
+              _remoteStream = vs;
+            } catch (e2) {
+              debugPrint('CALL_DEBUG video stream fallback failed: $e2');
+            }
+          }
         }
       }
       debugPrint(

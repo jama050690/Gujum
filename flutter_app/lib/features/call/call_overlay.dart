@@ -159,6 +159,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   bool _ready = false;
   Timer? _ticker;
   bool _audioInitialized = false;
+  bool _lastIsVideo = false;
 
   @override
   void initState() {
@@ -196,18 +197,19 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final remote = widget.callController.remoteStream;
     final isConnected =
         widget.callController.state == CallSessionState.connected;
+    final isVideo = widget.callController.isVideo;
+    final videoJustEnabled = isVideo && !_lastIsVideo;
+    _lastIsVideo = isVideo;
 
-    if (_remote.srcObject?.id != remote?.id) {
+    if (_remote.srcObject?.id != remote?.id || videoJustEnabled) {
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = false;
     } else if (!_audioInitialized && isConnected && remote != null) {
-      // flutter_webrtc audio/video init bug: bir marta null→qayta set qilish kerak
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = true;
     }
-    // _audioInitialized = true bo'lgandan keyin srcObject qayta reset QILINMAYDI
   }
 
   void _syncTicker() {
