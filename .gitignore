@@ -21,3 +21,4 @@ vite-project/.env.production
 
 # Claude AI instructions (local only)
 CLAUDE.md
+.vscode/
