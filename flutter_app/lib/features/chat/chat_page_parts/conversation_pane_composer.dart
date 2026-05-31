@@ -195,19 +195,30 @@ extension _ConversationPaneComposer on _ConversationPaneState {
               : const Color(0xFFD9DEE6),
         ),
       ),
-      child: TextField(
-        controller: _messageController,
-        minLines: 1,
-        maxLines: compactHeight ? 3 : 5,
-        textInputAction: TextInputAction.send,
-        onSubmitted: (_) => _sendCurrentMessage(chat, t),
-        decoration: InputDecoration(
-          hintText: t('type_message'),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: compactHeight ? 14 : 16,
-            vertical: compactHeight ? 10 : 13,
+      child: Focus(
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.enter &&
+              !HardwareKeyboard.instance.isShiftPressed) {
+            _sendCurrentMessage(chat, t);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: _messageController,
+          minLines: 1,
+          maxLines: compactHeight ? 3 : 5,
+          textInputAction: TextInputAction.send,
+          onSubmitted: (_) => _sendCurrentMessage(chat, t),
+          decoration: InputDecoration(
+            hintText: t('type_message'),
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: compactHeight ? 14 : 16,
+              vertical: compactHeight ? 10 : 13,
+            ),
           ),
         ),
       ),

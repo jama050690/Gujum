@@ -259,10 +259,16 @@ class CallController extends ChangeNotifier {
         await pc.addTrack(track, _localStream!);
       }
 
-      // Engine darajasida barcha transceiver direction SendRecv qilib o'rnatamiz.
-      // flutter_webrtc createAnswer() recvonly chiqarishi mumkin — bu to'g'ridan fix.
+      // Faqat local track bo'lgan transceiver uchun SendRecv o'rnatamiz.
+      // Audio call da video transceiverni Inactive qilamiz — aks holda callee
+      // video yuborishga urinadi va caller tomonida streams=0 onTrack xatosi chiqadi.
       for (final t in await pc.getTransceivers()) {
-        await t.setDirection(TransceiverDirection.SendRecv);
+        final hasLocalTrack = t.sender.track != null;
+        await t.setDirection(
+          (!incoming.isVideo && !hasLocalTrack)
+              ? TransceiverDirection.Inactive
+              : TransceiverDirection.SendRecv,
+        );
       }
 
       _peerConnection = pc;
@@ -274,11 +280,10 @@ class CallController extends ChangeNotifier {
       _pendingCandidates.clear();
 
       final rawAnswer = await pc.createAnswer();
-      // flutter_webrtc createAnswer() ba'zan a=recvonly chiqaradi — bu bug.
-      // SDP ni qo'lda tuzatamiz: sendrecv bo'lishi kerak.
+      // flutter_webrtc createAnswer() ba'zan audio uchun a=recvonly chiqaradi — bu bug.
+      // Faqat recvonly ni tuzatamiz; inactive video uchun intentional.
       final fixedSdp = (rawAnswer.sdp ?? '')
-          .replaceAll('a=recvonly', 'a=sendrecv')
-          .replaceAll('a=inactive', 'a=sendrecv');
+          .replaceAll('a=recvonly', 'a=sendrecv');
       final answer = RTCSessionDescription(fixedSdp, rawAnswer.type);
       await pc.setLocalDescription(answer);
       _startIceTimeout();
@@ -776,22 +781,20 @@ class CallController extends ChangeNotifier {
           _remoteStream = incoming;
         }
       } else {
-        _remoteStream ??= await createLocalMediaStream('bootchat_remote');
+        // streams=0 holati: track stream bilan bog'liq emas.
+        // Native remote stream'ga addTrack qilib bo'lmaydi — alohida local stream yaratamiz.
+        final localStream = await createLocalMediaStream('bootchat_remote_${track.kind}');
         try {
-          await _remoteStream!.addTrack(track);
-        } catch (e) {
-          debugPrint('CALL_DEBUG addTrack xatosi (onAddStream kutilmoqda): $e');
-          // Renegotiation case: native remote stream ga track qo'shib bo'lmaydi.
-          // Video track uchun alohida local stream yaratamiz — audio native o'ynaydi.
-          if (track.kind == 'video' && _remoteStream!.getVideoTracks().isEmpty) {
-            try {
-              final vs = await createLocalMediaStream('remote_video_${track.id}');
-              await vs.addTrack(track);
-              _remoteStream = vs;
-            } catch (e2) {
-              debugPrint('CALL_DEBUG video stream fallback failed: $e2');
-            }
+          await localStream.addTrack(track);
+          // Agar bu audio track bo'lsa va bizda stream yo'q bo'lsa, uni ishlatamiz.
+          // Agar stream bor bo'lsa (native), native audio o'ynashda davom etadi.
+          if (_remoteStream == null) {
+            _remoteStream = localStream;
+          } else if (track.kind == 'video') {
+            _remoteStream = localStream;
           }
+        } catch (e) {
+          debugPrint('CALL_DEBUG onTrack local stream addTrack failed: $e');
         }
       }
       debugPrint(
