@@ -197,6 +197,7 @@ extension _ConversationPaneComposer on _ConversationPaneState {
       ),
       child: TextField(
         controller: _messageController,
+        focusNode: _composerFocusNode,
         minLines: 1,
         maxLines: compactHeight ? 3 : 5,
         textInputAction: TextInputAction.send,

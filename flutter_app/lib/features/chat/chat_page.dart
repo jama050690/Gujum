@@ -140,6 +140,7 @@ class _ConversationPaneState extends State<_ConversationPane>
   final _messageController = TextEditingController();
   final ScrollController _messagesScrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
+  late final FocusNode _composerFocusNode;
   final ImagePicker _imagePicker = ImagePicker();
 
   static const Set<String> _imageExtensions = <String>{
@@ -208,6 +209,19 @@ class _ConversationPaneState extends State<_ConversationPane>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _composerFocusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.enter &&
+            !HardwareKeyboard.instance.isShiftPressed) {
+          String t(String key) =>
+              AppStrings.text(widget.settings.localeCode, key);
+          unawaited(_sendCurrentMessage(widget.chat, t));
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+    );
     _lastMessageCount = widget.chat.messages.length;
     _lastLoadingMessages = widget.chat.loadingMessages;
     _lastActiveChatUsername = widget.chat.activeChat?.username;
@@ -288,6 +302,7 @@ class _ConversationPaneState extends State<_ConversationPane>
     WidgetsBinding.instance.removeObserver(this);
     _recordingTimer?.cancel();
     _audioRecorder.dispose();
+    _composerFocusNode.dispose();
     _messagesScrollController
       ..removeListener(_handleScrollChanged)
       ..dispose();
