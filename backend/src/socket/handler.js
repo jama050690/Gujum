@@ -198,14 +198,15 @@ function registerSocketHandlers(io) {
 
       const delivered = emitToUser(target, "CALL_OFFER", { callId, caller, offer, isVideo });
 
-      if (!delivered) {
-        // FCM ni darhol yuborish — qurilmani uyg'otish uchun
-        sendFcmCallToUser(target, {
-          callerName: callerUsername,
-          isVideo: !!isVideo,
-          callId,
-        });
+      // FCM har doim yuboriladi — socket "ulangan" ko'rinsa ham app yopiq bo'lishi mumkin.
+      // Flutter app ochiq bo'lsa socket orqali handle qiladi va FCM e'tiborsiz qoladi.
+      sendFcmCallToUser(target, {
+        callerName: callerUsername,
+        isVideo: !!isVideo,
+        callId,
+      });
 
+      if (!delivered) {
         const timeout = setTimeout(() => {
           if (pendingCallOffers.has(target)) {
             pendingCallOffers.delete(target);
