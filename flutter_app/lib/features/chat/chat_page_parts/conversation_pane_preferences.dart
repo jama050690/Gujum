@@ -108,6 +108,13 @@ void _requestScrollToNewest() {
 }
 
 void _scheduleScrollToBottom({required bool animated}) {
+  void doJump() {
+    if (!mounted || !_messagesScrollController.hasClients) return;
+    _messagesScrollController.jumpTo(
+      _messagesScrollController.position.maxScrollExtent,
+    );
+  }
+
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!mounted || !_messagesScrollController.hasClients) return;
     final target = _messagesScrollController.position.maxScrollExtent;
@@ -119,15 +126,11 @@ void _scheduleScrollToBottom({required bool animated}) {
       );
       return;
     }
-    _messagesScrollController.jumpTo(target);
-    // ListView.builder lazy bo'lgani uchun birinchi frameda maxScrollExtent
-    // noto'liq bo'lishi mumkin — ikkinchi frameda aniqlaymiz.
+    // ListView.builder lazy — 3 frame davomida scroll qilamiz.
+    doJump();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_messagesScrollController.hasClients) return;
-      final pos = _messagesScrollController.position;
-      if (pos.pixels < pos.maxScrollExtent - 1) {
-        _messagesScrollController.jumpTo(pos.maxScrollExtent);
-      }
+      doJump();
+      WidgetsBinding.instance.addPostFrameCallback((_) => doJump());
     });
   });
 }
