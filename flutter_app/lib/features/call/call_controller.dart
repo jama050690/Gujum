@@ -235,9 +235,13 @@ class CallController extends ChangeNotifier {
 
     // Callkit incoming notification ni yashiramiz (in-app qabul bo'lsa)
     unawaited(CallKitService.hideIncoming(incoming.callId));
+    // Ringtone audio'ni WebRTC boshlanishidan OLDIN to'xtatamiz.
+    // Callkit ringtone hali pipeline'da bo'lsa WebRTC bilan aralashib "hinggg" tovush chiqadi.
+    unawaited(CallKitService.setConnected(incoming.callId));
 
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
+      await Future.delayed(const Duration(milliseconds: 150));
       await _applyAudioRoute();
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi

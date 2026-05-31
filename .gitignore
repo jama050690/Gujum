@@ -1,24 +1,48 @@
+# Secrets & credentials — HECH QACHON git'ga yuklamang
 .env
 .env.*
 !.env.example
 !**/.env.example
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+*.jks
+*.keystore
+*.p12
+key.properties
 
+# Vite env files (contains TURN credentials, Google Client ID)
+vite-project/.env.local
+vite-project/.env.development
+vite-project/.env.production
+vite-project/.env.staging
+
+# Backend env
+backend/.env
+backend/src/.env
+
+# Build artifacts
 **/node_modules/
 **/dist/
 **/build/
 **/.vite/
 **/coverage/
+
+# Logs
 **/npm-debug.log*
 **/yarn-debug.log*
 **/yarn-error.log*
 **/pnpm-debug.log*
-backend/src/.env
-vite-project/.env.local
-vite-project/.env.production
-
-.DS_Store
 *.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
 
 # Claude AI instructions (local only)
 CLAUDE.md
-.vscode/
