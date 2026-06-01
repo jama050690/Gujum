@@ -46,6 +46,9 @@ async function initUsersTable() {
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
   `);
   await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT FALSE;
+  `);
+  await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
   `);
   console.log("Users table tayyor");
@@ -313,6 +316,9 @@ async function initDb() {
       AND sub.last_msg IS NOT NULL
       AND (u.last_seen IS NULL OR sub.last_msg > u.last_seen)
   `);
+
+  // Server qayta start bo'lganda barcha userlar offline — socket yo'q
+  await pool.query(`UPDATE ${USERS_TABLE} SET is_online = FALSE`);
 
   console.log(`${new Date().toISOString()} Database ishga tushirildi`);
 }

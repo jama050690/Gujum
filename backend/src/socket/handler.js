@@ -140,6 +140,10 @@ function registerSocketHandlers(io) {
       if (!onlineUsers.has(username)) onlineUsers.set(username, new Set());
       onlineUsers.get(username).add(browser);
 
+      // DB ga online holatini saqlash
+      pool.query(`UPDATE ${USERS_TABLE} SET is_online = TRUE WHERE username = $1`, [username])
+        .catch(e => console.error('is_online true xato:', e.message));
+
       sendAllUsers();
       browser.broadcast.emit("USER_STATUS_CHANGED", { username, online: true });
 
@@ -440,7 +444,7 @@ function registerSocketHandlers(io) {
             const lastActive = new Date().toISOString();
             try {
               await pool.query(
-                `UPDATE ${USERS_TABLE} SET last_seen = NOW() WHERE username = $1`,
+                `UPDATE ${USERS_TABLE} SET last_seen = NOW(), is_online = FALSE WHERE username = $1`,
                 [username]
               );
             } catch (e) {
