@@ -187,7 +187,14 @@ function registerSocketHandlers(io) {
       if (!callerUsername || !target) return;
 
       const callId = data.callId || `call_${Date.now()}_${callerUsername}`;
-      
+
+      // Avvalgi pending call uchun eski timeoutni tozalash (retry case)
+      const existingPending = pendingCallOffers.get(target);
+      if (existingPending) {
+        clearTimeout(existingPending.timeout);
+        pendingCallOffers.delete(target);
+      }
+
       // Sessiyani saqlash
       const session = {
         id: callId,
@@ -493,7 +500,9 @@ async function saveCallMessage(caller, target, isVideo, duration) {
 }
 
 async function sendAllUsers() {
-  const list = Array.from(onlineUsers.keys()).map(u => ({ username: u, online: true }));
+  const list = Array.from(onlineUsers.keys())
+    .filter(u => hasLiveSockets(u))
+    .map(u => ({ username: u, online: true }));
   for (const [, sockets] of onlineUsers) {
     for (const s of sockets) {
       if (s.connected) s.emit("ONLINE_USERS_LIST", list);
