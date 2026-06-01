@@ -280,6 +280,12 @@ function registerSocketHandlers(io) {
     browser.on("CALL_END", (data) => {
       const { target, callId } = data;
       emitToUser(target, "CALL_END", { callId });
+      // Caller hang up qilsa pending offerini ham tozalash
+      const pending = pendingCallOffers.get(target);
+      if (pending && pending.payload.callId === callId) {
+        clearTimeout(pending.timeout);
+        pendingCallOffers.delete(target);
+      }
       const session = finalizeCallSession(callId);
       if (session) {
         // Server tomonida hisoblash — client yuborgan duration ishonchsiz

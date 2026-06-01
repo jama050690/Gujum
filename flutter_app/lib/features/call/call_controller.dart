@@ -313,11 +313,13 @@ class CallController extends ChangeNotifier {
         'CALL_DEBUG acceptIncomingCall() setup error=${error.errorKey}',
       );
       _reportError(error.errorKey);
-      rejectIncomingCall();
+      // _incomingCall allaqachon null — rejectIncomingCall callerni xabardor qilmaydi.
+      // _resetSession(notifyRemote: true) CALL_END yuboradi, caller "Ulanmoqda"da qolmaydi.
+      await _resetSession(notifyRemote: true, reason: 'setup_failed');
     } catch (error) {
       debugPrint('CALL_DEBUG acceptIncomingCall() failed error=$error');
       _reportError('call_failed');
-      rejectIncomingCall();
+      await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
   }
 
@@ -553,11 +555,25 @@ class CallController extends ChangeNotifier {
         }
         break;
       case 'CALL_REJECT':
+        final rejectData =
+            Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final rejectCallId = rejectData['callId']?.toString();
+        if (rejectCallId != null && _callId != null && rejectCallId != _callId) {
+          debugPrint(
+              'CALL_DEBUG eski CALL_REJECT etiborga olinmadi rejectCallId=$rejectCallId current=$_callId');
+          break;
+        }
         _reportError('call_rejected');
         unawaited(_resetSession());
         break;
       case 'CALL_END':
         final endData = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final endCallId = endData['callId']?.toString();
+        if (endCallId != null && _callId != null && endCallId != _callId) {
+          debugPrint(
+              'CALL_DEBUG eski CALL_END etiborga olinmadi endCallId=$endCallId current=$_callId');
+          break;
+        }
         final reason = (endData['reason'] ?? '').toString();
         if (reason == 'connection_lost') {
           _reportError('call_connection_lost');
