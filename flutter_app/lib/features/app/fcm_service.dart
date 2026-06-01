@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
@@ -10,8 +11,9 @@ import 'package:http/http.dart' as http;
 // Top-level — background/killed holatda ishlaydi
 @pragma('vm:entry-point')
 Future<void> onBackgroundMessage(RemoteMessage message) async {
-  // Callkit plugin background isolate da ishlashi uchun shart
   WidgetsFlutterBinding.ensureInitialized();
+  // Background isolate'da Firebase alohida ishga tushirilishi shart
+  await Firebase.initializeApp();
 
   if (message.data['type'] != 'incoming_call') return;
   final callId = message.data['callId'] ?? '';
