@@ -243,8 +243,8 @@ class CallController extends ChangeNotifier {
       // Ringtone to'liq to'xtaguncha kutamiz (await — unawaited emas).
       // Callkit ringtone pipeline'da qolsa WebRTC bilan aralashib "hinggg" beradi.
       await CallKitService.setConnected(incoming.callId);
-      // Audio session MODE_IN_COMMUNICATION ga o'tishi uchun qo'shimcha kutish.
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Ringtone buffer to'liq drenaj bo'lishi uchun kutish.
+      await Future.delayed(const Duration(milliseconds: 600));
       await _applyAudioRoute();
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi

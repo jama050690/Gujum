@@ -12,33 +12,41 @@ import 'package:http/http.dart' as http;
 @pragma('vm:entry-point')
 Future<void> onBackgroundMessage(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Background isolate'da Firebase alohida ishga tushirilishi shart
-  await Firebase.initializeApp();
+  // Duplicate-app xatosini oldini olish
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
+  }
 
   if (message.data['type'] != 'incoming_call') return;
-  final callId = message.data['callId'] ?? '';
-  final callerName = message.data['callerName'] ?? '';
+  final callId = (message.data['callId'] ?? '').toString();
+  final callerName = (message.data['callerName'] ?? '').toString();
   final isVideo = message.data['isVideo'] == 'true';
 
-  await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
-    id: callId,
-    nameCaller: callerName,
-    appName: 'Bootchat',
-    handle: callerName,
-    type: isVideo ? 1 : 0,
-    duration: 30000,
-    android: AndroidParams(
-      isCustomNotification: false,
-      isShowFullLockedScreen: true,
-      ringtonePath: 'system_ringtone_default',
-      backgroundColor: '#0C111A',
-      actionColor: '#4D82E3',
-      textAccept: "Qabul qilish",
-      textDecline: "Rad etish",
-      incomingCallNotificationChannelName: "Qo'ng'iroq",
-      missedCallNotificationChannelName: "O'tkazib yuborilgan",
-    ),
-  ));
+  if (callId.isEmpty) return;
+
+  try {
+    await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
+      id: callId,
+      nameCaller: callerName,
+      appName: 'Bootchat',
+      handle: callerName,
+      type: isVideo ? 1 : 0,
+      duration: 30000,
+      android: AndroidParams(
+        isCustomNotification: false,
+        isShowFullLockedScreen: true,
+        ringtonePath: 'system_ringtone_default',
+        backgroundColor: '#0C111A',
+        actionColor: '#4D82E3',
+        textAccept: "Qabul qilish",
+        textDecline: "Rad etish",
+        incomingCallNotificationChannelName: "Qo'ng'iroq",
+        missedCallNotificationChannelName: "O'tkazib yuborilgan",
+      ),
+    ));
+  } catch (e) {
+    debugPrint('[FCM] showCallkitIncoming error: $e');
+  }
 }
 
 

@@ -147,7 +147,8 @@ class MainActivity : FlutterActivity() {
     private fun stopOutgoingTone() {
         outgoingToneTimer?.cancel()
         outgoingToneTimer = null
-        outgoingToneGenerator?.release()
+        try { outgoingToneGenerator?.stopTone() } catch (_: Exception) {}
+        try { outgoingToneGenerator?.release() } catch (_: Exception) {}
         outgoingToneGenerator = null
     }
 
