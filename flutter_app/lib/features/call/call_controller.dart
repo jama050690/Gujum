@@ -1014,8 +1014,9 @@ class CallController extends ChangeNotifier {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    // Helper.setSpeakerphoneOn Android da CHAQIRILMAYDI — native activateCallAudio bilan
-    // setCommunicationDevice orqali ishlaydi, Helper bilan zid kelsa audio route buziladi.
+    try {
+      await Helper.setSpeakerphoneOn(_isSpeakerOn);
+    } catch (_) {}
   }
 
   Future<void> _restoreAudioRoute() async {
