@@ -502,9 +502,6 @@ class CallController extends ChangeNotifier {
         }
         break;
       case 'CALL_ANSWER':
-        // Darhol toneni o'chiramiz — ICE'ni kutmasdan.
-        // ToneGenerator kech o'chirilsa WebRTC audio bilan aralashib callee'ga oqib boradi.
-        unawaited(_stopAlertTone());
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
         final callId = data['callId']?.toString();
@@ -526,10 +523,14 @@ class CallController extends ChangeNotifier {
         _connectedAt ??= DateTime.now();
         debugPrint('CALL_DEBUG ANSWER SDP:\n${answer['sdp']}');
         final sessionCallId = _callId;
-        _peerConnection
-            ?.setRemoteDescription(
-                RTCSessionDescription(answer['sdp'], answer['type']))
-            .then((_) async {
+        // Avval toneni to'liq to'xtatamiz — keyin setRemoteDescription.
+        // ToneGenerator audio bufferi to'liq tozalanmasa WebRTC audiosi bilan aralashib shovqin beradi.
+        unawaited(() async {
+          await _stopAlertTone();
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (_callId != sessionCallId) return;
+          await _peerConnection?.setRemoteDescription(
+              RTCSessionDescription(answer['sdp'], answer['type']));
           if (_callId != sessionCallId) return;
           _remoteDescriptionReady = true;
           for (final candidate in _pendingCandidates) {
@@ -538,7 +539,7 @@ class CallController extends ChangeNotifier {
           _pendingCandidates.clear();
           _state = CallSessionState.connecting;
           notifyListeners();
-        });
+        }());
         break;
       case 'ICE_CANDIDATE':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -904,12 +905,13 @@ class CallController extends ChangeNotifier {
         'callId': _callId,
         'target': _targetUsername,
       });
-      // Callkit ga qo'ng'iroq ulandi deb xabar beramiz
       unawaited(CallKitService.setConnected(_callId!));
     }
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
+    // ICE ulanganda audio yo'lini qayta o'rnatamiz — remote ovoz aniq chiqishi uchun
+    await _applyAudioRoute();
     notifyListeners();
   }
 

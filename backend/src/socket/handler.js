@@ -211,13 +211,15 @@ function registerSocketHandlers(io) {
 
       const delivered = emitToUser(target, "CALL_OFFER", { callId, caller, offer, isVideo });
 
-      // FCM har doim yuboriladi — socket "ulangan" ko'rinsa ham app yopiq bo'lishi mumkin.
-      // Flutter app ochiq bo'lsa socket orqali handle qiladi va FCM e'tiborsiz qoladi.
-      sendFcmCallToUser(target, {
-        callerName: callerUsername,
-        isVideo: !!isVideo,
-        callId,
-      });
+      // FCM faqat socket yetkazolmagan holatda yuboriladi.
+      // App foregroundda bo'lsa socket yetkazadi — FCM yuborilsa ikki xil notification chiqadi.
+      if (!delivered) {
+        sendFcmCallToUser(target, {
+          callerName: callerUsername,
+          isVideo: !!isVideo,
+          callId,
+        });
+      }
 
       if (!delivered) {
         const timeout = setTimeout(() => {

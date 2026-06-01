@@ -74,13 +74,19 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     final ctrl = _controller;
     if (ctrl == null || !mounted) return;
     _dismissKeyboard();
+    // Navigator bor contextni saqlaymiz — OverlayEntry ichida Navigator yo'q,
+    // shuning uchun showModalBottomSheet ishlashi uchun tashqaridan uzatamiz.
+    final hostContext = context;
     _callOverlayEntry = OverlayEntry(
       builder: (ctx) {
         if (ctrl.hasIncomingCall) {
           return _IncomingCallSheet(callController: ctrl);
         }
         if (ctrl.hasSession) {
-          return _ActiveCallSheet(callController: ctrl);
+          return _ActiveCallSheet(
+            callController: ctrl,
+            hostContext: hostContext,
+          );
         }
         return const SizedBox.shrink();
       },
@@ -162,8 +168,12 @@ class _IncomingCallSheet extends StatelessWidget {
 }
 
 class _ActiveCallSheet extends StatefulWidget {
-  const _ActiveCallSheet({required this.callController});
+  const _ActiveCallSheet({
+    required this.callController,
+    required this.hostContext,
+  });
   final CallController callController;
+  final BuildContext hostContext;
   @override
   State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
 }
@@ -343,7 +353,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
           right: 20,
           child: SafeArea(
             top: false,
-            child: _ControlsDock(ctrl: ctrl),
+            child: _ControlsDock(ctrl: ctrl, hostContext: widget.hostContext),
           ),
         ),
       ]),
@@ -675,9 +685,10 @@ class _LocalPreviewCard extends StatelessWidget {
 }
 
 class _ControlsDock extends StatelessWidget {
-  const _ControlsDock({required this.ctrl});
+  const _ControlsDock({required this.ctrl, required this.hostContext});
 
   final CallController ctrl;
+  final BuildContext hostContext;
 
   @override
   Widget build(BuildContext context) {
@@ -692,7 +703,7 @@ class _ControlsDock extends StatelessWidget {
                 ? Colors.blue.withAlpha(80)
                 : Colors.transparent,
         size: 58,
-        onPressed: () => _showAudioRouteSheet(context, ctrl),
+        onPressed: () => _showAudioRouteSheet(hostContext, ctrl),
       ),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
