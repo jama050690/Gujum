@@ -613,6 +613,14 @@ class CallController extends ChangeNotifier {
             isVideo: data['isVideo'] == true,
           );
           _remotePeer = peer;
+          // Notification orqali "Answer" bosilgan bo'lsa — avtomatik qabul qilish
+          if (_pendingAutoAcceptCallId == _incomingCall!.callId) {
+            _pendingAutoAcceptCallId = null;
+            _state = CallSessionState.connecting;
+            notifyListeners();
+            unawaited(acceptIncomingCall());
+            break;
+          }
           _state = CallSessionState.ringing;
           _toneActive = true;
           notifyListeners();

@@ -147,39 +147,37 @@ function registerSocketHandlers(io) {
       sendAllUsers();
       browser.broadcast.emit("USER_STATUS_CHANGED", { username, online: true });
 
-      // Call Resume (Flutter reconnect bo'lganda qo'ng'iroqni tiklash)
-      const activeCall = activeCallByUser.get(username);
-      if (activeCall) {
-        const session = activeCalls.get(activeCall);
-        if (session) {
-          const peerUsername = session.caller === username ? session.callee : session.caller;
-          const peerInfo = session.participants[peerUsername] || { username: peerUsername };
-          
-          const syncPayload = {
-            callId: session.id,
-            isVideo: session.isVideo,
-            status: session.status,
-            peer: peerInfo,
-            direction: session.caller === username ? "outgoing" : "incoming"
-          };
-          // Callee reconnect bo'lganda ringing sessiya uchun offer ham yuboramiz
-          if (session.caller !== username && session.status === "ringing" && session.offer) {
-            syncPayload.offer = session.offer;
-          }
-          browser.emit("CALL_SESSION_SYNC", syncPayload);
-        }
-      }
-
-      // Kutilayotgan takliflar (Push notificationdan so'ng appga kirganda)
+      // Pending offer bor bo'lsa — faqat CALL_OFFER yuboramiz, CALL_SESSION_SYNC emas.
+      // Aks holda ikkalasi bir vaqtda kelsa Flutter CALL_OFFER ni reject qilib yuboradi.
       const pending = pendingCallOffers.get(username);
       if (pending) {
         browser.emit("CALL_OFFER", pending.payload);
-        // Offline paytida yo'qolgan ICE candidatelarni ham yuborish
         for (const cand of pending.candidates || []) {
           browser.emit("ICE_CANDIDATE", { candidate: cand, callId: pending.payload.callId });
         }
         clearTimeout(pending.timeout);
         pendingCallOffers.delete(username);
+      } else {
+        // Pending yo'q — Call Resume (qo'ng'iroq davom etayotgan, socket uzilgan holat)
+        const activeCall = activeCallByUser.get(username);
+        if (activeCall) {
+          const session = activeCalls.get(activeCall);
+          if (session) {
+            const peerUsername = session.caller === username ? session.callee : session.caller;
+            const peerInfo = session.participants[peerUsername] || { username: peerUsername };
+            const syncPayload = {
+              callId: session.id,
+              isVideo: session.isVideo,
+              status: session.status,
+              peer: peerInfo,
+              direction: session.caller === username ? "outgoing" : "incoming"
+            };
+            if (session.caller !== username && session.status === "ringing" && session.offer) {
+              syncPayload.offer = session.offer;
+            }
+            browser.emit("CALL_SESSION_SYNC", syncPayload);
+          }
+        }
       }
     });
 
