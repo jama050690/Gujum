@@ -99,6 +99,7 @@ class CallController extends ChangeNotifier {
   late final AudioPlayer _audioPlayer;
 
   String? _pendingAutoAcceptCallId;
+  String? _pendingDeclinedCallId;
 
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
@@ -457,6 +458,19 @@ class CallController extends ChangeNotifier {
     switch (packet.event) {
       case 'CALL_OFFER':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        // Background holatda decline bosilgan — bu callni rad etamiz
+        final offCallId = (data['callId'] ?? '').toString();
+        if (_pendingDeclinedCallId != null && _pendingDeclinedCallId == offCallId) {
+          _pendingDeclinedCallId = null;
+          _socketService.emit('CALL_REJECT', {
+            'callId': offCallId,
+            'target': Map<String, dynamic>.from(
+                data['caller'] as Map? ?? {})['username'],
+            'isVideo': data['isVideo'] == true,
+          });
+          unawaited(CallKitService.endAllCalls());
+          break;
+        }
         if (hasSession || hasIncomingCall) {
           final dupCallId = (data['callId'] ?? '').toString();
           // Xuddi shu callId bo'lsa — duplikat (CALL_SESSION_SYNC + CALL_OFFER birga keldi),
@@ -1078,6 +1092,7 @@ class CallController extends ChangeNotifier {
     _callId = null;
     _targetUsername = null;
     _pendingAutoAcceptCallId = null;
+    _pendingDeclinedCallId = null;
     if (effectiveCallId != null) unawaited(CallKitService.endCall(effectiveCallId));
     final duration = _connectedAt == null
         ? 0
@@ -1161,6 +1176,8 @@ class CallController extends ChangeNotifier {
           rejectIncomingCall();
         } else {
           _pendingAutoAcceptCallId = null;
+          // CALL_OFFER hali kelmagan — kelganda rad etish uchun saqlaymiz
+          _pendingDeclinedCallId = event.callId;
           _socketService.emit('CALL_REJECT', {
             'callId': event.callId,
             'target': null,

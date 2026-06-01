@@ -97,6 +97,13 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   void _removeCallOverlay() {
     _callOverlayEntry?.remove();
     _callOverlayEntry = null;
+    // Ochiq bottom sheet yoki dialog qolgan bo'lsa yopamiz
+    if (mounted) {
+      try {
+        final nav = Navigator.of(context, rootNavigator: false);
+        nav.popUntil((route) => route is! PopupRoute);
+      } catch (_) {}
+    }
   }
 
   void _dismissKeyboard() {

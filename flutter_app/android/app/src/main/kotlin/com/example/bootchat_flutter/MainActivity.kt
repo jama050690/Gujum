@@ -179,7 +179,12 @@ class MainActivity : FlutterActivity() {
                     it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
                 }
-                if (preferred != null) audioManager.setCommunicationDevice(preferred)
+                if (preferred != null) {
+                    audioManager.setCommunicationDevice(preferred)
+                } else {
+                    // Earpiece topilmasa (ba'zi qurilmalarda yo'q) — default device
+                    audioManager.clearCommunicationDevice()
+                }
             }
         } else {
             // Android 12 dan oldin
