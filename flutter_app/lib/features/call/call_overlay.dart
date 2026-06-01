@@ -220,7 +220,10 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = false;
-    } else if (!_audioInitialized && isConnected && remote != null) {
+    }
+    // onTrack markCallConnected'dan keyin kelsa else if ishlamaydi —
+    // shuning uchun alohida if: connected + remote bor + init qilinmagan bo'lsa qayta o'rnat
+    if (!_audioInitialized && isConnected && remote != null) {
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = true;
