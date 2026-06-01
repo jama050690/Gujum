@@ -244,7 +244,7 @@ class CallController extends ChangeNotifier {
       // Callkit ringtone pipeline'da qolsa WebRTC bilan aralashib "hinggg" beradi.
       await CallKitService.setConnected(incoming.callId);
       // Ringtone buffer to'liq drenaj bo'lishi uchun kutish.
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 800));
       await _applyAudioRoute();
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
@@ -918,8 +918,8 @@ class CallController extends ChangeNotifier {
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
-    // ICE ulanganda audio yo'lini qayta o'rnatamiz — remote ovoz aniq chiqishi uchun
-    await _applyAudioRoute();
+    // _applyAudioRoute() bu yerda CHAQIRILMAYDI — ICE ulanganda audio oqayotgan bo'ladi,
+    // qayta sozlash audio yo'lini uzib remote ovozni yo'qotadi.
     notifyListeners();
   }
 

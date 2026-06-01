@@ -150,13 +150,6 @@ class MainActivity : FlutterActivity() {
         try { outgoingToneGenerator?.stopTone() } catch (_: Exception) {}
         try { outgoingToneGenerator?.release() } catch (_: Exception) {}
         outgoingToneGenerator = null
-        // ToneGenerator release qilinganda audio path buzilishi mumkin.
-        // MODE_IN_COMMUNICATION ni qayta o'rnatib WebRTC uchun tozalanadi.
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        if (audioManager?.mode == AudioManager.MODE_IN_COMMUNICATION) {
-            audioManager.mode = AudioManager.MODE_NORMAL
-            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        }
     }
 
     private fun activateCallAudio(speakerOn: Boolean): Map<String, Any> {
