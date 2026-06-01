@@ -583,9 +583,38 @@ class CallController extends ChangeNotifier {
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final direction = (data['direction'] ?? '').toString();
         final status = (data['status'] ?? '').toString();
-        // incoming + ringing: CALL_OFFER shu zahotiyoq keladi, u o'zi handle qiladi.
-        // Bu yerda state o'rnatilsa hasSession=true bo'lib CALL_OFFER reject bo'ladi.
-        if (direction == 'incoming' && status == 'ringing') break;
+        // incoming + ringing: agar allaqachon incomingCall bor bo'lsa — skip.
+        // Aks holda (reconnect holati) offer bilan birga kelsa — incomingCall tiklanadi.
+        if (direction == 'incoming' && status == 'ringing') {
+          if (hasIncomingCall || hasSession) break;
+          final offerRaw = data['offer'];
+          if (offerRaw == null) break;
+          final offer = Map<String, dynamic>.from(offerRaw as Map? ?? {});
+          if ((offer['sdp'] as String?)?.isEmpty ?? true) break;
+          final peer = CallPeer.fromMap(
+              Map<String, dynamic>.from(data['peer'] as Map? ?? {}));
+          _incomingCall = IncomingCallData(
+            callId: (data['callId'] ?? '').toString(),
+            caller: peer,
+            offer: offer,
+            isVideo: data['isVideo'] == true,
+          );
+          _remotePeer = peer;
+          _state = CallSessionState.ringing;
+          _toneActive = true;
+          notifyListeners();
+          final lifecycle = WidgetsBinding.instance.lifecycleState;
+          if (lifecycle != AppLifecycleState.resumed) {
+            unawaited(CallKitService.showIncoming(
+              callId: _incomingCall!.callId,
+              callerName: _incomingCall!.caller.displayName,
+              isVideo: _incomingCall!.isVideo,
+            ));
+          } else {
+            _startIncomingTone();
+          }
+          break;
+        }
         final peer = CallPeer.fromMap(
             Map<String, dynamic>.from(data['peer'] as Map? ?? {}));
         _remotePeer = peer;
@@ -870,7 +899,10 @@ class CallController extends ChangeNotifier {
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
-    if (!alreadyConnected) await _applyAudioRoute();
+    if (!alreadyConnected) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _applyAudioRoute();
+    }
     notifyListeners();
   }
 

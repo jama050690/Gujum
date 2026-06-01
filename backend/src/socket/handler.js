@@ -151,13 +151,18 @@ function registerSocketHandlers(io) {
           const peerUsername = session.caller === username ? session.callee : session.caller;
           const peerInfo = session.participants[peerUsername] || { username: peerUsername };
           
-          browser.emit("CALL_SESSION_SYNC", {
+          const syncPayload = {
             callId: session.id,
             isVideo: session.isVideo,
             status: session.status,
             peer: peerInfo,
             direction: session.caller === username ? "outgoing" : "incoming"
-          });
+          };
+          // Callee reconnect bo'lganda ringing sessiya uchun offer ham yuboramiz
+          if (session.caller !== username && session.status === "ringing" && session.offer) {
+            syncPayload.offer = session.offer;
+          }
+          browser.emit("CALL_SESSION_SYNC", syncPayload);
         }
       }
 
@@ -190,6 +195,7 @@ function registerSocketHandlers(io) {
         callee: target,
         isVideo: !!isVideo,
         status: "ringing",
+        offer,
         participants: { [callerUsername]: caller }
       };
       activeCalls.set(callId, session);

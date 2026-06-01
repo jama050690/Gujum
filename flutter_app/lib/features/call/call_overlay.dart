@@ -410,6 +410,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
       return null;
     }
     final duration = DateTime.now().difference(connectedAt);
+    if (duration.isNegative) return '00:00';
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
