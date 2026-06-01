@@ -105,6 +105,7 @@ class CallController extends ChangeNotifier {
   MediaStream? _remoteStream;
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
   Timer? _iceConnectTimeout;
+  Timer? _ringingTimeout;
 
   CallSessionState? _state;
   CallPeer? _remotePeer;
@@ -185,7 +186,7 @@ class CallController extends ChangeNotifier {
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       _peerConnection = pc;
-      _startIceTimeout();
+      _startRingingTimeout();
       debugPrint('CALL_DEBUG OFFER SDP:\n${offer.sdp}');
 
       _socketService.emit('CALL_OFFER', {
@@ -504,7 +505,6 @@ class CallController extends ChangeNotifier {
         unawaited(_stopAlertTone());
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
-        final answeredAt = data['answeredAt'];
         final callId = data['callId']?.toString();
         if (callId != null && _callId != null && callId != _callId) {
           debugPrint(
@@ -518,14 +518,10 @@ class CallController extends ChangeNotifier {
           notifyListeners();
           break;
         }
-        if (answeredAt is String) {
-          _connectedAt ??= DateTime.tryParse(answeredAt)?.toLocal();
-        } else if (answeredAt is num) {
-          _connectedAt ??=
-              DateTime.fromMillisecondsSinceEpoch(answeredAt.toInt());
-        } else {
-          _connectedAt ??= DateTime.now();
-        }
+        _ringingTimeout?.cancel();
+        _ringingTimeout = null;
+        _startIceTimeout();
+        _connectedAt ??= DateTime.now();
         debugPrint('CALL_DEBUG ANSWER SDP:\n${answer['sdp']}');
         final sessionCallId = _callId;
         _peerConnection
@@ -886,7 +882,6 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _markCallConnected() async {
-    final alreadyConnected = _state == CallSessionState.connected;
     if (!_connectedSignalSent && _targetUsername != null && _callId != null) {
       _connectedSignalSent = true;
       _socketService.emit('CALL_CONNECTED', {
@@ -899,10 +894,6 @@ class CallController extends ChangeNotifier {
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
     await _stopAlertTone();
-    if (!alreadyConnected) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      await _applyAudioRoute();
-    }
     notifyListeners();
   }
 
@@ -1012,6 +1003,16 @@ class CallController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  void _startRingingTimeout() {
+    _ringingTimeout?.cancel();
+    _ringingTimeout = Timer(const Duration(seconds: 60), () {
+      if (_state == CallSessionState.calling) {
+        debugPrint('CALL_DEBUG ringing timeout — no answer after 60s');
+        unawaited(_resetSession(notifyRemote: true, reason: 'no_answer'));
+      }
+    });
+  }
+
   void _startIceTimeout() {
     _iceConnectTimeout?.cancel();
     _iceConnectTimeout = Timer(const Duration(seconds: 30), () {
@@ -1077,6 +1078,8 @@ class CallController extends ChangeNotifier {
     _pendingCandidates.clear();
     _remoteDescriptionReady = false;
     _connectedSignalSent = false;
+    _ringingTimeout?.cancel();
+    _ringingTimeout = null;
   }
 
   void _reportError(String key) {
