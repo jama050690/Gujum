@@ -499,6 +499,9 @@ class CallController extends ChangeNotifier {
         }
         break;
       case 'CALL_ANSWER':
+        // Darhol toneni o'chiramiz — ICE'ni kutmasdan.
+        // ToneGenerator kech o'chirilsa WebRTC audio bilan aralashib callee'ga oqib boradi.
+        unawaited(_stopAlertTone());
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
         final answeredAt = data['answeredAt'];
@@ -1003,14 +1006,15 @@ class CallController extends ChangeNotifier {
     bool notifyRemote = false,
     String reason = 'hangup',
   }) async {
-    if (_callId == null && _targetUsername == null) return;
+    if (_callId == null && _targetUsername == null && _incomingCall == null) return;
     final target = _targetUsername;
     final callId = _callId;
+    final effectiveCallId = callId ?? _incomingCall?.callId;
     final wasVideo = _isVideo;
     _callId = null;
     _targetUsername = null;
     _pendingAutoAcceptCallId = null;
-    if (callId != null) unawaited(CallKitService.endCall(callId));
+    if (effectiveCallId != null) unawaited(CallKitService.endCall(effectiveCallId));
     final duration = _connectedAt == null
         ? 0
         : DateTime.now().difference(_connectedAt!).inSeconds;
@@ -1096,6 +1100,7 @@ class CallController extends ChangeNotifier {
             'target': null,
             'isVideo': false,
           });
+          unawaited(CallKitService.endCall(event.callId));
         }
       case 'timeout':
         if (_incomingCall?.callId == event.callId) {

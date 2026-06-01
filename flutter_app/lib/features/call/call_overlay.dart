@@ -15,10 +15,24 @@ class CallOverlayHost extends StatefulWidget {
   State<CallOverlayHost> createState() => _CallOverlayHostState();
 }
 
-class _CallOverlayHostState extends State<CallOverlayHost> {
+class _CallOverlayHostState extends State<CallOverlayHost>
+    with WidgetsBindingObserver {
   CallController? _controller;
   int _lastErrorVersion = 0;
   OverlayEntry? _callOverlayEntry;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateOverlay();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -86,6 +100,7 @@ class _CallOverlayHostState extends State<CallOverlayHost> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.removeListener(_onChanged);
     _removeCallOverlay();
     super.dispose();
