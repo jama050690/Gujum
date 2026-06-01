@@ -458,6 +458,12 @@ class CallController extends ChangeNotifier {
       case 'CALL_OFFER':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         if (hasSession || hasIncomingCall) {
+          final dupCallId = (data['callId'] ?? '').toString();
+          // Xuddi shu callId bo'lsa — duplikat (CALL_SESSION_SYNC + CALL_OFFER birga keldi),
+          // CALL_REJECT yubormaslik kerak — aks holda caller qo'ng'iroqdan chiqib ketadi.
+          if (dupCallId == _callId || dupCallId == _incomingCall?.callId) {
+            break;
+          }
           _socketService.emit('CALL_REJECT', {
             'callId': data['callId'],
             'target': Map<String, dynamic>.from(
@@ -1008,10 +1014,8 @@ class CallController extends ChangeNotifier {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    // Sync flutter_webrtc's own audio manager with our speaker preference
-    try {
-      await Helper.setSpeakerphoneOn(_isSpeakerOn);
-    } catch (_) {}
+    // Helper.setSpeakerphoneOn Android da CHAQIRILMAYDI — native activateCallAudio bilan
+    // setCommunicationDevice orqali ishlaydi, Helper bilan zid kelsa audio route buziladi.
   }
 
   Future<void> _restoreAudioRoute() async {

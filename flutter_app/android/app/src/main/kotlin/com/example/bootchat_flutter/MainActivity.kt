@@ -161,30 +161,37 @@ class MainActivity : FlutterActivity() {
             )
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            audioManager.availableCommunicationDevices
-                .firstOrNull { device ->
-                    if (speakerOn) {
-                        device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                    } else {
-                        device.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                            device.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                            device.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
-                            device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                            device.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-                    }
+            // Android 12+: faqat setCommunicationDevice ishlatamiz
+            // isSpeakerphoneOn va setCommunicationDevice birga chaqirilsa zid keladi
+            if (speakerOn) {
+                audioManager.stopBluetoothSco()
+                @Suppress("DEPRECATION")
+                audioManager.isBluetoothScoOn = false
+                val speaker = audioManager.availableCommunicationDevices
+                    .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                if (speaker != null) audioManager.setCommunicationDevice(speaker)
+            } else {
+                val preferred = audioManager.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
                 }
-                ?.let { device ->
-                    audioManager.setCommunicationDevice(device)
-                }
-        }
-        if (speakerOn) {
-            audioManager.stopBluetoothSco()
+                if (preferred != null) audioManager.setCommunicationDevice(preferred)
+            }
+        } else {
+            // Android 12 dan oldin
+            if (speakerOn) {
+                audioManager.stopBluetoothSco()
+                @Suppress("DEPRECATION")
+                audioManager.isBluetoothScoOn = false
+            }
             @Suppress("DEPRECATION")
-            audioManager.isBluetoothScoOn = false
+            audioManager.isSpeakerphoneOn = speakerOn
         }
-        @Suppress("DEPRECATION")
-        audioManager.isSpeakerphoneOn = speakerOn
+
         @Suppress("DEPRECATION")
         audioManager.isMicrophoneMute = false
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
@@ -194,11 +201,20 @@ class MainActivity : FlutterActivity() {
     private fun activateBluetooth() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        @Suppress("DEPRECATION")
-        audioManager.isSpeakerphoneOn = false
-        audioManager.startBluetoothSco()
-        @Suppress("DEPRECATION")
-        audioManager.isBluetoothScoOn = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val btDevice = audioManager.availableCommunicationDevices.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+            }
+            if (btDevice != null) audioManager.setCommunicationDevice(btDevice)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = false
+            audioManager.startBluetoothSco()
+            @Suppress("DEPRECATION")
+            audioManager.isBluetoothScoOn = true
+        }
     }
 
     private fun restoreAudioRoute() {
