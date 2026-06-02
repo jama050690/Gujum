@@ -68,11 +68,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startIncomingRingtone() {
-        // Agar stop avval chaqirilgan bo'lsa (race condition) — boshlamaymiz
-        if (ringtoneStopped) {
-            ringtoneStopped = false
-            return
-        }
+        ringtoneStopped = false
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)

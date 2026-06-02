@@ -244,8 +244,8 @@ class CallController extends ChangeNotifier {
       // Ringtone to'liq to'xtaguncha kutamiz (await — unawaited emas).
       // Callkit ringtone pipeline'da qolsa WebRTC bilan aralashib "hinggg" beradi.
       await CallKitService.setConnected(incoming.callId);
-      // Ringtone buffer to'liq drenaj bo'lishi uchun kutish.
-      await Future.delayed(const Duration(milliseconds: 800));
+      // Ringtone pipeline to'liq tozalanishi uchun kutish (800ms yetmaydi).
+      await Future.delayed(const Duration(milliseconds: 1500));
       await _applyAudioRoute();
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
@@ -1028,9 +1028,8 @@ class CallController extends ChangeNotifier {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    try {
-      await Helper.setSpeakerphoneOn(_isSpeakerOn);
-    } catch (_) {}
+    // Helper.setSpeakerphoneOn Android 12+ da setCommunicationDevice bilan zid keladi —
+    // native activateCallAudio o'zi boshqaradi, bu yerda chaqirilmaydi.
   }
 
   Future<void> _restoreAudioRoute() async {
