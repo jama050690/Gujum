@@ -44,7 +44,7 @@ class CallKitService {
       await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
         id: callId,
         nameCaller: callerName,
-        appName: 'Bootchat',
+        appName: 'Gujum',
         handle: callerName,
         type: isVideo ? 1 : 0,
         duration: 30000,

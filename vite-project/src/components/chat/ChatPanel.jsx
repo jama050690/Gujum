@@ -342,9 +342,9 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
       <div className="hidden md:flex flex-col items-center justify-center h-full tg-chat-bg">
         <div className="text-center">
           <div className="w-28 h-28 mx-auto mb-5 rounded-3xl bg-white/20 dark:bg-white/5 flex items-center justify-center overflow-hidden p-3">
-            <img src={BRAND_LOGO_URL} alt="Ujum logo" className="h-full w-full object-contain opacity-70" />
+            <img src={BRAND_LOGO_URL} alt="Gujum logo" className="h-full w-full object-contain opacity-70" />
           </div>
-          <h2 className="text-lg font-medium text-white/60">Ujum</h2>
+          <h2 className="text-lg font-medium text-white/60">Gujum</h2>
           <p className="text-white/40 mt-1 text-sm">{t("chat_select_user")}</p>
         </div>
       </div>

@@ -388,7 +388,7 @@ export default function LoginPage() {
         <div
           className={`mx-auto flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-[24px] ${iconBoxClass}`}
         >
-          <img src={BRAND_LOGO_URL} alt="Ujum logo" className="h-[46px] w-[46px] object-contain" />
+          <img src={BRAND_LOGO_URL} alt="Gujum logo" className="h-[46px] w-[46px] object-contain" />
         </div>
 
         <div className="mt-5 text-center">

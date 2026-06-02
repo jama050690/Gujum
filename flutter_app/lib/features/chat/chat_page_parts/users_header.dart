@@ -96,7 +96,7 @@ class _UsersHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top + 14;
-    final avatarLabel = currentUser?.displayName ?? 'Bootchat';
+    final avatarLabel = currentUser?.displayName ?? 'Gujum';
     final avatarUrl = AppConfig.resolveMediaUrl(
       currentUser?.avatar,
       settings.baseUrl,
@@ -148,7 +148,7 @@ class _UsersHeader extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  showArchived ? (title ?? '') : 'Bootchat',
+                  showArchived ? (title ?? '') : 'Gujum',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: titleColor,
                         fontWeight: FontWeight.w800,

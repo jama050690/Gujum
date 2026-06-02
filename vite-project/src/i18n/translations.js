@@ -17,7 +17,7 @@ export const translations = {
     yesterday: "kecha",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Hisobingizga kiring",
     login_username_label: "Username",
     login_username_placeholder: "Username kiriting",
@@ -309,7 +309,7 @@ export const translations = {
     yesterday: "yesterday",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Sign in to your account",
     login_username_label: "Username",
     login_username_placeholder: "Enter username",
@@ -600,7 +600,7 @@ export const translations = {
     yesterday: "昨天",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "登录您的账户",
     login_username_label: "用户名",
     login_username_placeholder: "请输入用户名",
@@ -872,7 +872,7 @@ export const translations = {
     yesterday: "昨日",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "アカウントにログイン",
     login_username_label: "ユーザー名",
     login_username_placeholder: "ユーザー名を入力",
@@ -1145,7 +1145,7 @@ export const translations = {
     yesterday: "вчера",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Войдите в свой аккаунт",
     login_username_label: "Имя пользователя",
     login_username_placeholder: "Введите имя пользователя",
@@ -1432,7 +1432,7 @@ export const translations = {
     yesterday: "dün",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Hesabınıza giriş yapın",
     login_username_label: "Kullanıcı adı",
     login_username_placeholder: "Kullanıcı adınızı girin",
@@ -1704,7 +1704,7 @@ export const translations = {
     yesterday: "gestern",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Melden Sie sich an",
     login_username_label: "Benutzername",
     login_username_placeholder: "Benutzername eingeben",
@@ -1976,7 +1976,7 @@ export const translations = {
     yesterday: "hier",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Connectez-vous à votre compte",
     login_username_label: "Nom d'utilisateur",
     login_username_placeholder: "Entrez votre nom d'utilisateur",
@@ -2248,7 +2248,7 @@ export const translations = {
     yesterday: "ayer",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "Inicia sesión en tu cuenta",
     login_username_label: "Nombre de usuario",
     login_username_placeholder: "Ingresa tu nombre de usuario",
@@ -2520,7 +2520,7 @@ export const translations = {
     yesterday: "أمس",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "سجّل الدخول إلى حسابك",
     login_username_label: "اسم المستخدم",
     login_username_placeholder: "أدخل اسم المستخدم",
@@ -2792,7 +2792,7 @@ export const translations = {
     yesterday: "어제",
 
     // ===== Auth - Login =====
-    login_title: "Ujum",
+    login_title: "Gujum",
     login_subtitle: "계정에 로그인하세요",
     login_username_label: "사용자 이름",
     login_username_placeholder: "사용자 이름을 입력하세요",
