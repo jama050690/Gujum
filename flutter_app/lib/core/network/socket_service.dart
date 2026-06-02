@@ -84,6 +84,8 @@ class SocketService {
   void _startOnlineService() {
     if (kIsWeb || !Platform.isAndroid) return;
     _ch.invokeMethod<void>('startOnlineService').catchError((_) {});
+    // Battery optimization'dan ozod qilish so'rovi
+    _ch.invokeMethod<void>('requestBatteryExemption').catchError((_) {});
   }
 
   void _stopOnlineService() {

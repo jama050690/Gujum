@@ -114,11 +114,40 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
   if (value == null) return AppStrings.text(localeCode, 'offline');
 
   final now = DateTime.now();
+  final diff = now.difference(value);
+
+  // 1 daqiqadan kam
+  if (diff.inMinutes < 1) {
+    return switch (localeCode) {
+      'ru' => 'только что',
+      'en' => 'just now',
+      _ => 'hozirgina',
+    };
+  }
+
+  // 1 soatdan kam: "X daqiqa oldin"
+  if (diff.inHours < 1) {
+    final m = diff.inMinutes;
+    return switch (localeCode) {
+      'ru' => '$m мин назад',
+      'en' => '$m min ago',
+      _ => '$m daqiqa oldin',
+    };
+  }
+
+  // Bugun: "20:03 da"
   final today = DateTime(now.year, now.month, now.day);
   final target = DateTime(value.year, value.month, value.day);
+  if (target == today) {
+    final clock = _formatClock(value);
+    return switch (localeCode) {
+      'ru' => 'в $clock',
+      'en' => 'at $clock',
+      _ => '$clock da',
+    };
+  }
 
-  if (target == today) return _formatClock(value);
-
+  // Kecha
   if (target == today.subtract(const Duration(days: 1))) {
     return switch (localeCode) {
       'ru' => 'вчера',
@@ -127,6 +156,7 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
     };
   }
 
+  // Undan oldin: DD.MM.YYYY
   final day = value.day.toString().padLeft(2, '0');
   final month = value.month.toString().padLeft(2, '0');
   return '$day.$month.${value.year}';
