@@ -46,7 +46,7 @@ export default function Sidebar({
 
   if (!isOpen) return null;
 
-  const displayName = fullName || user || "Bootchat";
+  const displayName = fullName || user || "Ujum";
 
   const handleLogout = async () => {
     await logout();
@@ -231,7 +231,7 @@ export default function Sidebar({
             </span>
           </button>
           <p className="mt-2 text-center text-[11px] text-gray-400">
-            Bootchat
+            Ujum
           </p>
         </div>
       </aside>

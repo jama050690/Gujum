@@ -96,7 +96,7 @@ export default function AdminDashboardPage() {
           <div className="border-b border-black/8 bg-[linear-gradient(135deg,_#1c3b36,_#29574d_45%,_#d7b56d_100%)] px-6 py-8 text-white md:px-10">
             <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/70">Bootchat Control</p>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/70">Ujum Control</p>
                 <h1 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">Admin Dashboard</h1>
                 <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
                   Platformadagi foydalanuvchilar, chatlar va activity ko‘rsatkichlari shu yerda jamlangan.

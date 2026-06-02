@@ -378,7 +378,7 @@ export default function SignupPage() {
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#3390ec] to-[#2b7cd3] shadow-lg">
             <img
               src={BRAND_LOGO_URL}
-              alt="Bootchat logo"
+              alt="Ujum logo"
               className="h-10 w-10 object-contain"
             />
           </div>
