@@ -24,7 +24,7 @@ const pendingOfflineTimeouts = new Map(); // username -> timeout
 const pendingCallOffers = new Map(); // username -> { payload, timeout }
 
 const CALL_RESUME_GRACE_MS = Number(process.env.CALL_RESUME_GRACE_MS || 45000);
-const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 60000);
+const PRESENCE_OFFLINE_GRACE_MS = Number(process.env.PRESENCE_OFFLINE_GRACE_MS || 300000);
 const CALL_OFFER_DELIVERY_GRACE_MS = Number(process.env.CALL_OFFER_DELIVERY_GRACE_MS || 60000);
 
 // --- YORDAMCHI FUNKSIYALAR ---

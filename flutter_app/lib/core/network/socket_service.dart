@@ -16,6 +16,8 @@ class SocketService {
   io.Socket? _socket;
   final _controller = StreamController<SocketPacket>.broadcast();
   String? _connectionKey;
+  String? _username;
+  Timer? _keepaliveTimer;
 
   Stream<SocketPacket> get packets => _controller.stream;
 
@@ -56,8 +58,10 @@ class SocketService {
 
     _socket = io.io(baseUrl, options);
     _connectionKey = nextConnectionKey;
+    _username = username;
     debugPrint('SOCKET_DEBUG socket instance created');
     _registerDefaultListeners(username);
+    _startKeepalive();
   }
 
   void emit(String event, dynamic payload) {
@@ -72,8 +76,22 @@ class SocketService {
     _socket!.emit(event, payload);
   }
 
+  void _startKeepalive() {
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      final user = _username;
+      if (user != null && (_socket?.connected ?? false)) {
+        _socket!.emit('USER_ONLINE', user);
+        debugPrint('SOCKET_DEBUG keepalive USER_ONLINE username=$user');
+      }
+    });
+  }
+
   void disconnect() {
     debugPrint('SOCKET_DEBUG disconnect() called');
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = null;
+    _username = null;
     _socket?.dispose();
     _socket?.disconnect();
     _socket = null;

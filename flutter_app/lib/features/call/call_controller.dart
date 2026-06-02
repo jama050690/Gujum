@@ -241,12 +241,13 @@ class CallController extends ChangeNotifier {
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
 
-      // Ringtone to'liq to'xtaguncha kutamiz (await — unawaited emas).
-      // Callkit ringtone pipeline'da qolsa WebRTC bilan aralashib "hinggg" beradi.
-      await CallKitService.setConnected(incoming.callId);
-      // Ringtone pipeline to'liq tozalanishi uchun kutish (800ms yetmaydi).
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Audio rejimini setConnected DAN OLDIN o'rnatamiz.
+      // Shunda CallKit audio o'tkazganda WebRTC audio mode allaqachon tayyor.
       await _applyAudioRoute();
+      // Callkit ga qo'ng'iroq ulanganligi aytiladi — ringtone to'xtaydi.
+      await CallKitService.setConnected(incoming.callId);
+      // CallKit audio pipeline to'liq tozalanishi uchun qisqa kutish.
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
       final pc = await _createPeerConnection();
@@ -1028,8 +1029,11 @@ class CallController extends ChangeNotifier {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    // Helper.setSpeakerphoneOn Android 12+ da setCommunicationDevice bilan zid keladi —
-    // native activateCallAudio o'zi boshqaradi, bu yerda chaqirilmaydi.
+    // WebRTC o'z audio engine'ini isSpeakerphoneOn orqali sozlaydi —
+    // native activateCallAudio dan KEYIN chaqiramiz, ustunlik native'da.
+    try {
+      await Helper.setSpeakerphoneOn(_isSpeakerOn);
+    } catch (_) {}
   }
 
   Future<void> _restoreAudioRoute() async {
@@ -1142,20 +1146,20 @@ class CallController extends ChangeNotifier {
     switch ((data['currentRoute'] ?? '').toString()) {
       case 'bluetooth':
         _audioRoute = CallAudioRoute.bluetooth;
-        _isSpeakerOn = false;
+        _isSpeakerOn = false; // Tashqi qurilma — override qilamiz
         break;
       case 'headset':
         _audioRoute = CallAudioRoute.headset;
-        _isSpeakerOn = false;
+        _isSpeakerOn = false; // Tashqi qurilma — override qilamiz
         break;
       case 'earpiece':
         _audioRoute = CallAudioRoute.earpiece;
-        _isSpeakerOn = false;
+        // _isSpeakerOn ni o'zgartirmaymiz — foydalanuvchi tanlovi saqlanadi
         break;
       case 'speaker':
       default:
         _audioRoute = CallAudioRoute.speaker;
-        _isSpeakerOn = true;
+        // Earpiece yo'q qurilmalarda speaker qaytsa ham _isSpeakerOn ni override qilmaymiz
         break;
     }
   }
