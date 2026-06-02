@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../config/app_config.dart';
@@ -13,6 +15,8 @@ class SocketPacket {
 }
 
 class SocketService {
+  static const _ch = MethodChannel('bootchat/call_audio');
+
   io.Socket? _socket;
   final _controller = StreamController<SocketPacket>.broadcast();
   String? _connectionKey;
@@ -62,6 +66,7 @@ class SocketService {
     debugPrint('SOCKET_DEBUG socket instance created');
     _registerDefaultListeners(username);
     _startKeepalive();
+    _startOnlineService();
   }
 
   void emit(String event, dynamic payload) {
@@ -74,6 +79,16 @@ class SocketService {
     }
     debugPrint('SOCKET_DEBUG emit event=$event payload=$payload');
     _socket!.emit(event, payload);
+  }
+
+  void _startOnlineService() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    _ch.invokeMethod<void>('startOnlineService').catchError((_) {});
+  }
+
+  void _stopOnlineService() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    _ch.invokeMethod<void>('stopOnlineService').catchError((_) {});
   }
 
   void _startKeepalive() {
@@ -96,6 +111,7 @@ class SocketService {
     _socket?.disconnect();
     _socket = null;
     _connectionKey = null;
+    _stopOnlineService();
   }
 
   void dispose() {

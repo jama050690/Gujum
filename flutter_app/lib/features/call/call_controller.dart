@@ -225,6 +225,8 @@ class CallController extends ChangeNotifier {
     // lekin yangi PC uchun bu kandidatlar kerak.
     final savedCandidates = List<RTCIceCandidate>.from(_pendingCandidates);
     await _stopAlertTone();
+    // Ringtone to'xtaganda audio buffer shovqin bermasligi uchun qisqa kutish.
+    await Future.delayed(const Duration(milliseconds: 150));
     await _prepareForNewSession(
         video: incoming.isVideo, preserveIncoming: true);
     _pendingCandidates.addAll(savedCandidates);
@@ -938,9 +940,20 @@ class CallController extends ChangeNotifier {
     }
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
+
+    // Tone to'xtaganda AudioTrack buffer'i WebRTC mic'iga qo'shilib shovqin beradi.
+    // 200ms lokal audio mute qilib buffer'ni tozalaymiz.
+    for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = false;
+    }
     await _stopAlertTone();
-    // _applyAudioRoute() bu yerda CHAQIRILMAYDI — ICE ulanganda audio oqayotgan bo'ladi,
-    // qayta sozlash audio yo'lini uzib remote ovozni yo'qotadi.
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!_isMuted) {
+      for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+        track.enabled = true;
+      }
+    }
+
     notifyListeners();
   }
 

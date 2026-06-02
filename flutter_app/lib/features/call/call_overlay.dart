@@ -710,7 +710,10 @@ class _ControlsDock extends StatelessWidget {
                 ? Colors.blue.withAlpha(80)
                 : Colors.transparent,
         size: 58,
-        onPressed: () => _showAudioRouteSheet(hostContext, ctrl),
+        // Bluetooth bor bo'lsa sheet, aks holda to'g'ridan toggle
+        onPressed: () => ctrl.hasBluetoothAudio
+            ? _showAudioRouteSheet(hostContext, ctrl)
+            : unawaited(ctrl.toggleSpeaker()),
       ),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,

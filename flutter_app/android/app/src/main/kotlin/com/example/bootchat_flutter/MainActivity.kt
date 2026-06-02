@@ -1,6 +1,7 @@
 package com.example.bootchat_flutter
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -62,6 +63,19 @@ class MainActivity : FlutterActivity() {
                 "getAudioRouteInfo" -> {
                     result.success(getAudioRouteInfo())
                 }
+                "startOnlineService" -> {
+                    val intent = Intent(this, OnlineService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                    result.success(null)
+                }
+                "stopOnlineService" -> {
+                    stopService(Intent(this, OnlineService::class.java))
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -106,6 +120,11 @@ class MainActivity : FlutterActivity() {
         }
         incomingRingtone?.stop()
         incomingRingtone = null
+        // Audio mode'ni tozalaymiz — activateCallAudio uni qayta o'rnatadi.
+        // MODE_NORMAL → MODE_IN_COMMUNICATION o'tishida shovqin kamaytiradi.
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        @Suppress("DEPRECATION")
+        audioManager?.isSpeakerphoneOn = false
     }
 
     // Plays the standard ringback tone ("tuu...tuu...") that callers hear
