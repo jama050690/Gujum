@@ -38,6 +38,7 @@ class CallKitService {
   static Future<void> showIncoming({
     required String callId,
     required String callerName,
+    required String callerUsername,
     required bool isVideo,
   }) async {
     try {
@@ -45,7 +46,7 @@ class CallKitService {
         id: callId,
         nameCaller: callerName,
         appName: 'Gujum',
-        handle: callerName,
+        handle: callerUsername.isNotEmpty ? callerUsername : callerName,
         type: isVideo ? 1 : 0,
         duration: 30000,
         android: AndroidParams(

@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -518,6 +519,7 @@ class CallController extends ChangeNotifier {
           unawaited(CallKitService.showIncoming(
             callId: _incomingCall!.callId,
             callerName: _incomingCall!.caller.displayName,
+            callerUsername: _incomingCall!.caller.username,
             isVideo: _incomingCall!.isVideo,
           ));
         } else {
@@ -652,6 +654,7 @@ class CallController extends ChangeNotifier {
             unawaited(CallKitService.showIncoming(
               callId: _incomingCall!.callId,
               callerName: _incomingCall!.caller.displayName,
+              callerUsername: _incomingCall!.caller.username,
               isVideo: _incomingCall!.isVideo,
             ));
           } else {
@@ -1159,20 +1162,21 @@ class CallController extends ChangeNotifier {
     switch ((data['currentRoute'] ?? '').toString()) {
       case 'bluetooth':
         _audioRoute = CallAudioRoute.bluetooth;
-        _isSpeakerOn = false; // Tashqi qurilma — override qilamiz
+        _isSpeakerOn = false;
         break;
       case 'headset':
         _audioRoute = CallAudioRoute.headset;
-        _isSpeakerOn = false; // Tashqi qurilma — override qilamiz
+        _isSpeakerOn = false;
         break;
       case 'earpiece':
         _audioRoute = CallAudioRoute.earpiece;
-        // _isSpeakerOn ni o'zgartirmaymiz — foydalanuvchi tanlovi saqlanadi
+        _isSpeakerOn = false;
         break;
       case 'speaker':
       default:
         _audioRoute = CallAudioRoute.speaker;
-        // Earpiece yo'q qurilmalarda speaker qaytsa ham _isSpeakerOn ni override qilmaymiz
+        // Qurilmada quloqchin yo'q bo'lsa ham audio speaker'dan chiqadi — holatni sinxronlaymiz
+        _isSpeakerOn = true;
         break;
     }
   }
@@ -1194,12 +1198,7 @@ class CallController extends ChangeNotifier {
           _pendingAutoAcceptCallId = null;
           // CALL_OFFER hali kelmagan — kelganda rad etish uchun saqlaymiz
           _pendingDeclinedCallId = event.callId;
-          _socketService.emit('CALL_REJECT', {
-            'callId': event.callId,
-            'target': null,
-            'isVideo': false,
-          });
-          unawaited(CallKitService.endCall(event.callId));
+          unawaited(_declineFromBackground(event.callId));
         }
       case 'timeout':
         if (_incomingCall?.callId == event.callId) {
@@ -1208,6 +1207,25 @@ class CallController extends ChangeNotifier {
           _pendingAutoAcceptCallId = null;
         }
     }
+  }
+
+  Future<void> _declineFromBackground(String callId) async {
+    String? callerUsername;
+    try {
+      final calls = await FlutterCallkitIncoming.activeCalls();
+      for (final c in calls) {
+        if (c.id == callId) {
+          callerUsername = c.handle;
+          break;
+        }
+      }
+    } catch (_) {}
+    _socketService.emit('CALL_REJECT', {
+      'callId': callId,
+      'target': callerUsername,
+      'isVideo': false,
+    });
+    await CallKitService.endCall(callId);
   }
 
   @override
