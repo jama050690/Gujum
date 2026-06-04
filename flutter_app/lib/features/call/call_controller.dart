@@ -950,12 +950,14 @@ class CallController extends ChangeNotifier {
 
     if (isFirstConnect) {
       // Birinchi ulanishda: tone buffer WebRTC mic'iga qo'shilmasligi uchun
-      // qisqa mute qilamiz.
+      // mic'ni mute qilib, audio session'ni qayta o'rnatamiz.
       for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
         track.enabled = false;
       }
       await _stopAlertTone();
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Audio session'ni qayta o'rnatish — tone buffer'ni tozalaydi
+      await _applyAudioRoute();
+      await Future.delayed(const Duration(milliseconds: 500));
       if (!_isMuted) {
         for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
           track.enabled = true;
