@@ -13,6 +13,7 @@ class SessionStore {
   static const _darkModeKey = 'bootchat.dark_mode';
   static const _baseUrlKey = 'bootchat.base_url';
   static const _lastLoginUsernameKey = 'bootchat.last_login_username';
+  static const _lastActiveChatKey = 'bootchat.last_active_chat';
 
   final SharedPreferences _prefs;
 
@@ -85,6 +86,16 @@ class SessionStore {
       return;
     }
     await _prefs.setString(_lastLoginUsernameKey, normalized);
+  }
+
+  String? get lastActiveChatUsername => _prefs.getString(_lastActiveChatKey);
+
+  Future<void> saveLastActiveChatUsername(String? value) async {
+    if (value == null || value.isEmpty) {
+      await _prefs.remove(_lastActiveChatKey);
+      return;
+    }
+    await _prefs.setString(_lastActiveChatKey, value);
   }
 
   Future<void> clearSession() async {

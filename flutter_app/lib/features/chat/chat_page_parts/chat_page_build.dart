@@ -7,7 +7,31 @@ extension _ChatPageStateBuild on _ChatPageState {
     AuthController auth,
     ChatController chat,
   ) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // Conversation ochiq bo'lsa — yopamiz, chiqmaymiz
+        if (_hasConversation(chat)) {
+          _closeConversation(chat);
+          return;
+        }
+        // Chat ro'yxatida — ikki marta bosish kerak
+        final now = DateTime.now();
+        final last = _lastBackPress;
+        if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chiqish uchun qayta bosing'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      child: Scaffold(
       key: _scaffoldKey,
       drawerScrimColor: Colors.black.withAlpha(120),
       drawer: _AppDrawer(
@@ -142,6 +166,8 @@ extension _ChatPageStateBuild on _ChatPageState {
           return inboxPanel;
         },
       ),
+    ),
     );
   }
 }
+

@@ -97,6 +97,7 @@ class ChatController extends ChangeNotifier {
     }
     _activeChat = null;
     _messages = const [];
+    unawaited(_sessionStore.saveLastActiveChatUsername(null));
     notifyListeners();
   }
 
@@ -148,6 +149,7 @@ class ChatController extends ChangeNotifier {
     final user = _authController.user;
     if (user == null) return;
     _activeChat = item.copyWith(unreadCount: 0);
+    unawaited(_sessionStore.saveLastActiveChatUsername(item.username));
     final cached = _messageCache[item.username];
     _messages = cached ?? const [];
     _loadingMessages = cached == null;
@@ -399,6 +401,16 @@ class ChatController extends ChangeNotifier {
     try {
       await loadInbox();
       _lastSessionKey = sessionKey;
+      // Ilova qayta ochilganda oxirgi chatni tiklash
+      if (_activeChat == null) {
+        final lastUsername = _sessionStore.lastActiveChatUsername;
+        if (lastUsername != null) {
+          final candidates = _inbox.where((i) => i.username == lastUsername);
+          if (candidates.isNotEmpty) {
+            unawaited(openChat(candidates.first));
+          }
+        }
+      }
       debugPrint('CHAT_DEBUG _syncSession() completed');
     } finally {
       _syncingSession = false;

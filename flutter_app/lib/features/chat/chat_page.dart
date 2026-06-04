@@ -83,6 +83,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _showArchived = false;
   bool _showSavedMessages = false;
   String? _archiveOwner;
+  DateTime? _lastBackPress;
 
   @override
   void didChangeDependencies() {
