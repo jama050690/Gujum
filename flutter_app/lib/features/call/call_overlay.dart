@@ -192,6 +192,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   Timer? _ticker;
   bool _audioInitialized = false;
   bool _lastIsVideo = false;
+  int _lastRemoteStreamVersion = 0;
 
   @override
   void initState() {
@@ -233,13 +234,18 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final videoJustEnabled = isVideo && !_lastIsVideo;
     _lastIsVideo = isVideo;
 
-    if (_remote.srcObject?.id != remote?.id || videoJustEnabled) {
+    final streamVersion = widget.callController.remoteStreamVersion;
+    final versionChanged = streamVersion != _lastRemoteStreamVersion;
+    if (versionChanged) {
+      _lastRemoteStreamVersion = streamVersion;
+      _audioInitialized = false;
+    }
+
+    if (_remote.srcObject?.id != remote?.id || videoJustEnabled || versionChanged) {
       _remote.srcObject = null;
       _remote.srcObject = remote;
       _audioInitialized = false;
     }
-    // onTrack markCallConnected'dan keyin kelsa else if ishlamaydi —
-    // shuning uchun alohida if: connected + remote bor + init qilinmagan bo'lsa qayta o'rnat
     if (!_audioInitialized && isConnected && remote != null) {
       _remote.srcObject = null;
       _remote.srcObject = remote;

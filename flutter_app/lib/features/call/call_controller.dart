@@ -129,6 +129,7 @@ class CallController extends ChangeNotifier {
   DateTime? _connectedAt;
   String? _errorKey;
   int _errorVersion = 0;
+  int _remoteStreamVersion = 0;
 
   CallSessionState? get state => _state;
   CallPeer? get remotePeer => _remotePeer;
@@ -148,6 +149,7 @@ class CallController extends ChangeNotifier {
   bool get hasSession => _state != null && _incomingCall == null;
   bool get hasIncomingCall => _incomingCall != null;
   DateTime? get connectedAt => _connectedAt;
+  int get remoteStreamVersion => _remoteStreamVersion;
   bool get canToggleCamera =>
       _state == CallSessionState.connected &&
       (_peerConnection != null) &&
@@ -933,7 +935,8 @@ class CallController extends ChangeNotifier {
   }
 
   Future<void> _markCallConnected() async {
-    if (!_connectedSignalSent && _targetUsername != null && _callId != null) {
+    final isFirstConnect = !_connectedSignalSent;
+    if (isFirstConnect && _targetUsername != null && _callId != null) {
       _connectedSignalSent = true;
       _socketService.emit('CALL_CONNECTED', {
         'callId': _callId,
@@ -943,17 +946,20 @@ class CallController extends ChangeNotifier {
     }
     _state = CallSessionState.connected;
     _connectedAt ??= DateTime.now();
+    _remoteStreamVersion++;
 
-    // Tone to'xtaganda AudioTrack buffer'i WebRTC mic'iga qo'shilib shovqin beradi.
-    // 200ms lokal audio mute qilib buffer'ni tozalaymiz.
-    for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
-      track.enabled = false;
-    }
-    await _stopAlertTone();
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (!_isMuted) {
+    if (isFirstConnect) {
+      // Birinchi ulanishda: tone buffer WebRTC mic'iga qo'shilmasligi uchun
+      // qisqa mute qilamiz.
       for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
-        track.enabled = true;
+        track.enabled = false;
+      }
+      await _stopAlertTone();
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!_isMuted) {
+        for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+          track.enabled = true;
+        }
       }
     }
 
