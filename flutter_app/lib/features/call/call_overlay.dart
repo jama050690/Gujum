@@ -705,21 +705,9 @@ class _ControlsDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final speakerIcon = _speakerIconFor(ctrl);
     final canToggleCamera = ctrl.canToggleCamera;
     final List<Widget> actions = <Widget>[
-      _RoundActionButton(
-        icon: speakerIcon,
-        backgroundColor: ctrl.audioRoute == CallAudioRoute.bluetooth
-            ? Colors.blue.withAlpha(80)
-            : ctrl.audioRoute == CallAudioRoute.headset
-                ? Colors.green.withAlpha(80)
-                : ctrl.isSpeakerOn
-                    ? Colors.white.withAlpha(50)
-                    : Colors.transparent,
-        size: 58,
-        onPressed: () => _showAudioRouteSheet(hostContext, ctrl),
-      ),
+      _SpeakerButton(ctrl: ctrl, hostContext: hostContext),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
         backgroundColor: Colors.transparent,
@@ -774,15 +762,69 @@ class _ControlsDock extends StatelessWidget {
     );
   }
 
-  void _showAudioRouteSheet(BuildContext context, CallController ctrl) {
+}
+
+class _SpeakerButton extends StatefulWidget {
+  const _SpeakerButton({required this.ctrl, required this.hostContext});
+  final CallController ctrl;
+  final BuildContext hostContext;
+
+  @override
+  State<_SpeakerButton> createState() => _SpeakerButtonState();
+}
+
+class _SpeakerButtonState extends State<_SpeakerButton> {
+  int _tapCount = 0;
+  Timer? _tapTimer;
+  static const _doubleTapWindow = Duration(milliseconds: 300);
+
+  @override
+  void dispose() {
+    _tapTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onTap() {
+    _tapCount++;
+    if (_tapCount == 1) {
+      _tapTimer = Timer(_doubleTapWindow, () {
+        if (mounted) {
+          _cycleRoute();
+          _tapCount = 0;
+        }
+      });
+    } else {
+      _tapTimer?.cancel();
+      _tapCount = 0;
+      _showSheet();
+    }
+  }
+
+  void _cycleRoute() {
+    final ctrl = widget.ctrl;
+    switch (ctrl.audioRoute) {
+      case CallAudioRoute.earpiece:
+        ctrl.setAudioRoute(CallAudioRoute.speaker);
+      case CallAudioRoute.speaker:
+        ctrl.setAudioRoute(
+          ctrl.hasBluetoothAudio ? CallAudioRoute.bluetooth : CallAudioRoute.earpiece,
+        );
+      case CallAudioRoute.bluetooth:
+      case CallAudioRoute.headset:
+        ctrl.setAudioRoute(CallAudioRoute.earpiece);
+    }
+  }
+
+  void _showSheet() {
+    final ctrl = widget.ctrl;
     showModalBottomSheet(
-      context: context,
+      context: widget.hostContext,
       useRootNavigator: true,
       backgroundColor: const Color(0xFF1E2230),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
           child: Column(
@@ -804,7 +846,7 @@ class _ControlsDock extends StatelessWidget {
                     icon: Icons.volume_off_rounded,
                     selected: ctrl.audioRoute == CallAudioRoute.earpiece,
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.of(sheetCtx, rootNavigator: true).pop();
                       ctrl.setAudioRoute(CallAudioRoute.earpiece);
                     },
                   ),
@@ -812,7 +854,7 @@ class _ControlsDock extends StatelessWidget {
                     icon: Icons.volume_up_rounded,
                     selected: ctrl.audioRoute == CallAudioRoute.speaker,
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.of(sheetCtx, rootNavigator: true).pop();
                       ctrl.setAudioRoute(CallAudioRoute.speaker);
                     },
                   ),
@@ -821,7 +863,7 @@ class _ControlsDock extends StatelessWidget {
                       icon: Icons.bluetooth_audio_rounded,
                       selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.of(sheetCtx, rootNavigator: true).pop();
                         ctrl.setAudioRoute(CallAudioRoute.bluetooth);
                       },
                     ),
@@ -834,16 +876,33 @@ class _ControlsDock extends StatelessWidget {
     );
   }
 
-  IconData _speakerIconFor(CallController ctrl) {
-    if (ctrl.audioRoute == CallAudioRoute.bluetooth) {
-      return Icons.bluetooth_audio_rounded;
-    }
-    if (ctrl.audioRoute == CallAudioRoute.headset) {
-      return Icons.headset_rounded;
-    }
-    return ctrl.isSpeakerOn
-        ? Icons.volume_up_rounded
-        : Icons.volume_off_rounded;
+  IconData _iconFor(CallController ctrl) {
+    if (ctrl.audioRoute == CallAudioRoute.bluetooth) return Icons.bluetooth_audio_rounded;
+    if (ctrl.audioRoute == CallAudioRoute.headset) return Icons.headset_rounded;
+    return ctrl.isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_off_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = widget.ctrl;
+    return GestureDetector(
+      onTap: _onTap,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          color: ctrl.audioRoute == CallAudioRoute.bluetooth
+              ? Colors.blue.withAlpha(80)
+              : ctrl.audioRoute == CallAudioRoute.headset
+                  ? Colors.green.withAlpha(80)
+                  : ctrl.isSpeakerOn
+                      ? Colors.white.withAlpha(50)
+                      : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(_iconFor(ctrl), color: Colors.white, size: 28),
+      ),
+    );
   }
 }
 

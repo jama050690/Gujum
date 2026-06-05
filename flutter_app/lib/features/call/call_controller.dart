@@ -61,7 +61,7 @@ class CallSetupException implements Exception {
   final String errorKey;
 }
 
-class CallController extends ChangeNotifier {
+class CallController extends ChangeNotifier with WidgetsBindingObserver {
   CallController({
     required SocketService socketService,
     required AuthController authController,
@@ -70,6 +70,7 @@ class CallController extends ChangeNotifier {
     _subscription = _socketService.packets.listen(_handlePacket);
     _callKitSub = CallKitService.instance.events.listen(_handleCallKitEvent);
     _audioPlayer = AudioPlayer();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   static const MethodChannel _audioChannel =
@@ -1190,7 +1191,14 @@ class CallController extends ChangeNotifier {
     switch (event.action) {
       case 'accept':
         if (_incomingCall?.callId == event.callId) {
-          unawaited(acceptIncomingCall());
+          // App foreground bo'lsa darhol qabul qilamiz,
+          // background bo'lsa resumed ga o'tganda (_onAppResumed) qabul qilamiz.
+          final lifecycle = WidgetsBinding.instance.lifecycleState;
+          if (lifecycle == AppLifecycleState.resumed) {
+            unawaited(acceptIncomingCall());
+          } else {
+            _pendingAutoAcceptCallId = event.callId;
+          }
         } else {
           // App o'ldirilgan holatda qabul qilingan — CALL_OFFER kelishini kutamiz
           _pendingAutoAcceptCallId = event.callId;
@@ -1214,7 +1222,23 @@ class CallController extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onAppResumed();
+    }
+  }
+
+  void _onAppResumed() {
+    if (_pendingAutoAcceptCallId != null &&
+        _incomingCall?.callId == _pendingAutoAcceptCallId) {
+      _pendingAutoAcceptCallId = null;
+      unawaited(acceptIncomingCall());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscription.cancel();
     _callKitSub.cancel();
     unawaited(_resetSession());

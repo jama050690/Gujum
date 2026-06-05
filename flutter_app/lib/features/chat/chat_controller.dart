@@ -284,10 +284,15 @@ class ChatController extends ChangeNotifier {
             .where((e) => e['online'] == true)
             .map((e) => e['username'].toString())
             .toSet();
-        _lastActiveUsers = {
-          for (var e in users)
-            e['username'].toString(): _parseLastActive(e['lastActive'])
-        };
+        // Merge — don't replace. inbox'dan yig'ilgan offline userlar lastActive yo'qolmasin.
+        final merged = Map<String, DateTime?>.from(_lastActiveUsers);
+        for (final e in users) {
+          final ts = _parseLastActive(e['lastActive']);
+          if (ts != null) {
+            merged[e['username'].toString()] = ts;
+          }
+        }
+        _lastActiveUsers = merged;
         break;
 
       case 'USER_STATUS_CHANGED':
