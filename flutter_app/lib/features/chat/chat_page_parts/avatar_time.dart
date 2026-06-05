@@ -156,10 +156,29 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
     };
   }
 
-  // Undan oldin: DD.MM.YYYY
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
-  return '$day.$month.${value.year}';
+  // 30 kundan kam
+  final diff2 = now.difference(value);
+  if (diff2.inDays < 30) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day.$month.${value.year}';
+  }
+
+  // 30 kundan ortiq
+  final months = (diff2.inDays / 30).floor();
+  if (months < 12) {
+    return switch (localeCode) {
+      'ru' => '$months мес. назад',
+      'en' => '$months months ago',
+      _ => '$months oy oldin',
+    };
+  }
+  final years = (diff2.inDays / 365).floor();
+  return switch (localeCode) {
+    'ru' => '$years г. назад',
+    'en' => '$years years ago',
+    _ => '$years yil oldin',
+  };
 }
 
 // Chat header uchun: X daqiqa/soat oldin, kecha, yoki DD.MM.YYYY
@@ -214,8 +233,25 @@ String _formatRelativeTime(DateTime value, String localeCode) {
     };
   }
 
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
-  final year = value.year;
-  return '$day.$month.$year';
+  if (difference.inDays < 30) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day.$month.${value.year}';
+  }
+
+  final months = (difference.inDays / 30).floor();
+  if (months < 12) {
+    return switch (localeCode) {
+      'ru' => '$months мес. назад',
+      'en' => '$months months ago',
+      _ => '$months oy oldin',
+    };
+  }
+
+  final years = (difference.inDays / 365).floor();
+  return switch (localeCode) {
+    'ru' => '$years г. назад',
+    'en' => '$years years ago',
+    _ => '$years yil oldin',
+  };
 }
