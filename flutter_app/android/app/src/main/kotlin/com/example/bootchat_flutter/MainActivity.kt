@@ -191,15 +191,23 @@ class MainActivity : FlutterActivity() {
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+: faqat setCommunicationDevice ishlatamiz
-            // isSpeakerphoneOn va setCommunicationDevice birga chaqirilsa zid keladi
             if (speakerOn) {
-                audioManager.stopBluetoothSco()
-                @Suppress("DEPRECATION")
-                audioManager.isBluetoothScoOn = false
-                val speaker = audioManager.availableCommunicationDevices
-                    .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-                if (speaker != null) audioManager.setCommunicationDevice(speaker)
+                // Bluetooth quloqchin ulangan bo'lsa — uni ustunlik bering
+                val btDevice = audioManager.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                }
+                if (btDevice != null) {
+                    audioManager.setCommunicationDevice(btDevice)
+                } else {
+                    audioManager.stopBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = false
+                    val speaker = audioManager.availableCommunicationDevices
+                        .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                    if (speaker != null) audioManager.setCommunicationDevice(speaker)
+                }
             } else {
                 val preferred = audioManager.availableCommunicationDevices.firstOrNull {
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
@@ -210,19 +218,25 @@ class MainActivity : FlutterActivity() {
                 if (preferred != null) {
                     audioManager.setCommunicationDevice(preferred)
                 } else {
-                    // Earpiece topilmasa (ba'zi qurilmalarda yo'q) — default device
                     audioManager.clearCommunicationDevice()
                 }
             }
         } else {
             // Android 12 dan oldin
             if (speakerOn) {
-                audioManager.stopBluetoothSco()
                 @Suppress("DEPRECATION")
-                audioManager.isBluetoothScoOn = false
+                val btOn = audioManager.isBluetoothScoOn
+                if (!btOn) {
+                    audioManager.stopBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = false
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = true
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn = false
             }
-            @Suppress("DEPRECATION")
-            audioManager.isSpeakerphoneOn = speakerOn
         }
 
         @Suppress("DEPRECATION")
