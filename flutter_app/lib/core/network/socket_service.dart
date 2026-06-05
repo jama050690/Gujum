@@ -50,7 +50,6 @@ class SocketService {
 
     final options = io.OptionBuilder()
         .setPath(path)
-        // WebSocket birinchi, polling fallback
         .setTransports(['websocket', 'polling'])
         .enableAutoConnect()
         .enableReconnection()
@@ -84,7 +83,6 @@ class SocketService {
   void _startOnlineService() {
     if (kIsWeb || !Platform.isAndroid) return;
     _ch.invokeMethod<void>('startOnlineService').catchError((_) {});
-    // Battery optimization'dan ozod qilish so'rovi
     _ch.invokeMethod<void>('requestBatteryExemption').catchError((_) {});
   }
 

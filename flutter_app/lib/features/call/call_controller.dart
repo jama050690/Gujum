@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -1201,9 +1200,9 @@ class CallController extends ChangeNotifier {
           rejectIncomingCall();
         } else {
           _pendingAutoAcceptCallId = null;
-          // CALL_OFFER hali kelmagan — kelganda rad etish uchun saqlaymiz
+          // CALL_OFFER kelganda to'g'ri target bilan rad etamiz
           _pendingDeclinedCallId = event.callId;
-          unawaited(_declineFromBackground(event.callId));
+          unawaited(CallKitService.endCall(event.callId));
         }
       case 'timeout':
         if (_incomingCall?.callId == event.callId) {
@@ -1212,25 +1211,6 @@ class CallController extends ChangeNotifier {
           _pendingAutoAcceptCallId = null;
         }
     }
-  }
-
-  Future<void> _declineFromBackground(String callId) async {
-    String? callerUsername;
-    try {
-      final calls = await FlutterCallkitIncoming.activeCalls();
-      for (final c in calls) {
-        if (c.id == callId) {
-          callerUsername = c.handle;
-          break;
-        }
-      }
-    } catch (_) {}
-    _socketService.emit('CALL_REJECT', {
-      'callId': callId,
-      'target': callerUsername,
-      'isVideo': false,
-    });
-    await CallKitService.endCall(callId);
   }
 
   @override

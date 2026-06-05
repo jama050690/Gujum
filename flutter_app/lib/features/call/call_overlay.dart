@@ -777,6 +777,7 @@ class _ControlsDock extends StatelessWidget {
   void _showAudioRouteSheet(BuildContext context, CallController ctrl) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: const Color(0xFF1E2230),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
