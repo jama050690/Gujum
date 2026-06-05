@@ -710,16 +710,15 @@ class _ControlsDock extends StatelessWidget {
     final List<Widget> actions = <Widget>[
       _RoundActionButton(
         icon: speakerIcon,
-        backgroundColor: ctrl.isSpeakerOn
-            ? Colors.white.withAlpha(50)
-            : ctrl.audioRoute == CallAudioRoute.bluetooth
-                ? Colors.blue.withAlpha(80)
-                : Colors.transparent,
+        backgroundColor: ctrl.audioRoute == CallAudioRoute.bluetooth
+            ? Colors.blue.withAlpha(80)
+            : ctrl.audioRoute == CallAudioRoute.headset
+                ? Colors.green.withAlpha(80)
+                : ctrl.isSpeakerOn
+                    ? Colors.white.withAlpha(50)
+                    : Colors.transparent,
         size: 58,
-        // Bluetooth bor bo'lsa sheet, aks holda to'g'ridan toggle
-        onPressed: () => ctrl.hasBluetoothAudio
-            ? _showAudioRouteSheet(hostContext, ctrl)
-            : unawaited(ctrl.toggleSpeaker()),
+        onPressed: () => _showAudioRouteSheet(hostContext, ctrl),
       ),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
