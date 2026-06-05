@@ -54,6 +54,7 @@ class _ConversationHeader extends StatelessWidget {
     this.isSaved = false,
     this.trailing,
     this.compact = false,
+    this.onAvatarTap,
   });
 
   final SettingsController settings;
@@ -66,6 +67,7 @@ class _ConversationHeader extends StatelessWidget {
   final bool isSaved;
   final Widget? trailing;
   final bool compact;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -102,10 +104,13 @@ class _ConversationHeader extends StatelessWidget {
                       const Icon(Icons.bookmark_rounded, color: Colors.white),
                 )
               else
-                _Avatar(
-                  label: label,
-                  imageUrl: imageUrl,
-                  radius: compact ? 17 : 21,
+                GestureDetector(
+                  onTap: onAvatarTap,
+                  child: _Avatar(
+                    label: label,
+                    imageUrl: imageUrl,
+                    radius: compact ? 17 : 21,
+                  ),
                 ),
               SizedBox(width: compact ? 8 : 12),
               Expanded(

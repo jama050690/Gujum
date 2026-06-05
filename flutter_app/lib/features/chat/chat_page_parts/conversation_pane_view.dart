@@ -61,6 +61,7 @@ extension _ConversationPaneView on _ConversationPaneState {
               showBack: widget.showBack,
               onBack: widget.onBack,
               compact: compactHeight,
+              onAvatarTap: selectionMode ? null : () => _showContactProfile(context, activeChat),
               trailing: compactHeight
                   ? null
                   : selectionMode
