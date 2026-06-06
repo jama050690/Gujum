@@ -315,10 +315,8 @@ class _ConversationPaneState extends State<_ConversationPane>
     if (!_messagesScrollController.hasClients) {
       return;
     }
-
-    final position = _messagesScrollController.position;
-    final distanceFromBottom = position.maxScrollExtent - position.pixels;
-    _stickToBottom = distanceFromBottom <= 80;
+    // reverse: true bilan pixels=0 pastki qism (yangi xabarlar)
+    _stickToBottom = _messagesScrollController.position.pixels <= 80;
   }
 
   @override

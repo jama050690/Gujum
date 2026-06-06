@@ -253,6 +253,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await CallKitService.setConnected(incoming.callId);
       // CallKit audio pipeline to'liq tozalanishi uchun qisqa kutish.
       await Future.delayed(const Duration(milliseconds: 500));
+      // CallKit audio sessiyasini ilovaga topshirgandan keyin route qayta o'rnatiladi.
+      await _applyAudioRoute();
 
       // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
       final pc = await _createPeerConnection();
@@ -955,6 +957,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       }
       await _stopAlertTone();
       await Future.delayed(const Duration(milliseconds: 400));
+      // Ulanish paytida audio route to'g'ri bo'lishini ta'minlaymiz
+      // (ayniqsa background'dan qabul qilingan qo'ng'iroqlarda).
+      await _applyAudioRoute();
       if (!_isMuted) {
         for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
           track.enabled = true;

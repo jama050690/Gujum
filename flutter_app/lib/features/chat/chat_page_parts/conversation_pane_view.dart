@@ -126,20 +126,25 @@ extension _ConversationPaneView on _ConversationPaneState {
   ) {
     final messages = chat.messages;
     return ListView.builder(
+      // reverse: true — index 0 = eng yangi xabar (pastda).
+      // Bu scroll-to-bottom muammosini to'liq hal qiladi: pixels=0 pastki qism.
+      reverse: true,
       controller: _messagesScrollController,
       padding: messagePadding,
       itemCount: messages.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
+        // reverse tartibda: index 0 = so'nggi xabar, index N-1 = birinchi xabar
+        final msgIndex = messages.length - 1 - index;
+        final message = messages[msgIndex];
         final mine = message.senderUsername == currentUser?.username;
         final isPinned =
             message.id != null && _pinnedMessageIds.contains(message.id);
 
-        // Sana separator: oldingi xabar boshqa kun bo'lsa ko'rsat
+        // Sana separator: bu xabardan oldingi (katta) xabar boshqa kun bo'lsa ko'rsat
         final showDateSep = message.createdAt != null && (
-          index == 0 ||
-          messages[index - 1].createdAt == null ||
-          !_isSameDay(messages[index - 1].createdAt!, message.createdAt!)
+          msgIndex == 0 ||
+          messages[msgIndex - 1].createdAt == null ||
+          !_isSameDay(messages[msgIndex - 1].createdAt!, message.createdAt!)
         );
 
         return Column(

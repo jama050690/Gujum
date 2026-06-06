@@ -153,23 +153,31 @@ class ChatController extends ChangeNotifier {
     _loadingMessages = cached == null;
     notifyListeners();
     try {
-      _messages = await _chatRepository.fetchMessages(
+      final fetched = await _chatRepository.fetchMessages(
           user1: user.username, user2: item.username);
-      _messageCache[item.username] = List.from(_messages);
-      _updateInboxPreview(peer: item.username, unreadCount: 0);
+      // Race condition: fetch davomida boshqa chat ochilgan bo'lishi mumkin
+      if (_activeChat?.username == item.username) {
+        _messages = fetched;
+        _messageCache[item.username] = List.from(_messages);
+        _updateInboxPreview(peer: item.username, unreadCount: 0);
+      }
     } catch (e) {
       debugPrint('CHAT_DEBUG openChat() fetchMessages xatosi: $e');
     } finally {
-      _loadingMessages = false;
-      notifyListeners();
+      if (_activeChat?.username == item.username) {
+        _loadingMessages = false;
+        notifyListeners();
+      }
     }
     // Xabarlar bo'sh bo'lsa — 2 soniyadan keyin bir marta qayta urinish
     if (_messages.isEmpty && _activeChat?.username == item.username) {
       await Future.delayed(const Duration(seconds: 2));
       if (_activeChat?.username != item.username) return;
       try {
-        _messages = await _chatRepository.fetchMessages(
+        final retried = await _chatRepository.fetchMessages(
             user1: user.username, user2: item.username);
+        if (_activeChat?.username != item.username) return;
+        _messages = retried;
         _messageCache[item.username] = List.from(_messages);
         _updateInboxPreview(peer: item.username, unreadCount: 0);
         notifyListeners();

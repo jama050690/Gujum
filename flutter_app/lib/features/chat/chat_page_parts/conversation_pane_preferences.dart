@@ -108,30 +108,19 @@ void _requestScrollToNewest() {
 }
 
 void _scheduleScrollToBottom({required bool animated}) {
-  void doJump() {
-    if (!mounted || !_messagesScrollController.hasClients) return;
-    _messagesScrollController.jumpTo(
-      _messagesScrollController.position.maxScrollExtent,
-    );
-  }
-
+  // reverse: true bilan pixels=0 pastki qism (yangi xabarlar).
+  // maxScrollExtent ni kutishning hojati yo'q — 0 har doim aniq.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!mounted || !_messagesScrollController.hasClients) return;
-    final target = _messagesScrollController.position.maxScrollExtent;
     if (animated) {
       _messagesScrollController.animateTo(
-        target,
+        0,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
       return;
     }
-    // ListView.builder lazy — 3 frame davomida scroll qilamiz.
-    doJump();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      doJump();
-      WidgetsBinding.instance.addPostFrameCallback((_) => doJump());
-    });
+    _messagesScrollController.jumpTo(0);
   });
 }
 
