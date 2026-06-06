@@ -251,8 +251,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await _applyAudioRoute();
       // Callkit ga qo'ng'iroq ulanganligi aytiladi — ringtone to'xtaydi.
       await CallKitService.setConnected(incoming.callId);
-      // CallKit audio pipeline to'liq tozalanishi uchun qisqa kutish.
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Android Telecom audio tranzitsiyasi to'liq tugashini kutamiz.
+      // 1000ms — Telecom connection.setActive() audio routing ni qayta o'rnatadiganligi uchun.
+      await Future.delayed(const Duration(milliseconds: 1000));
       // CallKit audio sessiyasini ilovaga topshirgandan keyin route qayta o'rnatiladi.
       await _applyAudioRoute();
 

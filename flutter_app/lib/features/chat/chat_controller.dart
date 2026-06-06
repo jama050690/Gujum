@@ -92,8 +92,12 @@ class ChatController extends ChangeNotifier {
   }
 
   void closeChat() {
-    if (_activeChat != null && _messages.isNotEmpty) {
-      _messageCache[_activeChat!.username] = List.from(_messages);
+    if (_activeChat != null) {
+      if (_messages.isNotEmpty) {
+        _messageCache[_activeChat!.username] = List.from(_messages);
+      } else {
+        _messageCache.remove(_activeChat!.username);
+      }
     }
     _activeChat = null;
     _messages = const [];
@@ -148,9 +152,11 @@ class ChatController extends ChangeNotifier {
     final user = _authController.user;
     if (user == null) return;
     _activeChat = item.copyWith(unreadCount: 0);
+    // Bo'sh cache-ni hit sifatida qabul qilmaymiz — spinner ko'rsatib qayta urinish kerak
     final cached = _messageCache[item.username];
-    _messages = cached ?? const [];
-    _loadingMessages = cached == null;
+    final hasCache = cached != null && cached.isNotEmpty;
+    _messages = hasCache ? cached : const [];
+    _loadingMessages = !hasCache;
     notifyListeners();
     try {
       final fetched = await _chatRepository.fetchMessages(
@@ -158,7 +164,12 @@ class ChatController extends ChangeNotifier {
       // Race condition: fetch davomida boshqa chat ochilgan bo'lishi mumkin
       if (_activeChat?.username == item.username) {
         _messages = fetched;
-        _messageCache[item.username] = List.from(_messages);
+        // Bo'sh natijani cache qilmaymiz — keyingi ochilishda qayta urinish uchun
+        if (fetched.isNotEmpty) {
+          _messageCache[item.username] = List.from(fetched);
+        } else {
+          _messageCache.remove(item.username);
+        }
         _updateInboxPreview(peer: item.username, unreadCount: 0);
       }
     } catch (e) {
@@ -178,7 +189,9 @@ class ChatController extends ChangeNotifier {
             user1: user.username, user2: item.username);
         if (_activeChat?.username != item.username) return;
         _messages = retried;
-        _messageCache[item.username] = List.from(_messages);
+        if (retried.isNotEmpty) {
+          _messageCache[item.username] = List.from(retried);
+        }
         _updateInboxPreview(peer: item.username, unreadCount: 0);
         notifyListeners();
         debugPrint('CHAT_DEBUG openChat() retry muvaffaqiyatli');

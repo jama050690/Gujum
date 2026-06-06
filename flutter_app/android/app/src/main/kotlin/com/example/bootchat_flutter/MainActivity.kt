@@ -206,7 +206,15 @@ class MainActivity : FlutterActivity() {
                     audioManager.isBluetoothScoOn = false
                     val speaker = audioManager.availableCommunicationDevices
                         .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-                    if (speaker != null) audioManager.setCommunicationDevice(speaker)
+                    if (speaker != null) {
+                        audioManager.setCommunicationDevice(speaker)
+                    } else {
+                        // TYPE_BUILTIN_SPEAKER ro'yxatda yo'q (Telecom tranzitsiya paytida).
+                        // clearCommunicationDevice + eski API orqali speaker yoqamiz.
+                        audioManager.clearCommunicationDevice()
+                        @Suppress("DEPRECATION")
+                        audioManager.isSpeakerphoneOn = true
+                    }
                 }
             } else {
                 val preferred = audioManager.availableCommunicationDevices.firstOrNull {
@@ -219,6 +227,8 @@ class MainActivity : FlutterActivity() {
                     audioManager.setCommunicationDevice(preferred)
                 } else {
                     audioManager.clearCommunicationDevice()
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
                 }
             }
         } else {
