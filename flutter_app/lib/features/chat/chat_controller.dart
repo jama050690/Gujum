@@ -47,6 +47,7 @@ class ChatController extends ChangeNotifier {
   Map<String, DateTime?> _lastActiveUsers = const <String, DateTime?>{};
   bool _loadingInbox = false;
   bool _loadingMessages = false;
+  bool _messagesLoadFailed = false;
   bool _searching = false;
   String? _connectionLabel;
   bool _syncingSession = false;
@@ -58,6 +59,7 @@ class ChatController extends ChangeNotifier {
   Set<String> get onlineUsers => _onlineUsers;
   bool get loadingInbox => _loadingInbox;
   bool get loadingMessages => _loadingMessages;
+  bool get messagesLoadFailed => _messagesLoadFailed;
   bool get searching => _searching;
   String? get connectionLabel => _connectionLabel;
   bool get isConnected => _socketService.isConnected;
@@ -157,6 +159,7 @@ class ChatController extends ChangeNotifier {
     final hasCache = cached != null && cached.isNotEmpty;
     _messages = hasCache ? cached : const [];
     _loadingMessages = !hasCache;
+    _messagesLoadFailed = false;
     notifyListeners();
     try {
       final fetched = await _chatRepository.fetchMessages(
@@ -164,6 +167,7 @@ class ChatController extends ChangeNotifier {
       // Race condition: fetch davomida boshqa chat ochilgan bo'lishi mumkin
       if (_activeChat?.username == item.username) {
         _messages = fetched;
+        _messagesLoadFailed = false;
         // Bo'sh natijani cache qilmaymiz — keyingi ochilishda qayta urinish uchun
         if (fetched.isNotEmpty) {
           _messageCache[item.username] = List.from(fetched);
@@ -174,6 +178,9 @@ class ChatController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('CHAT_DEBUG openChat() fetchMessages xatosi: $e');
+      if (_activeChat?.username == item.username && _messages.isEmpty) {
+        _messagesLoadFailed = true;
+      }
     } finally {
       if (_activeChat?.username == item.username) {
         _loadingMessages = false;
@@ -203,6 +210,7 @@ class ChatController extends ChangeNotifier {
 
   Future<void> reloadActiveChat() async {
     if (_activeChat == null || _loadingMessages) return;
+    _messagesLoadFailed = false;
     await openChat(_activeChat!);
   }
 

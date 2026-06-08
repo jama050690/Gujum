@@ -99,7 +99,27 @@ extension _ConversationPaneView on _ConversationPaneState {
       settings: widget.settings,
       child: chat.loadingMessages
           ? const Center(child: CircularProgressIndicator())
-          : chat.messages.isEmpty
+          : chat.messagesLoadFailed
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          size: 48, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      Text(t('messages_load_error'),
+                          style: const TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () =>
+                            unawaited(widget.chat.reloadActiveChat()),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: Text(t('retry')),
+                      ),
+                    ],
+                  ),
+                )
+              : chat.messages.isEmpty
               ? _BrandEmptyState(
                   settings: widget.settings,
                   title: activeChat.fullName,

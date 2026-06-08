@@ -325,7 +325,12 @@ class MainActivity : FlutterActivity() {
                 AudioDeviceInfo.TYPE_WIRED_HEADSET,
                 AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
                 AudioDeviceInfo.TYPE_USB_HEADSET -> "headset"
-                else -> "earpiece"
+                else -> {
+                    // communicationDevice null yoki noma'lum (Telecom tranzitsiya paytida).
+                    // isSpeakerphoneOn fallback — activateCallAudio fallback bilan mos.
+                    @Suppress("DEPRECATION")
+                    if (audioManager.isSpeakerphoneOn) "speaker" else "earpiece"
+                }
             }
         } else {
             @Suppress("DEPRECATION")
