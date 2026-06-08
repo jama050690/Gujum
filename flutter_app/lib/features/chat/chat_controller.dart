@@ -381,6 +381,7 @@ class ChatController extends ChangeNotifier {
     _updateInboxPreview(
         peer: peer, preview: message.content, at: message.createdAt);
     if (_activeChat?.username == peer) {
+      _messagesLoadFailed = false;
       _messages = [..._messages, message];
       _messageCache[peer] = List.from(_messages);
     }

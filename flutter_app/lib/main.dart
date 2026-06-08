@@ -19,6 +19,7 @@ import 'features/chat/chat_repository.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/social/social_repository.dart';
 import 'features/app/fcm_service.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,24 @@ Future<void> main() async {
     sessionStore: sessionStore,
   );
   await chatController.bootstrap();
+
+  // Killed holatda qabul qilingan qo'ng'iroqni tekshirish
+  unawaited(() async {
+    try {
+      final calls = await FlutterCallkitIncoming.activeCalls();
+      for (final call in calls) {
+        if (call.isAccepted) {
+          callController.setPendingAutoAccept(call.id);
+          break;
+        }
+      }
+    } catch (_) {}
+  }());
+  // Backup: notifikatsiya bosilgandan 750ms o'tgach method channel orqali keladi
+  FlutterCallkitIncoming.acceptCallHandle((data) {
+    final callId = (data['id'] ?? '').toString();
+    if (callId.isNotEmpty) callController.setPendingAutoAccept(callId);
+  });
 
   // FCM init va token ro'yxatga olish
   await FcmService.instance.init();

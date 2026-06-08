@@ -101,11 +101,16 @@ router.get("/messages", async (req, res) => {
       );
 
       const { rows } = await pool.query(
-        `SELECT m.id, m.content, m.image, m.audio, m.video, m.is_read, m.created_at, m.reply_to_username, m.reply_to_content, u.username, u.avatar, u.full_name
-         FROM ${MESSAGES_TABLE} m
-         JOIN ${USERS_TABLE} u ON m.sender_id = u.id
-         WHERE m.chat_id = $1
-         ORDER BY m.created_at ASC`,
+        `SELECT * FROM (
+           SELECT m.id, m.content, m.image, m.audio, m.video, m.is_read, m.created_at,
+                  m.reply_to_username, m.reply_to_content, u.username, u.avatar, u.full_name
+           FROM ${MESSAGES_TABLE} m
+           JOIN ${USERS_TABLE} u ON m.sender_id = u.id
+           WHERE m.chat_id = $1
+           ORDER BY m.created_at DESC
+           LIMIT 300
+         ) recent
+         ORDER BY recent.created_at ASC`,
         [chatId],
       );
 

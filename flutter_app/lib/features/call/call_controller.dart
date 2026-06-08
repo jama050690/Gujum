@@ -887,6 +887,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           debugPrint('CALL_DEBUG onTrack local stream addTrack failed: $e');
         }
       }
+      // Video track kelganda renderer'ni majburan yangilaymiz (renegotiation case)
+      if (track.kind == 'video') {
+        _remoteStreamVersion++;
+      }
       debugPrint(
         'CALL_DEBUG onTrack done remoteStream=${_remoteStream?.id} '
         'videoTracks=${_remoteStream?.getVideoTracks().length} '
@@ -1190,6 +1194,13 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         _isSpeakerOn = true;
         break;
     }
+  }
+
+  // Killed holatda qabul qilingan qo'ng'iroq — tashqaridan (main.dart) o'rnatiladi
+  void setPendingAutoAccept(String callId) {
+    if (callId.isEmpty) return;
+    _pendingAutoAcceptCallId = callId;
+    debugPrint('[CallKit] setPendingAutoAccept callId=$callId');
   }
 
   void _handleCallKitEvent(({String action, String callId}) event) {
