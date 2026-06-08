@@ -101,10 +101,19 @@ async function sendPushToUser(username, notification) {
 async function sendFcmCallToUser(username, data) {
   try {
     const res = await pool.query('SELECT token FROM fcm_tokens WHERE username = $1', [username]);
-    if (res.rowCount === 0) return;
+    if (res.rowCount === 0) {
+      console.log(`[FCM] ${username} uchun token DB da topilmadi`);
+      return;
+    }
+    console.log(`[FCM] ${username} ga FCM yuborilmoqda... callId=${data.callId}`);
     const result = await sendCallFcm(res.rows[0].token, data);
     if (result === 'expired') {
+      console.log(`[FCM] ${username} token eskirgan — o'chirildi`);
       await pool.query('DELETE FROM fcm_tokens WHERE username = $1', [username]);
+    } else if (result === true) {
+      console.log(`[FCM] ${username} ga FCM muvaffaqiyatli yuborildi ✓`);
+    } else {
+      console.log(`[FCM] ${username} ga FCM yuborishda xato result=${result}`);
     }
   } catch (e) {
     console.error('[FCM] sendFcmCallToUser error:', e.message);
@@ -212,10 +221,12 @@ function registerSocketHandlers(io) {
       activeCallByUser.set(target, callId);
 
       const delivered = emitToUser(target, "CALL_OFFER", { callId, caller, offer, isVideo });
+      console.log(`[CALL] ${callerUsername} → ${target}: CALL_OFFER delivered=${delivered} callId=${callId}`);
 
       // FCM faqat socket yetkazolmagan holatda yuboriladi.
       // App foregroundda bo'lsa socket yetkazadi — FCM yuborilsa ikki xil notification chiqadi.
       if (!delivered) {
+        console.log(`[CALL] ${target} offline — FCM yuboriladi`);
         sendFcmCallToUser(target, {
           callerName: callerUsername,
           isVideo: !!isVideo,
