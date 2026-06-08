@@ -109,6 +109,17 @@ extension _ConversationPaneView on _ConversationPaneState {
                       const SizedBox(height: 12),
                       Text(t('messages_load_error'),
                           style: const TextStyle(color: Colors.grey)),
+                      if (chat.messagesErrorDetail != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 8),
+                          child: Text(
+                            chat.messagesErrorDetail!,
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.redAccent),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       TextButton.icon(
                         onPressed: () =>

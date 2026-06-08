@@ -217,18 +217,22 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             } else {
-                val preferred = audioManager.availableCommunicationDevices.firstOrNull {
+                // BT SCO ni to'xtatamiz — aks holda earpiece'ga o'tish ishlamaydi
+                audioManager.stopBluetoothSco()
+                @Suppress("DEPRECATION")
+                audioManager.isBluetoothScoOn = false
+                audioManager.clearCommunicationDevice()
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn = false
+                // BT o'chgandan keyin earpiece/wired qurilma mavjud bo'lsa — belgilaymiz
+                val earpiece = audioManager.availableCommunicationDevices.firstOrNull {
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
                     it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
                 }
-                if (preferred != null) {
-                    audioManager.setCommunicationDevice(preferred)
-                } else {
-                    audioManager.clearCommunicationDevice()
-                    @Suppress("DEPRECATION")
-                    audioManager.isSpeakerphoneOn = false
+                if (earpiece != null) {
+                    audioManager.setCommunicationDevice(earpiece)
                 }
             }
         } else {
@@ -307,7 +311,13 @@ class MainActivity : FlutterActivity() {
         val hasBluetooth = outputs.any {
             it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-        } || audioManager.isBluetoothScoOn
+        } || audioManager.isBluetoothScoOn ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                audioManager.availableCommunicationDevices.any {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                })
 
         val hasHeadset = outputs.any {
             it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||

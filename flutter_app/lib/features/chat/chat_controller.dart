@@ -48,6 +48,7 @@ class ChatController extends ChangeNotifier {
   bool _loadingInbox = false;
   bool _loadingMessages = false;
   bool _messagesLoadFailed = false;
+  String? _messagesErrorDetail;
   bool _searching = false;
   String? _connectionLabel;
   bool _syncingSession = false;
@@ -60,6 +61,7 @@ class ChatController extends ChangeNotifier {
   bool get loadingInbox => _loadingInbox;
   bool get loadingMessages => _loadingMessages;
   bool get messagesLoadFailed => _messagesLoadFailed;
+  String? get messagesErrorDetail => _messagesErrorDetail;
   bool get searching => _searching;
   String? get connectionLabel => _connectionLabel;
   bool get isConnected => _socketService.isConnected;
@@ -160,6 +162,7 @@ class ChatController extends ChangeNotifier {
     _messages = hasCache ? cached : const [];
     _loadingMessages = !hasCache;
     _messagesLoadFailed = false;
+    _messagesErrorDetail = null;
     notifyListeners();
     try {
       final fetched = await _chatRepository.fetchMessages(
@@ -180,6 +183,7 @@ class ChatController extends ChangeNotifier {
       debugPrint('CHAT_DEBUG openChat() fetchMessages xatosi: $e');
       if (_activeChat?.username == item.username && _messages.isEmpty) {
         _messagesLoadFailed = true;
+        _messagesErrorDetail = e.toString();
       }
     } finally {
       if (_activeChat?.username == item.username) {
