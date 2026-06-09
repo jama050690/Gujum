@@ -108,7 +108,7 @@ router.get("/messages", async (req, res) => {
            JOIN ${USERS_TABLE} u ON m.sender_id = u.id
            WHERE m.chat_id = $1
            ORDER BY m.created_at DESC
-           LIMIT 300
+           LIMIT 80
          ) recent
          ORDER BY recent.created_at ASC`,
         [chatId],
