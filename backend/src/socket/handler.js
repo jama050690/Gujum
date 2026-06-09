@@ -184,6 +184,9 @@ function registerSocketHandlers(io) {
             if (session.caller !== username && session.status === "ringing" && session.offer) {
               syncPayload.offer = session.offer;
             }
+            if (session.caller === username && session.status === "connected" && session.answer) {
+              syncPayload.answer = session.answer;
+            }
             browser.emit("CALL_SESSION_SYNC", syncPayload);
           }
         }
@@ -258,8 +261,12 @@ function registerSocketHandlers(io) {
       if (session) {
         session.status = "connected";
         session.connectedAt = Date.now();
+        session.answer = answer;
       }
-      emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now() });
+      const delivered = emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now() });
+      if (!delivered) {
+        console.log(`[CALL] CALL_ANSWER: caller offline, answer buffered for callId=${callId}`);
+      }
     });
 
     browser.on("CALL_CONNECTED", (data) => {

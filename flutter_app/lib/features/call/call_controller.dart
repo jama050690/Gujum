@@ -683,6 +683,29 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           _connectedAt = DateTime.fromMillisecondsSinceEpoch(startedAt.toInt());
         }
         notifyListeners();
+        // PC yo'q va status ringing — qayta offer yuboramiz
+        if (status != 'connected' && _peerConnection == null) {
+          unawaited(_restartOutgoingOffer());
+        }
+        // Status connected va server answer saqlab qo'ygan — remote desc o'rnatamiz
+        if (status == 'connected' && data['answer'] != null) {
+          final answerMap =
+              Map<String, dynamic>.from(data['answer'] as Map? ?? {});
+          unawaited(() async {
+            final pc = _peerConnection;
+            if (pc == null) return;
+            try {
+              await pc.setRemoteDescription(RTCSessionDescription(
+                answerMap['sdp']?.toString() ?? '',
+                answerMap['type']?.toString() ?? 'answer',
+              ));
+              _startIceTimeout();
+              debugPrint('CALL_DEBUG CALL_SESSION_SYNC: remote desc set from buffered answer');
+            } catch (e) {
+              debugPrint('CALL_DEBUG CALL_SESSION_SYNC answer error=$e');
+            }
+          }());
+        }
         break;
       case 'CALL_CONNECTED':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -1150,6 +1173,45 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'isVideo': wasVideo,
         'duration': duration,
       });
+    }
+  }
+
+  // Socket reconnect dan keyin PC yo'q bo'lsa — yangi offer yuborib qo'ng'iroqni tiklaydi.
+  Future<void> _restartOutgoingOffer() async {
+    if (_callId == null || _targetUsername == null || _remotePeer == null) return;
+    debugPrint('CALL_DEBUG _restartOutgoingOffer() callId=$_callId target=$_targetUsername');
+    try {
+      await _closePeerResources();
+      await _requestMediaPermissions(video: _isVideo);
+      await _applyAudioRoute();
+      final mediaState = await _openPreferredLocalMedia(video: _isVideo);
+      _localStream = mediaState.stream;
+      _isVideo = mediaState.videoEnabled;
+      _isCameraOff = !_isVideo;
+      final pc = await _createPeerConnection();
+      for (final track in _localStream!.getTracks()) {
+        await pc.addTrack(track, _localStream!);
+      }
+      final offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      _peerConnection = pc;
+      _startRingingTimeout();
+      _socketService.emit('CALL_OFFER', {
+        'callId': _callId,
+        'target': _targetUsername,
+        'offer': {'sdp': offer.sdp, 'type': offer.type},
+        'isVideo': _isVideo,
+        'caller': {
+          'username': _authController.user?.username,
+          'fullName': _authController.user?.displayName,
+          'avatar': _authController.user?.avatar,
+        }
+      });
+      debugPrint('CALL_DEBUG _restartOutgoingOffer() re-emitted CALL_OFFER');
+      notifyListeners();
+    } catch (error) {
+      debugPrint('CALL_DEBUG _restartOutgoingOffer() error=$error');
+      await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
   }
 
