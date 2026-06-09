@@ -55,6 +55,7 @@ class _ConversationHeader extends StatelessWidget {
     this.trailing,
     this.compact = false,
     this.onAvatarTap,
+    this.onTitleTap,
   });
 
   final SettingsController settings;
@@ -68,6 +69,7 @@ class _ConversationHeader extends StatelessWidget {
   final Widget? trailing;
   final bool compact;
   final VoidCallback? onAvatarTap;
+  final VoidCallback? onTitleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -114,35 +116,39 @@ class _ConversationHeader extends StatelessWidget {
                 ),
               SizedBox(width: compact ? 8 : 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: (compact
-                              ? Theme.of(context).textTheme.titleSmall
-                              : Theme.of(context).textTheme.titleMedium)
-                          ?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (!compact) ...[
-                      const SizedBox(height: 2),
+                child: GestureDetector(
+                  onTap: onTitleTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        subtitle,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: settings.isDarkMode
-                                  ? Colors.white70
-                                  : Colors.black54,
-                            ),
+                        style: (compact
+                                ? Theme.of(context).textTheme.titleSmall
+                                : Theme.of(context).textTheme.titleMedium)
+                            ?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
+                      if (!compact) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: settings.isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black54,
+                              ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
               if (trailing != null) ...[

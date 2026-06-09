@@ -61,7 +61,25 @@ extension _ConversationPaneView on _ConversationPaneState {
               showBack: widget.showBack,
               onBack: widget.onBack,
               compact: compactHeight,
-              onAvatarTap: selectionMode ? null : () => _showContactProfile(context, activeChat),
+              onAvatarTap: selectionMode ? null : () {
+                final url = AppConfig.resolveMediaUrl(
+                    activeChat.avatar, widget.settings.baseUrl);
+                if (url.isEmpty) return;
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ImageViewerPage(
+                    imageUrl: url,
+                    heroTag: 'avatar_${activeChat.username}',
+                  ),
+                ));
+              },
+              onTitleTap: selectionMode ? null : () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ContactProfilePage(
+                  username: activeChat.username,
+                  displayName: activeChat.fullName,
+                  lastSeenStatus: headerSubtitle,
+                )),
+              ),
               trailing: compactHeight
                   ? null
                   : selectionMode

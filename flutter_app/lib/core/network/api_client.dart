@@ -22,10 +22,26 @@ class ApiClient {
     Map<String, String>? query,
     bool authenticated = false,
   }) async {
-    final request = http.Request('GET', _buildUri(path, query));
-    _applyHeaders(request.headers, authenticated: authenticated);
-    final response = await request.send();
-    return _decode(response);
+    for (int attempt = 0; attempt < 3; attempt++) {
+      try {
+        final request = http.Request('GET', _buildUri(path, query));
+        _applyHeaders(request.headers, authenticated: authenticated);
+        final response = await request.send();
+        return await _decode(response);
+      } on http.ClientException catch (e) {
+        final msg = e.message.toLowerCase();
+        final isRetryable = msg.contains('connection closed') ||
+            msg.contains('connection reset') ||
+            msg.contains('connection timed out') ||
+            msg.contains('software caused connection abort');
+        if (attempt < 2 && isRetryable) {
+          await Future.delayed(Duration(seconds: attempt + 1));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw http.ClientException('Ulanish muvaffaqiyatsiz');
   }
 
   Future<dynamic> postJson(
