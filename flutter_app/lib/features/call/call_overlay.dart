@@ -74,19 +74,13 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     final ctrl = _controller;
     if (ctrl == null || !mounted) return;
     _dismissKeyboard();
-    // Navigator bor contextni saqlaymiz — OverlayEntry ichida Navigator yo'q,
-    // shuning uchun showModalBottomSheet ishlashi uchun tashqaridan uzatamiz.
-    final hostContext = context;
     _callOverlayEntry = OverlayEntry(
       builder: (ctx) {
         if (ctrl.hasIncomingCall) {
           return _IncomingCallSheet(callController: ctrl);
         }
         if (ctrl.hasSession) {
-          return _ActiveCallSheet(
-            callController: ctrl,
-            hostContext: hostContext,
-          );
+          return _ActiveCallSheet(callController: ctrl);
         }
         return const SizedBox.shrink();
       },
@@ -175,12 +169,8 @@ class _IncomingCallSheet extends StatelessWidget {
 }
 
 class _ActiveCallSheet extends StatefulWidget {
-  const _ActiveCallSheet({
-    required this.callController,
-    required this.hostContext,
-  });
+  const _ActiveCallSheet({required this.callController});
   final CallController callController;
-  final BuildContext hostContext;
   @override
   State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
 }
@@ -366,7 +356,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
           right: 20,
           child: SafeArea(
             top: false,
-            child: _ControlsDock(ctrl: ctrl, hostContext: widget.hostContext),
+            child: _ControlsDock(ctrl: ctrl),
           ),
         ),
       ]),
@@ -698,16 +688,15 @@ class _LocalPreviewCard extends StatelessWidget {
 }
 
 class _ControlsDock extends StatelessWidget {
-  const _ControlsDock({required this.ctrl, required this.hostContext});
+  const _ControlsDock({required this.ctrl});
 
   final CallController ctrl;
-  final BuildContext hostContext;
 
   @override
   Widget build(BuildContext context) {
     final canToggleCamera = ctrl.canToggleCamera;
     final List<Widget> actions = <Widget>[
-      _SpeakerButton(ctrl: ctrl, hostContext: hostContext),
+      _SpeakerButton(ctrl: ctrl),
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
         backgroundColor: Colors.transparent,
@@ -765,9 +754,8 @@ class _ControlsDock extends StatelessWidget {
 }
 
 class _SpeakerButton extends StatefulWidget {
-  const _SpeakerButton({required this.ctrl, required this.hostContext});
+  const _SpeakerButton({required this.ctrl});
   final CallController ctrl;
-  final BuildContext hostContext;
 
   @override
   State<_SpeakerButton> createState() => _SpeakerButtonState();
@@ -776,15 +764,22 @@ class _SpeakerButton extends StatefulWidget {
 class _SpeakerButtonState extends State<_SpeakerButton> {
   int _tapCount = 0;
   Timer? _tapTimer;
+  OverlayEntry? _optionsEntry;
+  final _btnKey = GlobalKey();
   static const _doubleTapWindow = Duration(milliseconds: 300);
 
   @override
   void dispose() {
     _tapTimer?.cancel();
+    _dismissOptions();
     super.dispose();
   }
 
   void _onTap() {
+    if (_optionsEntry != null) {
+      _dismissOptions();
+      return;
+    }
     _tapCount++;
     if (_tapCount == 1) {
       _tapTimer = Timer(_doubleTapWindow, () {
@@ -796,7 +791,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
     } else {
       _tapTimer?.cancel();
       _tapCount = 0;
-      _showSheet();
+      _showOptions();
     }
   }
 
@@ -815,65 +810,89 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
     }
   }
 
-  void _showSheet() {
+  void _showOptions() {
+    final box = _btnKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(Offset.zero);
+    final screenH = MediaQuery.sizeOf(_btnKey.currentContext!).height;
     final ctrl = widget.ctrl;
-    showModalBottomSheet(
-      context: widget.hostContext,
-      useRootNavigator: true,
-      backgroundColor: const Color(0xFF1E2230),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
+
+    _optionsEntry = OverlayEntry(
+      builder: (ctx) => Stack(
+        children: [
+          // Dismiss barrier — tashqarini bosib yopish
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _dismissOptions,
+              behavior: HitTestBehavior.opaque,
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+          ),
+          // Popup: button tepasida joylashadi
+          Positioned(
+            left: (pos.dx - 56).clamp(8.0, double.infinity),
+            bottom: screenH - pos.dy + 12,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
+                  color: const Color(0xFF1E2230),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(80),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _AudioRouteOption(
-                    icon: Icons.volume_off_rounded,
-                    selected: ctrl.audioRoute == CallAudioRoute.earpiece,
-                    onTap: () {
-                      Navigator.of(sheetCtx, rootNavigator: true).pop();
-                      ctrl.setAudioRoute(CallAudioRoute.earpiece);
-                    },
-                  ),
-                  _AudioRouteOption(
-                    icon: Icons.volume_up_rounded,
-                    selected: ctrl.audioRoute == CallAudioRoute.speaker,
-                    onTap: () {
-                      Navigator.of(sheetCtx, rootNavigator: true).pop();
-                      ctrl.setAudioRoute(CallAudioRoute.speaker);
-                    },
-                  ),
-                  if (ctrl.hasBluetoothAudio)
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     _AudioRouteOption(
-                      icon: Icons.bluetooth_audio_rounded,
-                      selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
+                      icon: Icons.volume_off_rounded,
+                      selected: ctrl.audioRoute == CallAudioRoute.earpiece,
                       onTap: () {
-                        Navigator.of(sheetCtx, rootNavigator: true).pop();
-                        ctrl.setAudioRoute(CallAudioRoute.bluetooth);
+                        _dismissOptions();
+                        ctrl.setAudioRoute(CallAudioRoute.earpiece);
                       },
                     ),
-                ],
+                    const SizedBox(width: 8),
+                    _AudioRouteOption(
+                      icon: Icons.volume_up_rounded,
+                      selected: ctrl.audioRoute == CallAudioRoute.speaker,
+                      onTap: () {
+                        _dismissOptions();
+                        ctrl.setAudioRoute(CallAudioRoute.speaker);
+                      },
+                    ),
+                    if (ctrl.hasBluetoothAudio) ...[
+                      const SizedBox(width: 8),
+                      _AudioRouteOption(
+                        icon: Icons.bluetooth_audio_rounded,
+                        selected: ctrl.audioRoute == CallAudioRoute.bluetooth,
+                        onTap: () {
+                          _dismissOptions();
+                          ctrl.setAudioRoute(CallAudioRoute.bluetooth);
+                        },
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+
+    Overlay.of(_btnKey.currentContext!, rootOverlay: true).insert(_optionsEntry!);
+  }
+
+  void _dismissOptions() {
+    _optionsEntry?.remove();
+    _optionsEntry = null;
   }
 
   IconData _iconFor(CallController ctrl) {
@@ -888,6 +907,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
     return GestureDetector(
       onTap: _onTap,
       child: Container(
+        key: _btnKey,
         width: 58,
         height: 58,
         decoration: BoxDecoration(
