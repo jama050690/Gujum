@@ -51,6 +51,7 @@ part 'chat_page_parts/conversation_pane_recording.dart';
 part 'chat_page_parts/conversation_pane_media_helpers.dart';
 part 'chat_page_parts/conversation_pane_header_actions.dart';
 part 'chat_page_parts/conversation_pane_view.dart';
+part 'chat_page_parts/conversation_pane_widgets.dart';
 part 'chat_page_parts/conversation_pane_message_bubble.dart';
 part 'chat_page_parts/conversation_pane_composer.dart';
 part 'chat_page_parts/conversation_parsers.dart';
@@ -195,6 +196,7 @@ class _ConversationPaneState extends State<_ConversationPane>
   bool _isRecordingVoice = false;
   int _recordingSeconds = 0;
   bool _stickToBottom = true;
+  bool _showScrollToBottom = false;
   bool _scrollAfterNextMessage = false;
   bool _scrollWhenLoadCompletes = false;
   int _lastMessageCount = 0;
@@ -313,11 +315,11 @@ class _ConversationPaneState extends State<_ConversationPane>
   }
 
   void _handleScrollChanged() {
-    if (!_messagesScrollController.hasClients) {
-      return;
-    }
-    // reverse: true bilan pixels=0 pastki qism (yangi xabarlar)
-    _stickToBottom = _messagesScrollController.position.pixels <= 80;
+    if (!_messagesScrollController.hasClients) return;
+    final px = _messagesScrollController.position.pixels;
+    _stickToBottom = px <= 80;
+    final show = px > 200;
+    if (show != _showScrollToBottom) setState(() => _showScrollToBottom = show);
   }
 
   @override

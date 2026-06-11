@@ -406,9 +406,18 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       final videoTrack = videoStream.getVideoTracks().first;
       await stream.addTrack(videoTrack);
       await pc.addTrack(videoTrack, stream);
+      // flutter_webrtc does not always promote recvonly/inactive → sendrecv
+      // when addTrack is called; force SendRecv so the offer includes our video.
+      for (final tr in await pc.getTransceivers()) {
+        if (tr.sender.track?.kind == 'video') {
+          await tr.setDirection(TransceiverDirection.SendRecv);
+          break;
+        }
+      }
 
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      debugPrint('CALL_DEBUG RENEGOTIATE OFFER SDP:\n${offer.sdp}');
 
       _socketService.emit('CALL_RENEGOTIATE', {
         'callId': _callId,
@@ -748,9 +757,20 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               if (_localStream != null) {
                 await _localStream!.addTrack(videoTrack);
                 await pc.addTrack(videoTrack, _localStream!);
+                // Force video transceiver to SendRecv so callee also sends video.
+                for (final tr in await pc.getTransceivers()) {
+                  if (tr.sender.track?.kind == 'video') {
+                    await tr.setDirection(TransceiverDirection.SendRecv);
+                    break;
+                  }
+                }
               }
             }
-            final reAnswer = await pc.createAnswer();
+            final rawAnswer = await pc.createAnswer();
+            // flutter_webrtc may produce a=recvonly for video — fix it.
+            final fixedSdp = (rawAnswer.sdp ?? '')
+                .replaceAll('a=recvonly', 'a=sendrecv');
+            final reAnswer = RTCSessionDescription(fixedSdp, rawAnswer.type);
             await pc.setLocalDescription(reAnswer);
             _socketService.emit('CALL_RENEGOTIATE_ANSWER', {
               'callId': _callId,
