@@ -246,18 +246,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await _requestMediaPermissions(video: incoming.isVideo);
 
-      // Audio rejimini setConnected DAN OLDIN o'rnatamiz.
-      // Shunda CallKit audio o'tkazganda WebRTC audio mode allaqachon tayyor.
-      await _applyAudioRoute();
-      // Callkit ga qo'ng'iroq ulanganligi aytiladi — ringtone to'xtaydi.
-      await CallKitService.setConnected(incoming.callId);
-      // Android Telecom audio tranzitsiyasi to'liq tugashini kutamiz.
-      // 1000ms — Telecom connection.setActive() audio routing ni qayta o'rnatadiganligi uchun.
-      await Future.delayed(const Duration(milliseconds: 1000));
-      // CallKit audio sessiyasini ilovaga topshirgandan keyin route qayta o'rnatiladi.
-      await _applyAudioRoute();
-
-      // PC ni avval yaratamiz — ICE candidate hodisalari darhol ro'yxatdan o'tadi
+      // PC ni darhol yaratamiz — ICE candidate hodisalari ro'yxatdan o'tadi.
+      // setConnected/Telecom CALL_ANSWER dan KEYIN chaqiriladi: Telecom audio
+      // tranzitsiyasi socket'ni qisqa uzishi mumkin, bu ICE kandidat yo'qolishiga
+      // olib keladi. CALL_ANSWER avval yuborilsa bu muammo bo'lmaydi.
       final pc = await _createPeerConnection();
 
       // Remote description darhol o'rnatamiz — kamera ochilishini kutmaymiz
@@ -305,6 +297,15 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await pc.setLocalDescription(answer);
       _startIceTimeout();
       debugPrint('CALL_DEBUG ANSWER SDP (fixed):\n${answer.sdp}');
+
+      // Audio route ni Telecom handoff dan oldin o'rnatamiz.
+      await _applyAudioRoute();
+      // Callkit ga qo'ng'iroq ulanganligi aytiladi — ringtone to'xtaydi.
+      await CallKitService.setConnected(incoming.callId);
+      // Android Telecom audio tranzitsiyasi tugashini kutamiz.
+      // CALL_ANSWER dan KEYIN — Telecom socket'ni qisqa uzsa ham ICE allaqachon ishlayapti.
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _applyAudioRoute();
 
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,

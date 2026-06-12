@@ -26,19 +26,14 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // notification + data: tizim o'zi notificationni ko'rsatadi (battery-optimized qurilmalar uchun)
-    // onBackgroundMessage ham ishlaydi va CallKit UI ni almashtiradi
+    // Data-only xabar: Firebase SDK avtomatik notification ko'rsatmaydi.
+    // onBackgroundMessage ishga tushadi va CallKit custom notification ko'rsatadi.
+    // notification maydoni bo'lsa — Firebase ham, CallKit ham ko'rsatadi (dublicate!).
     await messaging.send({
       token,
       android: {
         priority: 'high',
-        ttl: 60000, // 60 soniya — call eskirgandan so'ng yubormang
-        notification: {
-          channelId: 'incoming_calls',
-          title: String(callerName),
-          body: isVideo ? "Video qo'ng'iroq..." : "Ovozli qo'ng'iroq...",
-          visibility: 'public',
-        },
+        ttl: 60000,
       },
       data: {
         type: 'incoming_call',
