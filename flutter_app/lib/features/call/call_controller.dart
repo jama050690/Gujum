@@ -1091,22 +1091,31 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
+    // Save the user's intent before the native call may return stale state.
+    final requestedSpeaker = _isSpeakerOn;
     try {
       final result = await _audioChannel.invokeMapMethod<String, dynamic>(
         'activateCallAudio',
         {
-          'speakerOn': _isSpeakerOn,
+          'speakerOn': requestedSpeaker,
         },
       );
       debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');
       _syncAudioRouteInfo(result);
+      // _syncAudioRouteInfo may override _isSpeakerOn with a stale native value.
+      // Restore the user's requested state unless bluetooth/headset took over.
+      if (_audioRoute != CallAudioRoute.bluetooth &&
+          _audioRoute != CallAudioRoute.headset) {
+        _isSpeakerOn = requestedSpeaker;
+        _audioRoute =
+            requestedSpeaker ? CallAudioRoute.speaker : CallAudioRoute.earpiece;
+      }
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    // WebRTC o'z audio engine'ini isSpeakerphoneOn orqali sozlaydi —
-    // native activateCallAudio dan KEYIN chaqiramiz, ustunlik native'da.
+    // WebRTC audio engine uses setSpeakerphoneOn — call after native to not be overridden.
     try {
-      await Helper.setSpeakerphoneOn(_isSpeakerOn);
+      await Helper.setSpeakerphoneOn(requestedSpeaker);
     } catch (_) {}
   }
 
