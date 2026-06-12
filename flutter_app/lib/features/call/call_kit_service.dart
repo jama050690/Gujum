@@ -50,8 +50,8 @@ class CallKitService {
         type: isVideo ? 1 : 0,
         duration: 30000,
         android: AndroidParams(
-          isCustomNotification: false,
-          isFullScreen: true,
+          isCustomNotification: true,
+          isFullScreen: false,
           isShowFullLockedScreen: true,
           ringtonePath: 'system_ringtone_default',
           backgroundColor: '#0C111A',
