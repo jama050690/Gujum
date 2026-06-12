@@ -26,14 +26,20 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // Data-only xabar: Firebase SDK avtomatik notification ko'rsatmaydi.
-    // onBackgroundMessage ishga tushadi va CallKit custom notification ko'rsatadi.
-    // notification maydoni bo'lsa — Firebase ham, CallKit ham ko'rsatadi (dublicate!).
+    // notification maydoni: Android OS app o'chirilganda ham kafolatli uyg'otadi.
+    // 'fcm_silent' kanal Importance.min — foydalanuvchiga ko'rinmaydigan jim notification.
+    // onBackgroundMessage ishga tushadi va CallKit asosiy notification ko'rsatadi.
     await messaging.send({
       token,
       android: {
         priority: 'high',
         ttl: 60000,
+        notification: {
+          channelId: 'fcm_silent',
+          title: ' ',
+          body: ' ',
+          visibility: 'secret',
+        },
       },
       data: {
         type: 'incoming_call',

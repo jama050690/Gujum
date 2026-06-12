@@ -66,20 +66,34 @@ class FcmService {
       ),
     );
 
-    // Android notification channel yaratish
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'incoming_calls',
-            'Incoming Calls',
-            description: "Qo'ng'iroqlar uchun bildirishnomalar",
-            importance: Importance.max,
-            playSound: false,
-            enableVibration: true,
-          ),
-        );
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    // Asosiy kanal — CallKit shu kanaldan notification ko'rsatadi
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'incoming_calls',
+        'Incoming Calls',
+        description: "Qo'ng'iroqlar uchun bildirishnomalar",
+        importance: Importance.max,
+        playSound: false,
+        enableVibration: true,
+      ),
+    );
+
+    // Jim kanal — FCM notification maydoni uchun (foydalanuvchiga ko'rinmaydi)
+    // Android OS shu kanal orqali app'ni kafolatli uyg'otadi
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'fcm_silent',
+        'FCM Delivery',
+        description: 'FCM yetkazib berish kanali',
+        importance: Importance.min,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      ),
+    );
 
     await FirebaseMessaging.instance.requestPermission(
       alert: true,
