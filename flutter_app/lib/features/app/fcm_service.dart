@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
@@ -66,35 +67,24 @@ class FcmService {
       ),
     );
 
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-
     // Asosiy kanal — CallKit shu kanaldan notification ko'rsatadi
-    await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'incoming_calls',
-        'Incoming Calls',
-        description: "Qo'ng'iroqlar uchun bildirishnomalar",
-        importance: Importance.max,
-        playSound: false,
-        enableVibration: true,
-      ),
-    );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'incoming_calls',
+            'Incoming Calls',
+            description: "Qo'ng'iroqlar uchun bildirishnomalar",
+            importance: Importance.max,
+            playSound: false,
+            enableVibration: true,
+          ),
+        );
 
-    // Jim kanal — FCM notification maydoni uchun (butunlay ko'rinmaydi)
-    // Importance.none: Android OS notification'ni yaratadi lekin ko'rsatmaydi
-    // onBackgroundMessage baribir ishlaydi — shu kanal orqali app uyg'otiladi
-    await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'fcm_silent',
-        'FCM Delivery',
-        description: 'FCM yetkazib berish kanali',
-        importance: Importance.none,
-        playSound: false,
-        enableVibration: false,
-        showBadge: false,
-      ),
-    );
+    // Battery optimization o'chirilmasa data-only FCM killed app'ga yetmaydi.
+    // Qurilma shu dialogni bir marta ko'rsatadi — foydalanuvchi "Allow" bosadi.
+    _requestBatteryExemption();
 
     await FirebaseMessaging.instance.requestPermission(
       alert: true,
@@ -152,6 +142,12 @@ class FcmService {
     } catch (e) {
       debugPrint('[FCM] unregister error: $e');
     }
+  }
+
+  static const _audioChannel = MethodChannel('bootchat/call_audio');
+
+  void _requestBatteryExemption() {
+    _audioChannel.invokeMethod<void>('requestBatteryExemption').catchError((_) {});
   }
 
   Future<void> _saveToken(String token) async {

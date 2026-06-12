@@ -26,20 +26,15 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // notification maydoni: Android OS app o'chirilganda ham kafolatli uyg'otadi.
-    // 'fcm_silent' kanal Importance.min — foydalanuvchiga ko'rinmaydigan jim notification.
-    // onBackgroundMessage ishga tushadi va CallKit asosiy notification ko'rsatadi.
+    // Data-only xabar: onBackgroundMessage killed app uchun ham ishlaydi.
+    // notification maydoni bo'lsa — Android onBackgroundMessage'ni CHAQIRMAYDI
+    // (notification'ni o'zi ko'rsatadi). Shuning uchun data-only ishlatamiz.
+    // Qurilmada battery optimization o'chirilgan bo'lsa kafolatli yetkaziladi.
     await messaging.send({
       token,
       android: {
         priority: 'high',
         ttl: 60000,
-        notification: {
-          channelId: 'fcm_silent',
-          title: ' ',
-          body: ' ',
-          visibility: 'secret',
-        },
       },
       data: {
         type: 'incoming_call',
