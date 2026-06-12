@@ -81,14 +81,15 @@ class FcmService {
       ),
     );
 
-    // Jim kanal — FCM notification maydoni uchun (foydalanuvchiga ko'rinmaydi)
-    // Android OS shu kanal orqali app'ni kafolatli uyg'otadi
+    // Jim kanal — FCM notification maydoni uchun (butunlay ko'rinmaydi)
+    // Importance.none: Android OS notification'ni yaratadi lekin ko'rsatmaydi
+    // onBackgroundMessage baribir ishlaydi — shu kanal orqali app uyg'otiladi
     await androidPlugin?.createNotificationChannel(
       const AndroidNotificationChannel(
         'fcm_silent',
         'FCM Delivery',
         description: 'FCM yetkazib berish kanali',
-        importance: Importance.min,
+        importance: Importance.none,
         playSound: false,
         enableVibration: false,
         showBadge: false,
