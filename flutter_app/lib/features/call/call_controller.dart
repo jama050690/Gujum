@@ -301,15 +301,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _startIceTimeout();
       debugPrint('CALL_DEBUG ANSWER SDP (fixed):\n${answer.sdp}');
 
-      // Audio route ni Telecom handoff dan oldin o'rnatamiz.
-      await _applyAudioRoute();
-      // Callkit ga qo'ng'iroq ulanganligi aytiladi — ringtone to'xtaydi.
-      await CallKitService.setConnected(incoming.callId);
-      // Android Telecom audio tranzitsiyasi tugashini kutamiz.
-      // CALL_ANSWER dan KEYIN — Telecom socket'ni qisqa uzsa ham ICE allaqachon ishlayapti.
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _applyAudioRoute();
-
+      // CALL_ANSWER ni Telecom handoff DAN OLDIN yuboramiz.
+      // setConnected() → Telecom audio tranzitsiyasi → socket qisqa uzilishi mumkin.
+      // Agar CALL_ANSWER o'sha paytda yuborilmagan bo'lsa, server call'ni hali
+      // "ringing" deb biladi va socket qayta ulanganda CALL_OFFER yana jo'natadi
+      // (cheksiz qo'ng'iroq davri). CALL_ANSWER avval yetkazilsa bu muammo yo'qoladi.
       _socketService.emit('CALL_ANSWER', {
         'callId': _callId,
         'target': _targetUsername,
@@ -322,6 +318,12 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       });
       notifyListeners();
       debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
+
+      // Telecom audio handoff
+      await _applyAudioRoute();
+      await CallKitService.setConnected(incoming.callId);
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _applyAudioRoute();
     } on CallSetupException catch (error) {
       debugPrint(
         'CALL_DEBUG acceptIncomingCall() setup error=${error.errorKey}',
@@ -688,7 +690,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         _remotePeer = peer;
         _callId = data['callId']?.toString();
         _targetUsername = peer.username;
-        _isVideo = data['isVideo'] == true;
+        // Server video upgrade ni bilmaydi — _isVideo ni false ga qaytarmaymiz.
+        // Agar server true desa qabul qilamiz; false desa mavjud holatni saqlaymiz.
+        if (data['isVideo'] == true) _isVideo = true;
         _state = status == 'connected'
             ? CallSessionState.connected
             : CallSessionState.connecting;

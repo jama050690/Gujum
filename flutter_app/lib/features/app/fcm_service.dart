@@ -34,7 +34,7 @@ Future<void> onBackgroundMessage(RemoteMessage message) async {
       duration: 30000,
       android: AndroidParams(
         isCustomNotification: true,
-        isFullScreen: false,
+        isFullScreen: true,
         isShowFullLockedScreen: true,
         ringtonePath: 'system_ringtone_default',
         backgroundColor: '#0C111A',
