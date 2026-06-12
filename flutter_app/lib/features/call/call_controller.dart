@@ -787,6 +787,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               'answer': {'sdp': reAnswer.sdp, 'type': reAnswer.type},
             });
             if (reIsVideo && !_isVideo) {
+              await _rebuildRemoteStream();
               _isVideo = true;
               _isCameraOff = false;
               notifyListeners();
@@ -810,6 +811,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         unawaited(() async {
           try {
             await _peerConnection?.setRemoteDescription(answer);
+            await _rebuildRemoteStream();
             _isVideo = true;
             _isCameraOff = false;
             _isUpgradingToVideo = false;
@@ -1161,6 +1163,33 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
       }
     });
+  }
+
+  // onTrack Android'da renegotiation paytida ishlamasligi mumkin.
+  // Transceiver receiver'dan video trackni topib _remoteStream'ni yangilaymiz.
+  Future<void> _rebuildRemoteStream() async {
+    final pc = _peerConnection;
+    if (pc == null) return;
+    try {
+      final transceivers = await pc.getTransceivers();
+      for (final t in transceivers) {
+        final track = t.receiver.track;
+        if (track?.kind != 'video') continue;
+        // onTrack allaqachon video qo'shgan bo'lsa — faqat renderer'ni yangilaymiz
+        if (_remoteStream?.getVideoTracks().isNotEmpty == true) {
+          _remoteStreamVersion++;
+          return;
+        }
+        // Yangi stream yaratib video trackni qo'shamiz
+        final stream = await createLocalMediaStream('remote_video');
+        await stream.addTrack(track!);
+        _remoteStream = stream;
+        _remoteStreamVersion++;
+        return;
+      }
+    } catch (e) {
+      debugPrint('CALL_DEBUG _rebuildRemoteStream error=$e');
+    }
   }
 
   Future<void> _closePeerResources() async {
