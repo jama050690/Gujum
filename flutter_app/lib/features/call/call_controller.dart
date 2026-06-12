@@ -105,6 +105,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
+  MediaStream? _upgradeVideoStream;
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
   Timer? _iceConnectTimeout;
   Timer? _ringingTimeout;
@@ -130,6 +131,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   String? _errorKey;
   int _errorVersion = 0;
   int _remoteStreamVersion = 0;
+  int _localStreamVersion = 0;
 
   CallSessionState? get state => _state;
   CallPeer? get remotePeer => _remotePeer;
@@ -150,6 +152,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   bool get hasIncomingCall => _incomingCall != null;
   DateTime? get connectedAt => _connectedAt;
   int get remoteStreamVersion => _remoteStreamVersion;
+  int get localStreamVersion => _localStreamVersion;
   bool get canToggleCamera =>
       _state == CallSessionState.connected &&
       (_peerConnection != null) &&
@@ -400,13 +403,16 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         return;
       }
 
-      final videoStream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
+      // Eski upgrade stream ni tozalash (qayta urinish holatida)
+      _upgradeVideoStream?.getVideoTracks().forEach((t) => t.stop());
+      _upgradeVideoStream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
         'audio': false,
         'video': <String, dynamic>{'facingMode': 'user'},
       });
-      final videoTrack = videoStream.getVideoTracks().first;
+      final videoTrack = _upgradeVideoStream!.getVideoTracks().first;
       await stream.addTrack(videoTrack);
       await pc.addTrack(videoTrack, stream);
+      _localStreamVersion++;
       // flutter_webrtc does not always promote recvonly/inactive → sendrecv
       // when addTrack is called; force SendRecv so the offer includes our video.
       for (final tr in await pc.getTransceivers()) {
@@ -749,15 +755,17 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               reOfferMap['type']?.toString() ?? 'offer',
             ));
             if (reIsVideo && !_isVideo) {
-              final videoStream = await navigator.mediaDevices
+              _upgradeVideoStream?.getVideoTracks().forEach((t) => t.stop());
+              _upgradeVideoStream = await navigator.mediaDevices
                   .getUserMedia(<String, dynamic>{
                 'audio': false,
                 'video': <String, dynamic>{'facingMode': 'user'},
               });
-              final videoTrack = videoStream.getVideoTracks().first;
+              final videoTrack = _upgradeVideoStream!.getVideoTracks().first;
               if (_localStream != null) {
                 await _localStream!.addTrack(videoTrack);
                 await pc.addTrack(videoTrack, _localStream!);
+                _localStreamVersion++;
                 // Force video transceiver to SendRecv so callee also sends video.
                 for (final tr in await pc.getTransceivers()) {
                   if (tr.sender.track?.kind == 'video') {
@@ -1162,6 +1170,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
       track.stop();
     }
+    for (final track in _upgradeVideoStream?.getTracks() ?? <MediaStreamTrack>[]) {
+      track.stop();
+    }
+    _upgradeVideoStream = null;
     _peerConnection = null;
     _localStream = null;
     _remoteStream = null;

@@ -183,6 +183,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   bool _audioInitialized = false;
   bool _lastIsVideo = false;
   int _lastRemoteStreamVersion = 0;
+  int _lastLocalStreamVersion = 0;
 
   @override
   void initState() {
@@ -216,7 +217,15 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
 
   void _sync() {
     if (!_ready) return;
-    _local.srcObject = widget.callController.localStream;
+    final localVersion = widget.callController.localStreamVersion;
+    final localVersionChanged = localVersion != _lastLocalStreamVersion;
+    if (localVersionChanged) {
+      _lastLocalStreamVersion = localVersion;
+      _local.srcObject = null;
+      _local.srcObject = widget.callController.localStream;
+    } else {
+      _local.srcObject = widget.callController.localStream;
+    }
     final remote = widget.callController.remoteStream;
     final isConnected =
         widget.callController.state == CallSessionState.connected;
