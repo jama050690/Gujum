@@ -26,15 +26,21 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // Data-only xabar: onBackgroundMessage killed app uchun ham ishlaydi.
-    // notification maydoni bo'lsa — Android onBackgroundMessage'ni CHAQIRMAYDI
-    // (notification'ni o'zi ko'rsatadi). Shuning uchun data-only ishlatamiz.
-    // Qurilmada battery optimization o'chirilgan bo'lsa kafolatli yetkaziladi.
+    // notification maydoni: Android har doim ko'rsatadi (battery optimization muhim emas).
+    // User tap qilganda app ochiladi, getInitialMessage/onMessageOpenedApp orqali
+    // setPendingAutoAccept chaqiriladi va CALL_OFFER kelganda avtomatik qabul qilinadi.
     await messaging.send({
       token,
       android: {
         priority: 'high',
         ttl: 60000,
+        notification: {
+          title: callerName,
+          body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+          channelId: 'incoming_calls',
+          sound: 'default',
+          color: '#4D82E3',
+        },
       },
       data: {
         type: 'incoming_call',

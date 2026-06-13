@@ -103,12 +103,6 @@ class FcmService {
       await FlutterCallkitIncoming.requestFullIntentPermission();
     } catch (_) {}
 
-    // App notification orqali ochilganda
-    FirebaseMessaging.instance.getInitialMessage().then((message) {
-      if (message?.data['type'] == 'incoming_call') {
-        debugPrint('[FCM] App callkit notificationdan ochildi: ${message?.data}');
-      }
-    });
   }
 
   Future<void> register({

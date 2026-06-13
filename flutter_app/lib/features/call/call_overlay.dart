@@ -124,46 +124,208 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   }
 }
 
-class _IncomingCallSheet extends StatelessWidget {
+String _initials(String value) {
+  final parts = value.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).take(2).toList();
+  if (parts.isEmpty) return '?';
+  return parts.map((s) => s.substring(0, 1).toUpperCase()).join();
+}
+
+class _IncomingCallSheet extends StatefulWidget {
   const _IncomingCallSheet({required this.callController});
   final CallController callController;
   @override
+  State<_IncomingCallSheet> createState() => _IncomingCallSheetState();
+}
+
+class _IncomingCallSheetState extends State<_IncomingCallSheet>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final incoming = callController.incomingCall!;
+    final incoming = widget.callController.incomingCall!;
     final settings = context.watch<SettingsController>();
-    final avatar =
-        AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
-    return ColoredBox(
-      color: Colors.black.withAlpha(200),
-      child: Center(
+    final avatar = AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
+    final initials = _initials(incoming.caller.displayName);
+    final typeLabel = incoming.isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq";
+
+    return Material(
+      color: Colors.transparent,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF182644), Color(0xFF0D1B2E), Color(0xFF060D18)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 52),
+              Text(
+                typeLabel,
+                style: const TextStyle(
+                  color: Color(0xFF7EB6FF),
+                  fontSize: 17,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const Spacer(),
+              _PulsingAvatar(animation: _pulse, avatarUrl: avatar, initials: initials),
+              const SizedBox(height: 28),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  incoming.caller.displayName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _CallActionButton(
+                    icon: Icons.call_end_rounded,
+                    color: const Color(0xFFE53935),
+                    label: 'Rad etish',
+                    onPressed: () => widget.callController.rejectIncomingCall(),
+                  ),
+                  _CallActionButton(
+                    icon: incoming.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                    color: const Color(0xFF43A047),
+                    label: 'Qabul qilish',
+                    onPressed: () => unawaited(widget.callController.acceptIncomingCall()),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 56),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PulsingAvatar extends StatelessWidget {
+  const _PulsingAvatar({
+    required this.animation,
+    required this.avatarUrl,
+    required this.initials,
+  });
+  final Animation<double> animation;
+  final String avatarUrl;
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(animation.value);
+        return SizedBox(
+          width: 220,
+          height: 220,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: (1 - t) * 0.25,
+                child: Container(
+                  width: 200 + t * 18,
+                  height: 200 + t * 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF4A90E2), width: 1.5),
+                  ),
+                ),
+              ),
+              Opacity(
+                opacity: (1 - t) * 0.45,
+                child: Container(
+                  width: 168 + t * 14,
+                  height: 168 + t * 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF4A90E2), width: 2),
+                  ),
+                ),
+              ),
+              CircleAvatar(
+                radius: 72,
+                backgroundColor: const Color(0xFF2D5FCC).withAlpha(120),
+                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl.isEmpty
+                    ? Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 52,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CallActionButton extends StatelessWidget {
+  const _CallActionButton({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onPressed,
+  });
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onPressed,
           child: Container(
-        width: 320,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-            color: settings.isDarkMode ? const Color(0xFF1C2733) : Colors.white,
-            borderRadius: BorderRadius.circular(32)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          CircleAvatar(
-              radius: 48,
-              backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null),
-          const SizedBox(height: 20),
-          Text(incoming.caller.displayName,
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 32),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _RoundActionButton(
-                icon: Icons.call_end,
-                backgroundColor: Colors.red,
-                onPressed: () => callController.rejectIncomingCall()),
-            _RoundActionButton(
-                icon: incoming.isVideo ? Icons.videocam : Icons.call,
-                backgroundColor: Colors.green,
-                onPressed: () =>
-                    unawaited(callController.acceptIncomingCall())),
-          ]),
-        ]),
-      )),
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 34),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(label, style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 14)),
+      ],
     );
   }
 }
@@ -378,7 +540,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     required String avatarUrl,
     required CallController ctrl,
   }) {
-    final initials = _initialsFor(titleText);
+    final initials = _initials(titleText);
     return SafeArea(
       child: Column(
         children: [
@@ -445,18 +607,6 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     return '$minutes:$seconds';
   }
 
-  String _initialsFor(String value) {
-    final parts = value
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((item) => item.isNotEmpty)
-        .take(2)
-        .toList(growable: false);
-    if (parts.isEmpty) {
-      return '?';
-    }
-    return parts.map((item) => item.substring(0, 1).toUpperCase()).join();
-  }
 }
 
 class _ConnectingDots extends StatefulWidget {
