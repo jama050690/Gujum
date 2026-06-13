@@ -26,14 +26,21 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // Data-only (notification field yo'q): onBackgroundMessage ishga tushadi →
-    // showCallkitIncoming() → to'liq ekranli qabul/rad etish UI.
-    // Qurilmada Gujum uchun battery optimization "Unrestricted" bo'lishi shart.
+    // notification field: Android kafolat bilan ko'rsatadi (battery optimization muhim emas).
+    // User notification bosadi → getInitialMessage() → setPendingAutoAccept → CALL_OFFER kelganda qabul.
     await messaging.send({
       token,
       android: {
         priority: 'high',
         ttl: 60000,
+        notification: {
+          title: callerName,
+          body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+          channelId: 'incoming_calls',
+          sound: 'default',
+          color: '#4D82E3',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+        },
       },
       data: {
         type: 'incoming_call',
