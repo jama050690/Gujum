@@ -26,13 +26,20 @@ if (existsSync(KEY_PATH)) {
 export async function sendCallFcm(token, { callerName, isVideo, callId }) {
   if (!messaging || !token) return false;
   try {
-    // Data-only + high priority: battery optimization o'chirilgan qurilmada
-    // onBackgroundMessage ishga tushadi → showCallkitIncoming() → to'liq ekranli CallKit.
+    // notification field: qurilmada battery optimization bloklamasdan har doim ko'rsatadi.
+    // User notification bosadi → app ochiladi → getInitialMessage → setPendingAutoAccept → auto-qabul.
     await messaging.send({
       token,
       android: {
         priority: 'high',
         ttl: 60000,
+        notification: {
+          title: callerName,
+          body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+          channelId: 'incoming_calls',
+          sound: 'default',
+          color: '#4D82E3',
+        },
       },
       data: {
         type: 'incoming_call',
