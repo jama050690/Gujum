@@ -76,22 +76,6 @@ Future<void> main() async {
     if (callId.isNotEmpty) callController.setPendingAutoAccept(callId);
   });
 
-  // FCM notification bosilganda app o'chirilgan holatdan (killed state)
-  FirebaseMessaging.instance.getInitialMessage().then((message) {
-    if (message?.data['type'] == 'incoming_call') {
-      final callId = (message!.data['callId'] ?? '').toString();
-      if (callId.isNotEmpty) callController.setPendingAutoAccept(callId);
-    }
-  });
-
-  // FCM notification bosilganda app fonda (background state)
-  FirebaseMessaging.onMessageOpenedApp.listen((message) {
-    if (message.data['type'] == 'incoming_call') {
-      final callId = (message.data['callId'] ?? '').toString();
-      if (callId.isNotEmpty) callController.setPendingAutoAccept(callId);
-    }
-  });
-
   // FCM init va token ro'yxatga olish
   await FcmService.instance.init();
   if (authController.isAuthenticated && authController.user != null) {
