@@ -322,6 +322,18 @@ function registerSocketHandlers(io) {
           : 0;
         const duration = serverDuration > 0 ? serverDuration : (data.duration || 0);
         saveCallMessage(session.caller, session.callee, session.isVideo, duration);
+        // Qo'ng'iroq tugagach ikki foydalanuvchi lastActive ni yangilaymiz
+        const now = new Date().toISOString();
+        emitToUser(session.caller, 'USER_STATUS_CHANGED', {
+          username: session.callee,
+          online: hasLiveSockets(session.callee),
+          lastActive: now,
+        });
+        emitToUser(session.callee, 'USER_STATUS_CHANGED', {
+          username: session.caller,
+          online: hasLiveSockets(session.caller),
+          lastActive: now,
+        });
       }
     });
 
