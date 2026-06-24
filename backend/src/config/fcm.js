@@ -31,13 +31,6 @@ export async function sendCallFcm(token, { callerName, isVideo, callId }) {
       android: {
         priority: 'high',
         ttl: 60000,
-        notification: {
-          title: callerName,
-          body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
-          channelId: 'incoming_calls',
-          sound: 'default',
-          color: '#4D82E3',
-        },
       },
       data: {
         type: 'incoming_call',
