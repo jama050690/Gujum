@@ -23,10 +23,10 @@ if (existsSync(KEY_PATH)) {
   console.warn('[FCM] firebase-service-account.json topilmadi — FCM o\'chirildi');
 }
 
-export async function sendCallFcm(token, { callerName, isVideo, callId }) {
+export async function sendCallFcm(token, { callerName, isVideo, callId }, withNotification = false) {
   if (!messaging || !token) return false;
   try {
-    await messaging.send({
+    const msg = {
       token,
       android: {
         priority: 'high',
@@ -38,7 +38,17 @@ export async function sendCallFcm(token, { callerName, isVideo, callId }) {
         callerName: String(callerName),
         isVideo: isVideo ? 'true' : 'false',
       },
-    });
+    };
+    if (withNotification) {
+      msg.android.notification = {
+        title: callerName,
+        body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+        channelId: 'incoming_calls',
+        sound: 'default',
+        color: '#4D82E3',
+      };
+    }
+    await messaging.send(msg);
     return true;
   } catch (e) {
     const code = e?.errorInfo?.code ?? '';

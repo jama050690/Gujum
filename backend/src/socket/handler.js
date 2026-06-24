@@ -98,20 +98,21 @@ async function sendPushToUser(username, notification) {
   }
 }
 
-async function sendFcmCallToUser(username, data) {
+async function sendFcmCallToUser(username, data, withNotification = false) {
   try {
     const res = await pool.query('SELECT token FROM fcm_tokens WHERE username = $1', [username]);
     if (res.rowCount === 0) {
       console.log(`[FCM] ${username} uchun token DB da topilmadi`);
       return;
     }
-    console.log(`[FCM] ${username} ga FCM yuborilmoqda... callId=${data.callId}`);
-    const result = await sendCallFcm(res.rows[0].token, data);
+    const label = withNotification ? 'fallback(notification)' : 'data-only';
+    console.log(`[FCM] ${username} ga FCM(${label}) yuborilmoqda... callId=${data.callId}`);
+    const result = await sendCallFcm(res.rows[0].token, data, withNotification);
     if (result === 'expired') {
       console.log(`[FCM] ${username} token eskirgan — o'chirildi`);
       await pool.query('DELETE FROM fcm_tokens WHERE username = $1', [username]);
     } else if (result === true) {
-      console.log(`[FCM] ${username} ga FCM muvaffaqiyatli yuborildi ✓`);
+      console.log(`[FCM] ${username} ga FCM(${label}) muvaffaqiyatli yuborildi ✓`);
     } else {
       console.log(`[FCM] ${username} ga FCM yuborishda xato result=${result}`);
     }
@@ -230,11 +231,16 @@ function registerSocketHandlers(io) {
       // App foregroundda bo'lsa socket yetkazadi — FCM yuborilsa ikki xil notification chiqadi.
       if (!delivered) {
         console.log(`[CALL] ${target} offline — FCM yuboriladi`);
-        sendFcmCallToUser(target, {
-          callerName: callerUsername,
-          isVideo: !!isVideo,
-          callId,
-        });
+        const fcmData = { callerName: callerUsername, isVideo: !!isVideo, callId };
+        sendFcmCallToUser(target, fcmData);
+        // 3 sek keyin hali ham ringing bo'lsa notification fallback
+        setTimeout(() => {
+          const call = activeCalls.get(callId);
+          if (call && call.status === 'ringing' && !hasLiveSockets(target)) {
+            console.log(`[FCM] ${target} ga fallback notification yuboriladi callId=${callId}`);
+            sendFcmCallToUser(target, fcmData, true);
+          }
+        }, 3000);
       }
 
       if (!delivered) {
