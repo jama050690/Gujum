@@ -1,11 +1,12 @@
 import express from "express";
 import { upload } from "../config/upload.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { imageContentCheck, videoContentCheck } from "../config/content_filter.js";
 
 const router = express.Router();
 
 // POST /api/upload
-router.post("/upload", authMiddleware, upload.single("image"), (req, res) => {
+router.post("/upload", authMiddleware, upload.single("image"), imageContentCheck, (req, res) => {
   console.log("Rasm yuklandi:", req.file);
   if (!req.file) {
     return res.status(400).json({ message: "Rasm yuklanmadi" });
@@ -34,6 +35,7 @@ router.post(
   "/upload-video",
   authMiddleware,
   upload.single("video"),
+  videoContentCheck,
   (req, res) => {
     console.log("Video yuklandi:", req.file);
     if (!req.file) {
