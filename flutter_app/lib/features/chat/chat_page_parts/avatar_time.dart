@@ -109,35 +109,15 @@ String _formatInboxTime(DateTime? value, String localeCode) {
   return '$day.$month.${value.year}';
 }
 
-// Inbox uchun: bugun HH:mm, kecha, yoki DD.MM.YYYY
+// Inbox uchun: doim aniq vaqt — bugun HH:mm da, kecha, yoki DD.MM.YYYY
 String _formatLastSeenClock(DateTime? value, String localeCode) {
   if (value == null) return AppStrings.text(localeCode, 'offline');
 
   final now = DateTime.now();
-  final diff = now.difference(value);
-
-  // 1 daqiqadan kam
-  if (diff.inMinutes < 1) {
-    return switch (localeCode) {
-      'ru' => 'только что',
-      'en' => 'just now',
-      _ => 'hozirgina',
-    };
-  }
-
-  // 1 soatdan kam: "X daqiqa oldin"
-  if (diff.inHours < 1) {
-    final m = diff.inMinutes;
-    return switch (localeCode) {
-      'ru' => '$m мин назад',
-      'en' => '$m min ago',
-      _ => '$m daqiqa oldin',
-    };
-  }
-
-  // Bugun: "20:03 da"
   final today = DateTime(now.year, now.month, now.day);
   final target = DateTime(value.year, value.month, value.day);
+
+  // Bugun: aniq soat "21:37 da"
   if (target == today) {
     final clock = _formatClock(value);
     return switch (localeCode) {
@@ -157,15 +137,15 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
   }
 
   // 30 kundan kam
-  final diff2 = now.difference(value);
-  if (diff2.inDays < 30) {
+  final diff = now.difference(value);
+  if (diff.inDays < 30) {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day.$month.${value.year}';
   }
 
   // 30 kundan ortiq
-  final months = (diff2.inDays / 30).floor();
+  final months = (diff.inDays / 30).floor();
   if (months < 12) {
     return switch (localeCode) {
       'ru' => '$months мес. назад',
@@ -173,7 +153,7 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
       _ => '$months oy oldin',
     };
   }
-  final years = (diff2.inDays / 365).floor();
+  final years = (diff.inDays / 365).floor();
   return switch (localeCode) {
     'ru' => '$years г. назад',
     'en' => '$years years ago',

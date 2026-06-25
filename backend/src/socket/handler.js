@@ -547,7 +547,7 @@ async function saveCallMessage(caller, target, isVideo, duration) {
 
 async function sendAllUsers() {
   const list = Array.from(onlineUsers.keys())
-    .filter(u => hasLiveSockets(u))
+    .filter(u => hasLiveSockets(u) || pendingOfflineTimeouts.has(u))
     .map(u => ({ username: u, online: true }));
   for (const [, sockets] of onlineUsers) {
     for (const s of sockets) {
