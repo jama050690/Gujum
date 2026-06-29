@@ -9,7 +9,6 @@ import {
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { upload } from "../config/upload.js";
-import { imageContentCheck } from "../config/content_filter.js";
 
 const router = express.Router();
 
@@ -120,7 +119,7 @@ router.get("/profile/:username", async (req, res) => {
 });
 
 // PUT /api/users/profile — Profil ma'lumotlarini yangilash
-router.put("/profile", authMiddleware, upload.single("avatar"), imageContentCheck, async (req, res) => {
+router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res) => {
   const userId = req.user.id;
   const { phone, birthday, bio, full_name } = req.body;
 

@@ -4,7 +4,6 @@ import argon2 from "argon2";
 import "../config/env.js";
 import { pool, USERS_TABLE } from "../config/database.js";
 import { upload } from "../config/upload.js";
-import { imageContentCheck } from "../config/content_filter.js";
 
 const router = express.Router();
 
@@ -99,7 +98,7 @@ function buildOtpResponse({ mailResult, successMessage, fallbackMessage, extra =
   };
 }
 
-router.post("/send-otp", upload.single("profilePic"), imageContentCheck, async (req, res) => {
+router.post("/send-otp", upload.single("profilePic"), async (req, res) => {
   const { fullName, username, phone, email, password, age, gender } = req.body;
   const normalizedFullName = String(fullName || "").trim();
   const normalizedUsername = String(username || "").trim();

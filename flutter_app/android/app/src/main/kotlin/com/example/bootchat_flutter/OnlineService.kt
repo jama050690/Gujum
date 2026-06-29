@@ -36,12 +36,13 @@ class OnlineService : Service() {
 
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Gujum")
-            .setContentText("Online")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setContentTitle("")
+            .setContentText("")
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setSilent(true)
             .setOngoing(true)
+            .setShowWhen(false)
             .build()
     }
 

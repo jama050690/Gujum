@@ -204,13 +204,17 @@ class MainActivity : FlutterActivity() {
                     audioManager.stopBluetoothSco()
                     @Suppress("DEPRECATION")
                     audioManager.isBluetoothScoOn = false
+                    // Ba'zi OEM qurilmalarda (Samsung/Xiaomi) TYPE_BUILTIN_SPEAKER
+                    // o'rniga TYPE_BUILTIN_SPEAKER_SAFE ishlatiladi — ikkalasini tekshiramiz.
                     val speaker = audioManager.availableCommunicationDevices
-                        .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                        .firstOrNull {
+                            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER ||
+                            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE
+                        }
                     if (speaker != null) {
                         audioManager.setCommunicationDevice(speaker)
                     } else {
-                        // TYPE_BUILTIN_SPEAKER ro'yxatda yo'q (Telecom tranzitsiya paytida).
-                        // clearCommunicationDevice + eski API orqali speaker yoqamiz.
+                        // Hech qaysi speaker topi topilmadi — deprecated API bilan urinib ko'ramiz.
                         audioManager.clearCommunicationDevice()
                         @Suppress("DEPRECATION")
                         audioManager.isSpeakerphoneOn = true
@@ -328,7 +332,8 @@ class MainActivity : FlutterActivity() {
         val currentRoute = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Android 12+: setCommunicationDevice natijasini to'g'ri o'qiymiz
             when (audioManager.communicationDevice?.type) {
-                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "speaker"
                 AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
                 AudioDeviceInfo.TYPE_BLE_HEADSET,
                 AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"

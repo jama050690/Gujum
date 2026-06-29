@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import "../config/env.js";
 import { pool, USERS_TABLE } from "../config/database.js";
 import { upload } from "../config/upload.js";
-import { imageContentCheck } from "../config/content_filter.js";
 
 const router = express.Router();
 
@@ -160,7 +159,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // POST /api/login
-router.post("/login", upload.single("profilePic"), imageContentCheck, async (req, res) => {
+router.post("/login", upload.single("profilePic"), async (req, res) => {
   console.log(
     `${new Date().toISOString()} da ${req.url}ga ${req.method} API chaqiruv keldi.`,
   );
