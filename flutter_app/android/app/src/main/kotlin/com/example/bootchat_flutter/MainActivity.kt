@@ -76,19 +76,6 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
-                "startOnlineService" -> {
-                    val intent = Intent(this, OnlineService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
-                    } else {
-                        startService(intent)
-                    }
-                    result.success(null)
-                }
-                "stopOnlineService" -> {
-                    stopService(Intent(this, OnlineService::class.java))
-                    result.success(null)
-                }
                 else -> result.notImplemented()
             }
         }
