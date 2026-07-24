@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
 
   return {
-    base: "./", // <--- Mana bu yerni shunday o'zgartiring
+    base: "/Gujum.uz/",
 
     server: {
       host: true,
