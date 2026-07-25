@@ -532,7 +532,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLoginClick}
-            disabled={googleLoading || !googleReady}
+            disabled={googleLoading}
             className={`mt-2 flex h-[54px] w-full items-center justify-center gap-4 rounded-[14px] text-[16px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${googleButtonClass}`}
           >
             {googleLoading ? (

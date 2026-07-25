@@ -18,7 +18,7 @@ import AdminDashboardPage from "@/pages/AdminDashboardPage";
 function ProtectedRoute({ children }) {
   const { isAuthenticated, user } = useAuth();
   const { lang } = useLanguage();
-  
+
   if (!isAuthenticated) return <Navigate to={`/${lang}/login`} replace />;
 
   return (
@@ -34,10 +34,10 @@ function ProtectedRoute({ children }) {
 function AdminRoute({ children }) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { lang } = useLanguage();
-  
+
   if (!isAuthenticated) return <Navigate to={`/${lang}/login`} replace />;
   if (!isAdmin) return <Navigate to={`/${lang}`} replace />;
-  
+
   return children;
 }
 
@@ -45,7 +45,7 @@ function AdminRoute({ children }) {
 function PublicRoute({ children }) {
   const { isAuthenticated, isAdmin } = useAuth();
   const { lang } = useLanguage();
-  
+
   if (isAuthenticated) {
     return <Navigate to={isAdmin ? `/${lang}/admin` : `/${lang}`} replace />;
   }
@@ -84,7 +84,7 @@ export default function App() {
       try {
         await initAudio();
         console.log("✅ AudioContext faollashtirildi");
-        
+
         // Eventlarni tozalash
         window.removeEventListener("click", handleInteraction);
         window.removeEventListener("keydown", handleInteraction);
