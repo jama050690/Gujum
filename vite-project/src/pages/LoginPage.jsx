@@ -400,7 +400,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleProfilePick}
-            className="group flex h-[108px] w-[108px] cursor-pointer items-center justify-center overflow-hidden rounded-full border-[4px] border-[#b8d8ff] bg-[#eef1f5] transition hover:scale-[1.02] hover:border-[#78b7ff]"
+            className="group flex h-[108px] w-[108px] cursor-pointer items-center justify-center overflow-hidden rounded-full border-[4px] border-[#b8d8ff] bg-[#eef1f5] transition hover:scale-[1.02] hover:border-[#78b7ff] hover:shadow-md"
             title={tr("login_profile_pick", "Profil rasmini tanlash")}
           >
             {profilePreview ? (
@@ -498,7 +498,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className={`absolute right-5 top-1/2 -translate-y-1/2 text-[20px] ${mutedClass}`}
+                className={`absolute right-5 top-1/2 -translate-y-1/2 cursor-pointer text-[20px] ${mutedClass}`}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`} />
@@ -509,7 +509,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 flex h-[56px] w-full items-center justify-center gap-3 rounded-[12px] bg-[linear-gradient(90deg,#3c8cff_0%,#7064ff_52%,#b312ff_100%)] px-6 text-[18px] font-semibold text-white transition-transform hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-1 flex h-[56px] w-full cursor-pointer items-center justify-center gap-3 rounded-[12px] bg-[linear-gradient(90deg,#3c8cff_0%,#7064ff_52%,#b312ff_100%)] px-6 text-[18px] font-semibold text-white transition-transform hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? (
               <i className="fas fa-spinner fa-spin text-[18px]" />
@@ -532,8 +532,8 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLoginClick}
-            disabled={googleLoading || !googleReady}
-            className={`mt-2 flex h-[54px] w-full items-center justify-center gap-4 rounded-[14px] text-[16px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${googleButtonClass}`}
+            disabled={googleLoading}
+            className={`mt-2 flex h-[54px] w-full cursor-pointer items-center justify-center gap-4 rounded-[14px] text-[16px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${googleButtonClass}`}
           >
             {googleLoading ? (
               <i className="fas fa-spinner fa-spin text-[18px]" />
