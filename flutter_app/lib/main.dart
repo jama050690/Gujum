@@ -76,14 +76,6 @@ Future<void> main() async {
     if (callId.isNotEmpty) callController.setPendingAutoAccept(callId);
   });
 
-  // FCM init va token ro'yxatga olish
-  await FcmService.instance.init();
-  if (authController.isAuthenticated && authController.user != null) {
-    unawaited(FcmService.instance.register(
-      baseUrl: settingsController.baseUrl,
-      username: authController.user!.username,
-    ));
-  }
   authController.addListener(() {
     if (authController.isAuthenticated && authController.user != null) {
       FcmService.instance.register(
@@ -111,4 +103,15 @@ Future<void> main() async {
       child: const BootchatApp(),
     ),
   );
+
+  // FCM init runApp dan keyin — UI bloklanmasin
+  unawaited(() async {
+    await FcmService.instance.init();
+    if (authController.isAuthenticated && authController.user != null) {
+      await FcmService.instance.register(
+        baseUrl: settingsController.baseUrl,
+        username: authController.user!.username,
+      );
+    }
+  }());
 }

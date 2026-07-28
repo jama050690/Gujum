@@ -38,7 +38,9 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onTap: selectionMode ? () => _toggleSelectedMessage(message) : null,
+        onTap: selectionMode
+            ? () => _toggleSelectedMessage(message)
+            : onLongPress,
         onLongPress: onLongPress,
         child: Container(
           constraints: const BoxConstraints(maxWidth: 430),

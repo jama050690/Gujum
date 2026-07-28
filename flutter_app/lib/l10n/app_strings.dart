@@ -156,6 +156,11 @@ class AppStrings {
       'chat_action_failed': 'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring',
       'message_reply': 'Javob berish',
       'message_replying_to': 'Javob yozilyapti',
+      'message_copy': 'Nusxalash',
+      'message_copied': 'Buferga nusxalandi',
+      'message_save': 'Saqlash',
+      'message_saved': 'saqlandi',
+      'message_save_failed': 'Faylni saqlashda xatolik',
       'message_edit': 'Tahrirlash',
       'message_editing': 'Xabar tahrirlanmoqda',
       'message_edit_attachment_unavailable':
@@ -363,6 +368,11 @@ class AppStrings {
       'chat_action_failed': 'Could not complete the action. Try again',
       'message_reply': 'Reply',
       'message_replying_to': 'Replying to',
+      'message_copy': 'Copy',
+      'message_copied': 'Copied to clipboard',
+      'message_save': 'Save',
+      'message_saved': 'saved',
+      'message_save_failed': 'Failed to save file',
       'message_edit': 'Edit',
       'message_editing': 'Editing message',
       'message_edit_attachment_unavailable':

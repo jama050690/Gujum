@@ -1010,7 +1010,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _AudioRouteOption(
-                      icon: Icons.volume_off_rounded,
+                      icon: Icons.phone_in_talk_rounded,
                       selected: ctrl.audioRoute == CallAudioRoute.earpiece,
                       onTap: () {
                         _dismissOptions();
@@ -1057,7 +1057,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
   IconData _iconFor(CallController ctrl) {
     if (ctrl.audioRoute == CallAudioRoute.bluetooth) return Icons.bluetooth_audio_rounded;
     if (ctrl.audioRoute == CallAudioRoute.headset) return Icons.headset_rounded;
-    return ctrl.isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_off_rounded;
+    return ctrl.isSpeakerOn ? Icons.volume_up_rounded : Icons.phone_in_talk_rounded;
   }
 
   @override

@@ -67,20 +67,33 @@ class FcmService {
       ),
     );
 
-    // Asosiy kanal — CallKit shu kanaldan notification ko'rsatadi
-    await _plugin
+    final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'incoming_calls',
-            'Incoming Calls',
-            description: "Qo'ng'iroqlar uchun bildirishnomalar",
-            importance: Importance.max,
-            playSound: false,
-            enableVibration: true,
-          ),
-        );
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    // Qo'ng'iroq kanali
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'incoming_calls',
+        'Incoming Calls',
+        description: "Qo'ng'iroqlar uchun bildirishnomalar",
+        importance: Importance.max,
+        playSound: false,
+        enableVibration: true,
+      ),
+    );
+
+    // Xabar kanali — FCM notification shu kanalga yuboriladi
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'messages',
+        'Xabarlar',
+        description: "Yangi xabarlar uchun bildirishnomalar",
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
 
     // Battery optimization o'chirilmasa data-only FCM killed app'ga yetmaydi.
     // Qurilma shu dialogni bir marta ko'rsatadi — foydalanuvchi "Allow" bosadi.

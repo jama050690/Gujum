@@ -14,6 +14,8 @@ enum _InboxAction {
 
 enum _MessageAction {
   reply,
+  copy,
+  save,
   edit,
   pin,
   forward,
