@@ -82,9 +82,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     'iceServers': [
       {
         'urls': [
-          'turn:jamshiddin.uz:3478?transport=udp',
-          'turn:jamshiddin.uz:3478?transport=tcp',
-          'turns:jamshiddin.uz:5349',
+          'turn:gujum.jamshiddin.uz:3478?transport=udp',
+          'turn:gujum.jamshiddin.uz:3478?transport=tcp',
+          'turns:gujum.jamshiddin.uz:5349',
         ],
         'username': 'bootchat',
         'credential': 'Bootchat2024!',

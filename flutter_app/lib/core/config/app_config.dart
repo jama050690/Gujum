@@ -4,7 +4,7 @@ class AppConfig {
   static const defaultSocketPath = '/api/bootchat/socket.io/';
   static const defaultLocale = 'uz';
   static const defaultPort = 4000;
-  static const productionBaseUrl = 'https://jamshiddin.uz';
+  static const productionBaseUrl = 'https://gujum.jamshiddin.uz';
   static const androidUsbBaseUrl = 'http://127.0.0.1:4000';
   static const androidLanBaseUrl = 'http://10.10.3.180:4000';
   static const desktopLoopbackBaseUrl = 'http://127.0.0.1:4000';
