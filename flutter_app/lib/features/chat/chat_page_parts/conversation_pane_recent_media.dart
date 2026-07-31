@@ -50,12 +50,14 @@ Future<void> _pickAndSendAttachment(
       return;
     }
 
-    final pickedImage = await _pickImageAttachment();
-    if (pickedImage == null) {
+    final pickedImages = await _pickMultipleImages();
+    if (pickedImages.isEmpty) {
       return;
     }
-    await _uploadAndSendAttachment(chat, t, _AttachmentType.image,
-        xFile: pickedImage);
+    for (final image in pickedImages) {
+      await _uploadAndSendAttachment(chat, t, _AttachmentType.image,
+          xFile: image);
+    }
   } catch (error, stackTrace) {
     debugPrint('Attachment upload failed: $error');
     debugPrintStack(stackTrace: stackTrace);

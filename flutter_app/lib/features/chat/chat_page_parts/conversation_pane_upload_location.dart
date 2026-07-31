@@ -177,9 +177,8 @@ Future<void> _sendLocation(
   }
 }
 
-Future<XFile?> _pickImageAttachment() {
-  return _imagePicker.pickImage(
-    source: ImageSource.gallery,
+Future<List<XFile>> _pickMultipleImages() async {
+  return _imagePicker.pickMultiImage(
     imageQuality: 88,
     maxWidth: 2048,
     maxHeight: 2048,
