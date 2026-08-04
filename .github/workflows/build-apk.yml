@@ -13,6 +13,16 @@ on:
         options:
           - release
           - debug
+      version_bump:
+        description: 'Version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - none
   push:
     branches: [main]
     paths:
@@ -23,12 +33,16 @@ jobs:
   build:
     name: 🔨 arm64-v8a APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: flutter_app
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: ☕ Set up Java 17
         uses: actions/setup-java@v4
@@ -42,21 +56,44 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 🏷️ Resolve version
+      - name: 🔖 Bump version
         id: meta
         run: |
+          set -euo pipefail
           MODE="${{ inputs.build_mode || 'release' }}"
-          VERSION=$(grep -m1 '^version:' pubspec.yaml | cut -d: -f2 | cut -d+ -f1 | tr -d '[:space:]')
-          if [ -z "$VERSION" ]; then
-            echo "::error::could not read version from pubspec.yaml"
-            exit 1
-          fi
-          NAME="bootchat-$VERSION"
+          # Auto (push) runs never bump — only manual dispatch does.
+          BUMP="${{ inputs.version_bump || 'none' }}"
+
+          CURRENT=$(grep -m1 '^version:' pubspec.yaml | cut -d: -f2 | tr -d '[:space:]')
+          [ -n "$CURRENT" ] || { echo "::error::no version in pubspec.yaml"; exit 1; }
+          SEMVER="${CURRENT%%+*}"
+          BUILD="${CURRENT##*+}"
+          [ "$BUILD" != "$CURRENT" ] || BUILD=0
+          IFS=. read -r MA MI PA <<< "$SEMVER"
+
+          case "$BUMP" in
+            major) MA=$((MA + 1)); MI=0; PA=0 ;;
+            minor) MI=$((MI + 1)); PA=0 ;;
+            patch) PA=$((PA + 1)) ;;
+            none)  ;;
+          esac
+          NEW_SEMVER="$MA.$MI.$PA"
+          # versionCode must always climb or Android refuses the upgrade.
+          NEW_BUILD=$((BUILD + 1))
+
+          sed -i "s/^version:.*/version: $NEW_SEMVER+$NEW_BUILD/" pubspec.yaml
+
+          NAME="bootchat-$NEW_SEMVER"
           [ "$MODE" = "release" ] || NAME="$NAME-$MODE"
-          echo "mode=$MODE"        >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
-          echo "apk_name=$NAME"    >> "$GITHUB_OUTPUT"
-          echo "📦 building $NAME.apk (v$VERSION, $MODE)"
+
+          {
+            echo "mode=$MODE"
+            echo "bump=$BUMP"
+            echo "version=$NEW_SEMVER"
+            echo "build=$NEW_BUILD"
+            echo "apk_name=$NAME"
+          } >> "$GITHUB_OUTPUT"
+          echo "📦 $CURRENT → $NEW_SEMVER+$NEW_BUILD ($BUMP) → $NAME.apk"
 
       - name: 📦 Install dependencies
         run: flutter pub get
@@ -76,6 +113,17 @@ jobs:
           path: flutter_app/build/app/outputs/flutter-apk/${{ steps.meta.outputs.apk_name }}.apk
           retention-days: 14
 
+      - name: 💾 Commit version bump
+        if: success() && steps.meta.outputs.bump != 'none'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          # [skip ci] stops this push from re-triggering the workflow.
+          git commit -m "chore: bump version to ${{ steps.meta.outputs.version }}+${{ steps.meta.outputs.build }} [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
       - name: 📊 Build summary
         if: always()
         run: |
@@ -86,7 +134,8 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| 📄 File | \`${{ steps.meta.outputs.apk_name }}.apk\` |"
-            echo "| 🔖 Version | \`${{ steps.meta.outputs.version }}\` |"
+            echo "| 🔖 Version | \`${{ steps.meta.outputs.version }}+${{ steps.meta.outputs.build }}\` |"
+            echo "| ⬆️ Bump | \`${{ steps.meta.outputs.bump }}\` |"
             echo "| 🏗️ Mode | \`${{ steps.meta.outputs.mode }}\` |"
             echo "| 📐 ABI | \`arm64-v8a\` — 64-bit phones only |"
             if [ -f "$APK" ]; then
