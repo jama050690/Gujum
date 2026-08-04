@@ -78,12 +78,15 @@ jobs:
             none)  ;;
           esac
           NEW_SEMVER="$MA.$MI.$PA"
-          # versionCode must always climb or Android refuses the upgrade.
-          NEW_BUILD=$((BUILD + 1))
+          # versionCode must always climb or Android refuses the upgrade. Push
+          # runs don't commit back, so deriving it from the (monotonic) run
+          # number keeps it unique without needing the file to persist.
+          NEW_BUILD="${{ github.run_number }}"
 
           sed -i "s/^version:.*/version: $NEW_SEMVER+$NEW_BUILD/" pubspec.yaml
 
-          NAME="bootchat-$NEW_SEMVER"
+          # Build number in the name too, or every push overwrites the same artifact.
+          NAME="bootchat-$NEW_SEMVER+$NEW_BUILD"
           [ "$MODE" = "release" ] || NAME="$NAME-$MODE"
 
           {
