@@ -16,4 +16,10 @@ const envPath =
 
 dotenv.config({ path: envPath });
 
+// Without this every jwt.verify() throws and the whole app answers 403 with no
+// hint why. Fail at boot instead.
+if (!process.env.JWT_SECRET) {
+  throw new Error(`JWT_SECRET topilmadi (.env: ${envPath})`);
+}
+
 export { envPath };
