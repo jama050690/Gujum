@@ -287,6 +287,48 @@ async function initPushSubscriptionsTable() {
   console.log("Push_subscriptions table tayyor");
 }
 
+// Foreign keys don't get indexes automatically in Postgres, and UNIQUE(a, b)
+// only helps lookups on `a`. Everything below was a sequential scan.
+async function initIndexes() {
+  const indexes = [
+    // Inbox: newest message per chat + the message list itself
+    `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_chat_created
+       ON ${MESSAGES_TABLE} (chat_id, created_at DESC)`,
+    // Inbox: unread badge. Partial predicate mirrors the query exactly.
+    `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_unread
+       ON ${MESSAGES_TABLE} (chat_id, sender_id)
+       WHERE COALESCE(is_read, FALSE) = FALSE`,
+    // last_seen sync on boot
+    `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_sender_created
+       ON ${MESSAGES_TABLE} (sender_id, created_at DESC)`,
+    // UNIQUE(user1_id, user2_id) already covers user1_id
+    `CREATE INDEX IF NOT EXISTS idx_${CHATS_TABLE}_user2
+       ON ${CHATS_TABLE} (user2_id)`,
+
+    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MESSAGES_TABLE}_group_created
+       ON ${GROUP_MESSAGES_TABLE} (group_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_MESSAGES_TABLE}_channel_created
+       ON ${CHANNEL_MESSAGES_TABLE} (channel_id, created_at DESC)`,
+
+    // "which groups/channels am I in" — UNIQUE covers the other direction
+    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MEMBERS_TABLE}_user
+       ON ${GROUP_MEMBERS_TABLE} (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_SUBSCRIBERS_TABLE}_user
+       ON ${CHANNEL_SUBSCRIBERS_TABLE} (user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_${FRIENDS_TABLE}_receiver
+       ON ${FRIENDS_TABLE} (receiver_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_${BLOCKED_USERS_TABLE}_blocked
+       ON ${BLOCKED_USERS_TABLE} (blocked_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
+       ON push_subscriptions (user_id)`,
+  ];
+
+  for (const sql of indexes) {
+    await pool.query(sql);
+  }
+  console.log(`Indexlar tayyor (${indexes.length} ta)`);
+}
+
 async function initDb() {
   await initUsersTable();
   await ensureAdminUser();
@@ -302,6 +344,7 @@ async function initDb() {
   await initSpamReportsTable();
   await initFriendsTable();
   await initPushSubscriptionsTable();
+  await initIndexes();
 
   // Sync last_seen with the user's most recent sent message if message is newer
   await pool.query(`
