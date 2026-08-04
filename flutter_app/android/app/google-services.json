@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1096233590187-39c8ic11ou6pp3o7287h7nmosj2hueo2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bootchat_flutter",
+            "certificate_hash": "08c80a963864362b8c7d64ba1246be7440201c94"
+          }
+        },
+        {
           "client_id": "1096233590187-l91t6b0v0lb2i6tul1knibkf9v4u64ba.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
