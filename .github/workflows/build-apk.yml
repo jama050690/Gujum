@@ -39,19 +39,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --${{ github.event.inputs.build_mode || 'release' }} --split-per-abi
+      - name: Build APK (arm64-v8a only)
+        run: flutter build apk --${{ github.event.inputs.build_mode || 'release' }} --target-platform android-arm64
 
-      - name: Upload APK (arm64-v8a — use this on virtually any modern phone)
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: bootchat-apk-arm64-v8a-${{ github.event.inputs.build_mode || 'release' }}
-          path: flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-${{ github.event.inputs.build_mode || 'release' }}.apk
-          retention-days: 14
-
-      - name: Upload APK (armeabi-v7a — older/32-bit devices)
-        uses: actions/upload-artifact@v4
-        with:
-          name: bootchat-apk-armeabi-v7a-${{ github.event.inputs.build_mode || 'release' }}
-          path: flutter_app/build/app/outputs/flutter-apk/app-armeabi-v7a-${{ github.event.inputs.build_mode || 'release' }}.apk
+          name: bootchat-${{ github.event.inputs.build_mode || 'release' }}
+          path: flutter_app/build/app/outputs/flutter-apk/app-${{ github.event.inputs.build_mode || 'release' }}.apk
           retention-days: 14
