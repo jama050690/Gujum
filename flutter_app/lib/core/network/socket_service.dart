@@ -44,7 +44,7 @@ class SocketService {
     );
     disconnect();
 
-    final options = io.OptionBuilder()
+    final optionBuilder = io.OptionBuilder()
         .setPath(path)
         .setTransports(['websocket', 'polling'])
         .enableAutoConnect()
@@ -52,8 +52,15 @@ class SocketService {
         .setReconnectionAttempts(999999)
         .setReconnectionDelay(2000)
         .setReconnectionDelayMax(10000)
-        .setTimeout(20000)
-        .build();
+        .setTimeout(20000);
+
+    // The server derives our identity from this token — without it the
+    // handshake is rejected.
+    if (cookie != null && cookie.isNotEmpty) {
+      optionBuilder.setAuth(<String, dynamic>{'cookie': cookie});
+    }
+
+    final options = optionBuilder.build();
 
     _socket = io.io(baseUrl, options);
     _connectionKey = nextConnectionKey;

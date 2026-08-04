@@ -38,7 +38,17 @@ app.use(express.json({ limit: "50mb" })); // Katta hajmli JSON (masalan, base64 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // 3. Statik fayllar (Rasm va videolar uchun)
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// nosniff stops the browser second-guessing the content type on user-uploaded
+// files and executing one as HTML in our origin.
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../uploads"), {
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'");
+    },
+  })
+);
 app.use("/static", express.static(path.join(__dirname, "public")));
 
 // 4. API Routes

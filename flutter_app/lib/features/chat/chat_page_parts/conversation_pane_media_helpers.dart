@@ -67,15 +67,14 @@ Widget _buildImageAttachment(
               children: [
                 Hero(
                   tag: heroTag,
-                  child: Image.network(
-                    imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
                     fit: BoxFit.cover,
                     filterQuality: FilterQuality.low,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
-
+                    // Thumbnail is capped at 260pt wide — decode at ~2x for
+                    // retina instead of holding the full-size bitmap in RAM.
+                    memCacheWidth: 520,
+                    placeholder: (_, __) {
                       return Container(
                         color: Colors.black.withAlpha(12),
                         alignment: Alignment.center,
@@ -86,7 +85,7 @@ Widget _buildImageAttachment(
                         ),
                       );
                     },
-                    errorBuilder: (_, __, ___) {
+                    errorWidget: (_, __, ___) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
