@@ -42,38 +42,59 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: 🏷️ Resolve version
+        id: meta
+        run: |
+          MODE="${{ inputs.build_mode || 'release' }}"
+          VERSION=$(grep -m1 '^version:' pubspec.yaml | cut -d: -f2 | cut -d+ -f1 | tr -d '[:space:]')
+          if [ -z "$VERSION" ]; then
+            echo "::error::could not read version from pubspec.yaml"
+            exit 1
+          fi
+          NAME="bootchat-$VERSION"
+          [ "$MODE" = "release" ] || NAME="$NAME-$MODE"
+          echo "mode=$MODE"        >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
+          echo "apk_name=$NAME"    >> "$GITHUB_OUTPUT"
+          echo "📦 building $NAME.apk (v$VERSION, $MODE)"
+
       - name: 📦 Install dependencies
         run: flutter pub get
 
       - name: 🔨 Build APK (arm64-v8a only)
-        run: flutter build apk --${{ inputs.build_mode || 'release' }} --target-platform android-arm64
+        run: flutter build apk --${{ steps.meta.outputs.mode }} --target-platform android-arm64
+
+      - name: 🏷️ Rename APK
+        run: |
+          cd build/app/outputs/flutter-apk
+          mv "app-${{ steps.meta.outputs.mode }}.apk" "${{ steps.meta.outputs.apk_name }}.apk"
 
       - name: ⬆️ Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: bootchat-${{ inputs.build_mode || 'release' }}-${{ github.run_number }}
-          path: flutter_app/build/app/outputs/flutter-apk/app-${{ inputs.build_mode || 'release' }}.apk
+          name: ${{ steps.meta.outputs.apk_name }}
+          path: flutter_app/build/app/outputs/flutter-apk/${{ steps.meta.outputs.apk_name }}.apk
           retention-days: 14
 
       - name: 📊 Build summary
         if: always()
         run: |
-          MODE="${{ inputs.build_mode || 'release' }}"
-          APK="build/app/outputs/flutter-apk/app-$MODE.apk"
+          APK="build/app/outputs/flutter-apk/${{ steps.meta.outputs.apk_name }}.apk"
           {
             echo "## 📱 Bootchat APK"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| 🏗️ Mode | \`$MODE\` |"
+            echo "| 📄 File | \`${{ steps.meta.outputs.apk_name }}.apk\` |"
+            echo "| 🔖 Version | \`${{ steps.meta.outputs.version }}\` |"
+            echo "| 🏗️ Mode | \`${{ steps.meta.outputs.mode }}\` |"
             echo "| 📐 ABI | \`arm64-v8a\` — 64-bit phones only |"
             if [ -f "$APK" ]; then
               echo "| 💾 Size | **$(du -h "$APK" | cut -f1)** |"
             else
               echo "| 💾 Size | ❌ build failed |"
             fi
-            echo "| 🔖 Commit | \`${GITHUB_SHA::7}\` |"
-            echo "| 🔢 Run | #${{ github.run_number }} |"
+            echo "| 🔢 Commit | \`${GITHUB_SHA::7}\` |"
             echo ""
             echo "⬇️ Grab it from the **Artifacts** section at the bottom of this page."
           } >> "$GITHUB_STEP_SUMMARY"
