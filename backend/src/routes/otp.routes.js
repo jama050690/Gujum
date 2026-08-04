@@ -59,7 +59,16 @@ async function sendOtpEmail({ to, subject, html }) {
       subject,
       html,
     });
-    console.log(`✅ Email yuborildi: ${to} | messageId: ${info.messageId}`);
+    // messageId is generated locally from SMTP_FROM, so it proves nothing about
+    // delivery. info.accepted/rejected and the SMTP response are what matter.
+    if (!info.accepted?.length) {
+      console.error(
+        `❌ Email qabul qilinmadi: ${to} | rejected: ${JSON.stringify(info.rejected)} | ${info.response}`,
+      );
+      return { sent: false, reason: "not_accepted" };
+    }
+
+    console.log(`✅ Email yuborildi: ${to} | ${info.response}`);
     return { sent: true };
   } catch (err) {
     console.error(`❌ Email yuborilmadi: ${to} | Xato: ${err?.message}`);

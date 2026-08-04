@@ -95,6 +95,30 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "📦 $CURRENT → $NEW_SEMVER+$NEW_BUILD ($BUMP) → $NAME.apk"
 
+      - name: 🔐 Restore release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Fail loudly: a debug-signed release APK builds fine but Google
+          # Sign-In rejects it, and that is painful to diagnose after the fact.
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 secret yo'q"; exit 1; }
+
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+          cat > android/key.properties <<EOF
+          storeFile=release.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+          keytool -list -v -keystore android/app/release.jks \
+            -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" \
+            | grep -E 'SHA1:|SHA256:' || true
+
       - name: 📦 Install dependencies
         run: flutter pub get
 

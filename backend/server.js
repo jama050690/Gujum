@@ -59,7 +59,10 @@ async function start() {
       console.log(`=========================================`);
     });
   } catch (error) {
+    // Swallowing this left the process alive but never listening — a far harder
+    // failure to spot than a crash. Die instead and let the supervisor surface it.
     console.error('❌ Ma\'lumotlar bazasi yoki Clean-upda xato:', error);
+    process.exit(1);
   }
 }
 

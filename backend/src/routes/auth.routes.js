@@ -94,7 +94,10 @@ async function verifyGoogleCredential(credential, expectedAud) {
     if (!response.ok || payload.error_description || payload.error) {
       throw new Error(payload.error_description || payload.error || "Token noto'g'ri");
     }
-  } catch {
+  } catch (err) {
+    // Was a bare `catch` — every failure mode (bad aud, expired, malformed,
+    // network) collapsed into one string with nothing logged.
+    console.error("Google token tekshiruvi muvaffaqiyatsiz:", err?.message || err);
     throw createHttpError(401, "Google token tasdiqlanmadi");
   }
 
