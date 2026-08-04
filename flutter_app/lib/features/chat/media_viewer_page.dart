@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -37,11 +38,11 @@ class ImageViewerPage extends StatelessWidget {
           maxScale: 4,
           child: Hero(
             tag: heroTag,
-            child: Image.network(
-              imageUrl,
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.low,
-              errorBuilder: (context, error, stackTrace) {
+              errorWidget: (context, url, error) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
                   child: Icon(
