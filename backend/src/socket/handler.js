@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import jwt from "jsonwebtoken";
 import { sendCallFcm } from "../config/fcm.js";
 import "../config/env.js";
 import {
@@ -132,11 +133,63 @@ function finalizeCallSession(callId) {
 
 // --- ASOSIY HANDLER ---
 
+// Flutter sends the session cookie in the handshake auth payload; the browser
+// sends it as a real cookie header (withCredentials).
+function tokenFromHandshake(handshake) {
+  const auth = handshake.auth || {};
+  if (typeof auth.token === "string" && auth.token) return auth.token;
+
+  const raw =
+    (typeof auth.cookie === "string" && auth.cookie) ||
+    handshake.headers?.cookie ||
+    "";
+  for (const part of raw.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name === "access_token") return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
+
+// Escape hatch for the rollout window, when APKs in the field predate socket
+// auth. Leave unset in production — it re-opens the impersonation hole.
+const ALLOW_UNAUTHENTICATED_SOCKETS =
+  process.env.ALLOW_UNAUTHENTICATED_SOCKETS === "true";
+
+function registerSocketAuth(io) {
+  io.use((socket, next) => {
+    const token = tokenFromHandshake(socket.handshake);
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded?.username) {
+          socket.authUsername = decoded.username;
+          socket.user = decoded;
+          return next();
+        }
+      } catch {
+        // fall through to the unauthenticated path
+      }
+    }
+
+    if (ALLOW_UNAUTHENTICATED_SOCKETS) {
+      console.warn(
+        "[socket] UNAUTHENTICATED connection allowed — ALLOW_UNAUTHENTICATED_SOCKETS is on"
+      );
+      return next();
+    }
+    return next(new Error("unauthorized"));
+  });
+}
+
 function registerSocketHandlers(io) {
+  registerSocketAuth(io);
+
   io.on("connection", (browser) => {
     browsers.push(browser);
 
-    browser.on("USER_ONLINE", (username) => {
+    browser.on("USER_ONLINE", (claimedUsername) => {
+      // Identity comes from the verified token, never from the client payload.
+      const username = browser.authUsername || claimedUsername;
       if (!username) return;
       browser.username = username;
 
@@ -203,6 +256,13 @@ function registerSocketHandlers(io) {
 
       const callId = data.callId || `call_${Date.now()}_${callerUsername}`;
 
+      // The client supplies its own display card — pin the username inside it
+      // to the authenticated one so a caller can't ring as someone else.
+      const callerInfo =
+        caller && typeof caller === "object"
+          ? { ...caller, username: callerUsername }
+          : callerUsername;
+
       // Avvalgi pending call uchun eski timeoutni tozalash (retry case)
       const existingPending = pendingCallOffers.get(target);
       if (existingPending) {
@@ -218,13 +278,13 @@ function registerSocketHandlers(io) {
         isVideo: !!isVideo,
         status: "ringing",
         offer,
-        participants: { [callerUsername]: caller }
+        participants: { [callerUsername]: callerInfo }
       };
       activeCalls.set(callId, session);
       activeCallByUser.set(callerUsername, callId);
       activeCallByUser.set(target, callId);
 
-      const delivered = emitToUser(target, "CALL_OFFER", { callId, caller, offer, isVideo });
+      const delivered = emitToUser(target, "CALL_OFFER", { callId, caller: callerInfo, offer, isVideo });
       console.log(`[CALL] ${callerUsername} → ${target}: CALL_OFFER delivered=${delivered} callId=${callId}`);
 
       // FCM faqat socket yetkazolmagan holatda yuboriladi.
