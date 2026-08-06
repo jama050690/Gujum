@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 class MediaSaver {
   const MediaSaver._();
 
-  static const _channel = MethodChannel('bootchat/media_save');
+  static const _channel = MethodChannel('gujum/media_save');
 
   /// Rasm va videolar uchun — Galereyada ko'rinadi.
   static Future<bool> saveToGallery({

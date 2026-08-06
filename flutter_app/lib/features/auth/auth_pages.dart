@@ -119,7 +119,7 @@ class _WelcomePageState extends State<WelcomePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 2),
-              const Center(child: _BootchatLogo(size: 96, withShadow: true)),
+              const Center(child: _GujumLogo(size: 96, withShadow: true)),
               const SizedBox(height: 28),
               Text(
                 'Gujum',
@@ -161,8 +161,8 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 }
 
-class _BootchatLogo extends StatelessWidget {
-  const _BootchatLogo({
+class _GujumLogo extends StatelessWidget {
+  const _GujumLogo({
     required this.size,
     this.radius = 22,
     this.backgroundColor,
@@ -197,7 +197,7 @@ class _BootchatLogo extends StatelessWidget {
             : null,
       ),
       child: Image.asset(
-        'assets/images/bootchat_logo.png',
+        'assets/images/gujum_logo.png',
         fit: BoxFit.contain,
       ),
     );
@@ -1146,7 +1146,7 @@ class _AuthScaffold extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                const _BootchatLogo(
+                                const _GujumLogo(
                                   size: 56,
                                   radius: 18,
                                   padding: 8,
@@ -1211,7 +1211,7 @@ class _LoginHeader extends StatelessWidget {
           child: _LocaleMenu(settings: settings),
         ),
         SizedBox(height: compact ? 6 : 8),
-        _BootchatLogo(
+        _GujumLogo(
           size: compact ? 64 : 78,
           radius: 22,
           padding: compact ? 9 : 11,

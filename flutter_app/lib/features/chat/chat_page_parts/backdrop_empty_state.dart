@@ -94,7 +94,7 @@ class _BrandEmptyState extends StatelessWidget {
               child: Opacity(
                 opacity: settings.isDarkMode ? 0.85 : 0.92,
                 child: Image.asset(
-                  'assets/images/bootchat_logo.png',
+                  'assets/images/gujum_logo.png',
                   fit: BoxFit.contain,
                 ),
               ),

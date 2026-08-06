@@ -100,7 +100,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: callController),
         ChangeNotifierProvider.value(value: chatController),
       ],
-      child: const BootchatApp(),
+      child: const GujumApp(),
     ),
   );
 

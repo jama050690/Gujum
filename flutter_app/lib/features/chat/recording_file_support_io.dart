@@ -3,7 +3,7 @@ import 'dart:io';
 Future<String> createRecordingPath(String extension) async {
   final normalizedExtension = extension.trim().replaceFirst('.', '');
   return '${Directory.systemTemp.path}${Platform.pathSeparator}'
-      'bootchat_voice_${DateTime.now().millisecondsSinceEpoch}.'
+      'gujum_voice_${DateTime.now().millisecondsSinceEpoch}.'
       '$normalizedExtension';
 }
 

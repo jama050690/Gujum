@@ -74,7 +74,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   static const MethodChannel _audioChannel =
-      MethodChannel('bootchat/call_audio');
+      MethodChannel('gujum/call_audio');
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
@@ -952,7 +952,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       } else {
         // streams=0 holati: track stream bilan bog'liq emas.
         // Native remote stream'ga addTrack qilib bo'lmaydi — alohida local stream yaratamiz.
-        final localStream = await createLocalMediaStream('bootchat_remote_${track.kind}');
+        final localStream = await createLocalMediaStream('gujum_remote_${track.kind}');
         try {
           await localStream.addTrack(track);
           // Agar bu audio track bo'lsa va bizda stream yo'q bo'lsa, uni ishlatamiz.

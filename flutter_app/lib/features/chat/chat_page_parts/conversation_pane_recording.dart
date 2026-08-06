@@ -117,7 +117,7 @@ Future<void> _stopAndSendVoiceRecording(
             XFile(
               filePath,
               name:
-                  'bootchat_voice_${DateTime.now().millisecondsSinceEpoch}.wav',
+                  'gujum_voice_${DateTime.now().millisecondsSinceEpoch}.wav',
             ),
           )
         : await chat.uploadAudio(filePath);

@@ -262,7 +262,7 @@ class _SearchTab extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            t('contacts_on_bootchat'),
+                            t('contacts_on_gujum'),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
@@ -295,7 +295,7 @@ class _SearchTab extends StatelessWidget {
                   else if (phoneMatches.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(t('contacts_empty_bootchat')),
+                      child: Text(t('contacts_empty_gujum')),
                     )
                   else
                     ...phoneMatches.map((match) {

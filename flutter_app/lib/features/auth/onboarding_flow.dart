@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/network/session_store.dart';
 import 'auth_controller.dart';
+import '../chat/chat_page.dart';
 import 'contacts_setup_page.dart';
 import 'name_setup_page.dart';
 import 'phone_setup_page.dart';
@@ -62,8 +63,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       );
     }
 
-    // Bu holatga tushmasligi kerak — isNeeded() false bo'lganda
-    // OnboardingFlow umuman ko'rsatilmaydi.
-    return const SizedBox.shrink();
+    // Barcha qadamlar tugadi — to'g'ridan-to'g'ri ilovaga o'tamiz.
+    //
+    // Bu yerga tushish odatiy hol: oxirgi qadam SessionStore ga yozadi, u esa
+    // ChangeNotifier emas, shuning uchun GujumApp qayta qurilmaydi va
+    // OnboardingFlow ekranda qolaveradi. Avval bu holat SizedBox.shrink()
+    // qaytarardi — ya'ni kontaktlar so'ralgandan keyin ekran bo'sh qolardi.
+    return const ChatPage();
   }
 }

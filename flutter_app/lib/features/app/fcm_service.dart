@@ -170,7 +170,7 @@ class FcmService {
     }
   }
 
-  static const _audioChannel = MethodChannel('bootchat/call_audio');
+  static const _audioChannel = MethodChannel('gujum/call_audio');
 
   void _requestBatteryExemption() {
     _audioChannel.invokeMethod<void>('requestBatteryExemption').catchError((_) {});

@@ -10,13 +10,13 @@ class AppConfig {
   static const desktopLoopbackBaseUrl = 'http://127.0.0.1:4000';
   static const webLoopbackBaseUrl = 'http://localhost:4000';
   static const googleServerClientId = String.fromEnvironment(
-    'BOOTCHAT_GOOGLE_CLIENT_ID',
+    'GUJUM_GOOGLE_CLIENT_ID',
     defaultValue:
         '1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com',
   );
 
   static String defaultBaseUrl() {
-    const fromDefine = String.fromEnvironment('BOOTCHAT_API_BASE_URL');
+    const fromDefine = String.fromEnvironment('GUJUM_API_BASE_URL');
     if (fromDefine.isNotEmpty) {
       return _normalizeBaseUrl(fromDefine);
     }
