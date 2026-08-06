@@ -67,7 +67,7 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
       _error = null;
     });
     try {
-      await context.read<SocialRepository>().savePhone(phone);
+      await context.read<SocialRepository>().savePhone(phone, fromSim: _fromSim);
       await context.read<AuthController>().refreshSession();
     } catch (e) {
       if (!mounted) return;

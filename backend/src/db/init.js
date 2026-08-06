@@ -39,6 +39,16 @@ async function initUsersTable() {
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS birthday DATE;
   `);
+  // Audit uchun: raqam SIM tanlagichidan olindimi (TRUE) yoki qo'lda
+  // yozildimi (FALSE). Hech qanday mantiqqa ta'sir qilmaydi — keyinchalik
+  // suiiste'molni tekshirish kerak bo'lsa shu maydonga qaraladi. Keyin
+  // to'ldirib bo'lmaydi, shuning uchun hozirdan yig'ib boramiz.
+  await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS phone_from_sim BOOLEAN;
+  `);
+  await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS phone_set_at TIMESTAMPTZ;
+  `);
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS bio VARCHAR(70);
   `);

@@ -127,7 +127,7 @@ router.get("/profile/:username", async (req, res) => {
 // PUT /api/users/profile — Profil ma'lumotlarini yangilash
 router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res) => {
   const userId = req.user.id;
-  const { phone, birthday, bio, full_name } = req.body;
+  const { phone, birthday, bio, full_name, phone_from_sim } = req.body;
 
   try {
     // Bitta raqam — bitta akkaunt. Aks holda ikki foydalanuvchi bir xil
@@ -158,7 +158,20 @@ router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res)
       values.push(avatarPath);
     }
     if (full_name !== undefined) { fields.push(`full_name = $${idx++}`); values.push(full_name); }
-    if (phone !== undefined) { fields.push(`phone = $${idx++}`); values.push(phone); }
+    if (phone !== undefined) {
+      fields.push(`phone = $${idx++}`);
+      values.push(phone);
+      // Audit maydonlari faqat raqam bilan birga yoziladi — ular o'sha
+      // yozuvning qachon va qanday kelganini bildiradi.
+      fields.push(`phone_set_at = NOW()`);
+      // multipart orqali kelgani uchun qiymat satr bo'lishi mumkin.
+      const fromSim =
+        phone_from_sim === undefined || phone_from_sim === null || phone_from_sim === ''
+          ? null
+          : phone_from_sim === true || phone_from_sim === 'true';
+      fields.push(`phone_from_sim = $${idx++}`);
+      values.push(fromSim);
+    }
     if (birthday !== undefined) { fields.push(`birthday = $${idx++}`); values.push(birthday || null); }
     if (bio !== undefined) { fields.push(`bio = $${idx++}`); values.push(bio); }
 
