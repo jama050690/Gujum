@@ -21,6 +21,7 @@ import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
+import 'media_store.dart';
 import '../../models/session_user.dart';
 import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';

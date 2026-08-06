@@ -1,6 +1,9 @@
 part of '../chat_page.dart';
 
 extension _ConversationPaneMediaHelpers on _ConversationPaneState {
+  /// Fayl qurilmaga yuklab olinganmi — bo'lsa yo'li, bo'lmasa null.
+  String? _localMedia(String? path) => MediaStore.localFor(path);
+
 Widget _buildMediaTimeBadge(
   String label,
   bool isMine,
@@ -67,7 +70,15 @@ Widget _buildImageAttachment(
               children: [
                 Hero(
                   tag: heroTag,
-                  child: CachedNetworkImage(
+                  // Qurilmada nusxasi bo'lsa — tarmoqqa umuman chiqilmaydi.
+                  child: _localMedia(imagePath) != null
+                      ? Image.file(
+                          File(_localMedia(imagePath)!),
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.low,
+                          cacheWidth: 520,
+                        )
+                      : CachedNetworkImage(
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
                     filterQuality: FilterQuality.low,

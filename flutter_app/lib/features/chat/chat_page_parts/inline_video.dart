@@ -42,7 +42,12 @@ class _InlineVideoPreviewState extends State<_InlineVideoPreview> {
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(uri);
+    // Qurilmadagi nusxa bo'lsa undan o'ynatamiz — serverdagi fayl 24
+    // soatdan keyin o'chib ketishi mumkin.
+    final local = MediaStore.localFor(widget.videoUrl);
+    final controller = local != null
+        ? VideoPlayerController.file(File(local))
+        : VideoPlayerController.networkUrl(uri);
     _controller = controller;
     try {
       await controller.initialize();

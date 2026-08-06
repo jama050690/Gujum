@@ -9,6 +9,7 @@ import '../../core/network/session_store.dart';
 import '../../core/network/socket_service.dart';
 import '../../models/chat_models.dart';
 import '../auth/auth_controller.dart';
+import 'media_store.dart';
 import 'message_store.dart';
 import '../settings/settings_controller.dart';
 import 'chat_repository.dart';
@@ -95,6 +96,29 @@ class ChatController extends ChangeNotifier {
   void _persist(String peer, List<ChatMessage> messages) {
     _messageCache[peer] = List.from(messages);
     unawaited(_ensureStore().then((store) => store?.save(peer, messages)));
+    unawaited(_cacheAttachments(messages));
+  }
+
+  /// Biriktirilgan fayllarni qurilmaga yuklab qo'yadi.
+  ///
+  /// Serverdagi nusxa 24 soatdan keyin o'chadi, shuning uchun rasm/video/ovoz
+  /// bir marta olinadi va keyin diskdan ko'rsatiladi. Yuklab bo'lingach UI
+  /// yangilanadi — endi mahalliy nusxa ishlatiladi.
+  Future<void> _cacheAttachments(List<ChatMessage> messages) async {
+    final store = await MediaStore.instance();
+    final baseUrl = _settingsController.baseUrl;
+    var changed = false;
+    for (final message in messages) {
+      for (final path in [message.image, message.audio, message.video]) {
+        if (path == null || path.isEmpty) continue;
+        if (MediaStore.localFor(path) != null) continue;
+        final url = AppConfig.resolveMediaUrl(path, baseUrl);
+        if (url.isEmpty) continue;
+        final saved = await store.ensureLocal(path, url);
+        if (saved != null) changed = true;
+      }
+    }
+    if (changed) notifyListeners();
   }
 
   DateTime? lastActiveFor(String username) => _lastActiveUsers[username];
