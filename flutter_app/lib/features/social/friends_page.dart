@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
@@ -10,6 +13,13 @@ import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
 import 'social_repository.dart';
+
+/// Telefon kitobidagi, lekin Gujumda yo'q kontakt — taklif qilish uchun.
+class _InviteCandidate {
+  const _InviteCandidate({required this.name, required this.phone});
+  final String name;
+  final String phone;
+}
 
 class _PhoneContactMatch {
   const _PhoneContactMatch({
@@ -35,9 +45,12 @@ class FriendsPage extends StatefulWidget {
 
 class _FriendsPageState extends State<FriendsPage> {
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   List<SimpleUser> _searchResults = const [];
   List<_PhoneContactMatch> _phoneMatches = const [];
+  List<_InviteCandidate> _inviteCandidates = const [];
+  Timer? _searchDebounce;
   bool _searching = false;
   bool _loadingContacts = false;
   String? _contactsErrorKey;
@@ -54,8 +67,40 @@ class _FriendsPageState extends State<FriendsPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Telegram singari yozilayotganda qidiradi — alohida tugma bosish shart
+  /// emas. 350ms kutamiz: har harf uchun so'rov yubormaslik uchun.
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() => _searchResults = const []);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _runSearch);
+  }
+
+  /// SMS orqali taklif. Ilova do'koni havolasi hali yo'q, shuning uchun
+  /// matnda faqat ilova nomi bor — havola paydo bo'lganda shu yerga qo'shiladi.
+  Future<void> _invite(_InviteCandidate candidate) async {
+    final t = (String key) => AppStrings.text(
+        context.read<SettingsController>().localeCode, key);
+    final body = Uri.encodeComponent(t('invite_message'));
+    final uri = Uri.parse('sms:${candidate.phone}?body=$body');
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw Exception('sms');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('invite_failed'))),
+      );
+    }
   }
 
   String _normalizePhone(String input) {
@@ -89,6 +134,9 @@ class _FriendsPageState extends State<FriendsPage> {
       );
 
       final phoneToName = <String, String>{};
+      // Taklif SMS i uchun raqamning asl ko'rinishi kerak — normallashtirilgan
+      // oxirgi 9 raqamga SMS yuborib bo'lmaydi.
+      final phoneToOriginal = <String, String>{};
       final phones = <String>[];
       for (final contact in deviceContacts) {
         final displayName = contact.displayName.trim();
@@ -98,8 +146,9 @@ class _FriendsPageState extends State<FriendsPage> {
           phones.add(phone.number);
           phoneToName.putIfAbsent(
             normalized,
-            () => displayName.isNotEmpty ? displayName : normalized,
+            () => displayName.isNotEmpty ? displayName : phone.number,
           );
+          phoneToOriginal.putIfAbsent(normalized, () => phone.number);
         }
       }
 
@@ -124,9 +173,29 @@ class _FriendsPageState extends State<FriendsPage> {
         return _PhoneContactMatch(user: user, contactName: contactName);
       }).toList(growable: false);
 
+      // Gujumda bo'lmagan kontaktlar — taklif ro'yxati. Telegram ham
+      // ularni yashirmaydi, "Invite Friends" ostida ko'rsatadi.
+      final registered = <String>{
+        for (final user in filteredUsers) _normalizePhone(user.matchedPhone ?? '')
+      };
+      final invites = <String, _InviteCandidate>{};
+      for (final entry in phoneToName.entries) {
+        if (entry.key.isEmpty || registered.contains(entry.key)) continue;
+        invites.putIfAbsent(
+          entry.key,
+          () => _InviteCandidate(
+            name: entry.value,
+            phone: phoneToOriginal[entry.key] ?? entry.key,
+          ),
+        );
+      }
+      final inviteList = invites.values.toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
       if (!mounted) return;
       setState(() {
         _phoneMatches = matches;
+        _inviteCandidates = inviteList;
       });
     } catch (error) {
       _showError(error);
@@ -201,18 +270,32 @@ class _FriendsPageState extends State<FriendsPage> {
       appBar: AppBar(
         title: Text(t(widget.titleKey ?? 'search_users')),
       ),
+      // Qo'lda qidirib qo'shish: raqami telefon kitobida yo'q odamni
+      // username orqali topish uchun. Telegram'da ham shunga o'xshash
+      // tugma bor — joyi boshqacha, vazifasi bir xil.
+      floatingActionButton: _showPhoneContactsSection
+          ? FloatingActionButton(
+              onPressed: () => _searchFocusNode.requestFocus(),
+              tooltip: t('add_friend'),
+              child: const Icon(Icons.person_add_alt_1_rounded),
+            )
+          : null,
       body: _SearchTab(
         controller: _searchController,
         searching: _searching,
         results: _searchResults,
         settings: settings,
         phoneMatches: _phoneMatches,
+        inviteCandidates: _inviteCandidates,
         loadingContacts: _loadingContacts,
         contactsErrorKey: _contactsErrorKey,
         showPhoneContactsSection: _showPhoneContactsSection,
         onSearch: _runSearch,
+        onSearchChanged: _onSearchChanged,
+        searchFocusNode: _searchFocusNode,
         onRefreshContacts: _loadPhoneContactMatches,
         onOpenChat: _openChat,
+        onInvite: _invite,
       ),
     );
   }
@@ -229,8 +312,12 @@ class _SearchTab extends StatelessWidget {
     required this.contactsErrorKey,
     required this.showPhoneContactsSection,
     required this.onSearch,
+    required this.onSearchChanged,
     required this.onRefreshContacts,
     required this.onOpenChat,
+    required this.onInvite,
+    required this.inviteCandidates,
+    required this.searchFocusNode,
   });
 
   final TextEditingController controller;
@@ -242,8 +329,12 @@ class _SearchTab extends StatelessWidget {
   final String? contactsErrorKey;
   final bool showPhoneContactsSection;
   final Future<void> Function() onSearch;
+  final ValueChanged<String> onSearchChanged;
   final Future<void> Function() onRefreshContacts;
   final ValueChanged<SimpleUser> onOpenChat;
+  final ValueChanged<_InviteCandidate> onInvite;
+  final List<_InviteCandidate> inviteCandidates;
+  final FocusNode searchFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -256,8 +347,39 @@ class _SearchTab extends StatelessWidget {
               onRefresh: onRefreshContacts,
               child: ListView(
                 children: [
+                  // Qidiruv eng tepada — Telegram ham shunday, va yozilayotganda
+                  // izlaydi, tugma bosish shart emas.
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: _SearchBox(
+                      controller: controller,
+                      t: t,
+                      onSearch: onSearch,
+                      onChanged: onSearchChanged,
+                      focusNode: searchFocusNode,
+                    ),
+                  ),
+                  if (results.isNotEmpty)
+                    ...results.map((user) {
+                      final imageUrl =
+                          AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage:
+                              imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                          child: imageUrl.isEmpty
+                              ? Text(user.fullName.isNotEmpty
+                                  ? user.fullName.substring(0, 1).toUpperCase()
+                                  : '?')
+                              : null,
+                        ),
+                        title: Text(user.fullName),
+                        subtitle: Text('@${user.username}'),
+                        onTap: () => onOpenChat(user),
+                      );
+                    }),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: Row(
                       children: [
                         Expanded(
@@ -319,6 +441,34 @@ class _SearchTab extends StatelessWidget {
                         ),
                       );
                     }),
+                  // Gujumda bo'lmagan kontaktlar — taklif ro'yxati.
+                  if (inviteCandidates.isNotEmpty) ...[
+                    const Divider(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text(
+                        t('invite_friends'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    ...inviteCandidates.map(
+                      (candidate) => ListTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            candidate.name.isNotEmpty
+                                ? candidate.name.substring(0, 1).toUpperCase()
+                                : '#',
+                          ),
+                        ),
+                        title: Text(candidate.name),
+                        subtitle: Text(candidate.phone),
+                        trailing: TextButton(
+                          onPressed: () => onInvite(candidate),
+                          child: Text(t('invite')),
+                        ),
+                      ),
+                    ),
+                  ],
                   const Divider(height: 24),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -412,35 +562,40 @@ class _SearchBox extends StatelessWidget {
     required this.controller,
     required this.t,
     required this.onSearch,
+    this.onChanged,
+    this.focusNode,
   });
 
   final TextEditingController controller;
   final String Function(String key) t;
   final Future<void> Function() onSearch;
+  final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: t('search_hint'),
-              suffixIcon: IconButton(
-                onPressed: onSearch,
-                icon: const Icon(Icons.search),
+    // Alohida "Qidirish" tugmasi yo'q: yozilayotganda izlaydi.
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: t('search_hint'),
+        prefixIcon: const Icon(Icons.search),
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () {
+                  controller.clear();
+                  onChanged?.call('');
+                },
               ),
-            ),
-            onSubmitted: (_) => onSearch(),
-          ),
-        ),
-        const SizedBox(width: 8),
-        FilledButton(
-          onPressed: onSearch,
-          child: Text(t('chat_search_button')),
-        ),
-      ],
+      ),
+      onChanged: onChanged,
+      onSubmitted: (_) => onSearch(),
     );
   }
 }

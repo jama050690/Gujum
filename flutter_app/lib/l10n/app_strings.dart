@@ -18,6 +18,10 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> _values = {
     'uz': {
+      'invite_friends': "Do'stlarni taklif qilish",
+      'invite': "Taklif",
+      'invite_message': "Salom! Gujum'da yozishamiz — bepul suhbat va qo'ng'iroq.",
+      'invite_failed': "SMS ilovasi ochilmadi",
       'delete_account': "Akkauntni o'chirish",
       'delete_account_warning': "Akkauntingiz, yozishmalaringiz va fayllaringiz butunlay o'chiriladi. Buni qaytarib bo'lmaydi.",
       'delete_account_reason_q': "Ketishingiz sababi nimada?",
@@ -235,6 +239,10 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'en': {
+      'invite_friends': "Invite friends",
+      'invite': "Invite",
+      'invite_message': "Hi! Let's talk on Gujum — free chat and calls.",
+      'invite_failed': "Could not open the SMS app",
       'delete_account': "Delete account",
       'delete_account_warning': "Your account, chats and files will be permanently deleted. This cannot be undone.",
       'delete_account_reason_q': "Why are you leaving?",
@@ -453,6 +461,10 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'invite_friends': "Пригласить друзей",
+      'invite': "Пригласить",
+      'invite_message': "Привет! Давай общаться в Gujum — бесплатные чаты и звонки.",
+      'invite_failed': "Не удалось открыть SMS",
       'delete_account': "Удалить аккаунт",
       'delete_account_warning': "Аккаунт, переписка и файлы будут удалены навсегда. Отменить нельзя.",
       'delete_account_reason_q': "Почему вы уходите?",
@@ -584,6 +596,10 @@ class AppStrings {
       'chat_location_failed': 'Не удалось получить местоположение',
     },
     'ar': {
+      'invite_friends': "دعوة الأصدقاء",
+      'invite': "دعوة",
+      'invite_message': "مرحبًا! لنتحدث على غوجوم — محادثات ومكالمات مجانية.",
+      'invite_failed': "تعذّر فتح تطبيق الرسائل",
       'delete_account': "حذف الحساب",
       'delete_account_warning': "سيُحذف حسابك ومحادثاتك وملفاتك نهائيًا. لا يمكن التراجع عن ذلك.",
       'delete_account_reason_q': "لماذا تغادر؟",
@@ -791,6 +807,10 @@ class AppStrings {
       'version_label': "الإصدار",
     },
     'ko': {
+      'invite_friends': "친구 초대",
+      'invite': "초대",
+      'invite_message': "안녕하세요! 구줌에서 이야기해요 — 무료 채팅과 통화.",
+      'invite_failed': "문자 앱을 열지 못했습니다",
       'delete_account': "계정 삭제",
       'delete_account_warning': "계정과 대화, 파일이 영구적으로 삭제됩니다. 되돌릴 수 없습니다.",
       'delete_account_reason_q': "떠나시는 이유는 무엇인가요?",
