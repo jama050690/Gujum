@@ -49,6 +49,51 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096233590187:android:e9c8ec93f2fa16b28406ee",
+        "android_client_info": {
+          "package_name": "uz.jamshiddin.gujum_chat"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1096233590187-b5q2m5rk07tm4oddkamu2n5k9ad6mus6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "uz.jamshiddin.gujum_chat",
+            "certificate_hash": "08c80a963864362b8c7d64ba1246be7440201c94"
+          }
+        },
+        {
+          "client_id": "1096233590187-m4pva7j7fnqn41dcbjbj51nt2ioh180a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "uz.jamshiddin.gujum_chat",
+            "certificate_hash": "8dcefeae9fa87646b7fc76f202632db5f006a8e9"
+          }
+        },
+        {
+          "client_id": "1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKwvwgI-k02rRSOHBbCSZsLM6ijlBeQUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1096233590187-csb14eqr9q8mml0vdvlqiektakpcvbgq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

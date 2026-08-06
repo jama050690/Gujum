@@ -6,6 +6,7 @@ import {
   CHATS_TABLE,
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { emitToUser } from "../socket/handler.js";
 
 const router = express.Router();
 
@@ -93,12 +94,18 @@ router.get("/messages", async (req, res) => {
       const chatId = chatResult.rows[0].id;
 
       // Avval o'qilmagan xabarlarni read qilamiz
-      await pool.query(
+      const readResult = await pool.query(
         `UPDATE ${MESSAGES_TABLE}
          SET is_read = TRUE, read_at = NOW()
          WHERE chat_id = $1 AND sender_id = $2 AND COALESCE(is_read, FALSE) = FALSE`,
         [chatId, user2Id]
       );
+
+      // Jo'natuvchi ikkinchi belgini (✓✓) darhol ko'rsin — aks holda u faqat
+      // o'zi tarixni qayta yuklaganda bilib qoladi.
+      if (readResult.rowCount > 0) {
+        emitToUser(user2, "MESSAGES_READ", { by: user1 });
+      }
 
       const { rows } = await pool.query(
         `SELECT * FROM (
@@ -337,6 +344,10 @@ router.post("/messages/mark-read", async (req, res) => {
        WHERE chat_id = $1 AND sender_id = $2 AND COALESCE(is_read, FALSE) = FALSE`,
       [chatId, peerId]
     );
+
+    if (updateResult.rowCount > 0) {
+      emitToUser(chatWith, "MESSAGES_READ", { by: username });
+    }
 
     return res.json({ updated: updateResult.rowCount });
   } catch (err) {

@@ -9,6 +9,7 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
     required bool selectionMode,
     required String Function(String) t,
     required VoidCallback onLongPress,
+    bool tightBelow = false,
   }) {
     final callInfo = _parseCallMessage(message.content);
     final locationInfo = _parseLocationMessage(message.content);
@@ -34,6 +35,50 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
             ? const Color(0xFF1E2A35)
             : Colors.white.withAlpha(235));
 
+    // Faqat matn bo'lsa vaqt/belgilar matn yoniga qo'yiladi; ilova bor
+    // xabarlarda esa avvalgidek pastki qatorda qoladi.
+    final inlineMeta = hasTextContent && !hasVideo && !hasImage && !hasAudio;
+
+    final metaRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isPinned) ...[
+          Icon(
+            Icons.push_pin_rounded,
+            size: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+        ],
+        if (isSelected) ...[
+          const Icon(
+            Icons.check_circle_rounded,
+            size: 12,
+            color: Color(0xFF419FD9),
+          ),
+          const SizedBox(width: 4),
+        ],
+        Text(
+          timeLabel,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        // Faqat o'z xabarlarimizda: ✓ jo'natildi, ✓✓ o'qildi.
+        if (isMine) ...[
+          const SizedBox(width: 3),
+          Icon(
+            message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
+            size: 14,
+            // Media badge bilan bir xil rang — Telegram'dagi kabi farq
+            // faqat bir yoki ikki belgida, rangda emas.
+            color: const Color(0xFF6DB870),
+          ),
+        ],
+      ],
+    );
+
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
@@ -43,27 +88,31 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
             : onLongPress,
         onLongPress: onLongPress,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 430),
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          // Telegram pufakchani ekran kengligining ~78% i bilan cheklaydi.
+          // Oldingi qat'iy 430dp telefon ekranidan kengroq edi — shuning uchun
+          // pufakchalar deyarli butun qatorni egallab turardi.
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
+          ),
+          // Ketma-ket bir odamning xabarlari orasida 2dp, muallif
+          // almashganda 8dp — Telegram'dagi kabi.
+          margin: EdgeInsets.only(bottom: tightBelow ? 2 : 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
             color: bubbleColor,
-            borderRadius: BorderRadius.circular(18),
+            // "Dum" burchak: o'z tomonidagi pastki burchak kichikroq radiusda.
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMine ? 16 : 6),
+              bottomRight: Radius.circular(isMine ? 6 : 16),
+            ),
             border: isSelected
                 ? Border.all(
                     color: const Color(0xFF419FD9),
                     width: 1.4,
                   )
                 : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(
-                  widget.settings.isDarkMode ? 14 : 8,
-                ),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
           child: AbsorbPointer(
             absorbing: selectionMode,
@@ -71,14 +120,8 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
               crossAxisAlignment:
                   isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                if (!isMine)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      message.senderName,
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  ),
+                // Shaxsiy chatda jo'natuvchi ismi ko'rsatilmaydi — Telegram ham
+                // uni faqat guruhlarda chiqaradi, bu esa 1:1 pane.
                 if (message.replyToUsername != null &&
                     message.replyToContent != null &&
                     message.replyToContent!.isNotEmpty)
@@ -92,7 +135,30 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
                 else if (locationInfo != null)
                   _buildLocationChip(locationInfo, t)
                 else if (message.content.isNotEmpty)
-                  Text(message.content),
+                  // Telegram vaqt va belgilarni matnning oxirgi qatoriga
+                  // yondosh qo'yadi, alohida qatorga tushirmaydi.
+                  inlineMeta
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                message.content,
+                                style: const TextStyle(fontSize: 16, height: 1.25),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 1),
+                              child: metaRow,
+                            ),
+                          ],
+                        )
+                      : Text(
+                          message.content,
+                          style: const TextStyle(fontSize: 16, height: 1.25),
+                        ),
                 if (message.video != null && message.video!.isNotEmpty)
                   _buildVideoAttachment(
                     message.video!,
@@ -118,33 +184,9 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
                         ),
                 if (message.audio != null && message.audio!.isNotEmpty)
                   _buildAudioAttachment(message.audio!, isMine),
-                if (!showMediaOverlay) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isPinned) ...[
-                        Icon(
-                          Icons.push_pin_rounded,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      if (isSelected) ...[
-                        const Icon(
-                          Icons.check_circle_rounded,
-                          size: 12,
-                          color: Color(0xFF419FD9),
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(
-                        timeLabel,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                  ),
+                if (!showMediaOverlay && !inlineMeta) ...[
+                  const SizedBox(height: 4),
+                  metaRow,
                 ],
               ],
             ),

@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 
 import app from './src/app.js';
 import { startCleanupScheduler } from './src/config/cleanup.js';
+import { startRetentionScheduler } from './src/config/retention.js';
 import { initDb } from './src/db/init.js';
 import { registerSocketHandlers } from './src/socket/handler.js';
 
@@ -49,6 +50,7 @@ async function start() {
   try {
     await initDb();
     startCleanupScheduler();
+    startRetentionScheduler();
 
     // 0.0.0.0 barcha tarmoq interfeyslaridan ulanishni qabul qiladi
     httpServer.listen(PORT, '0.0.0.0', () => {

@@ -71,17 +71,26 @@ class FcmService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
-    // Qo'ng'iroq kanali
+    // Qo'ng'iroq kanali.
+    //
+    // Kanal ID si 'incoming_calls' dan 'incoming_calls_v2' ga o'zgartirildi:
+    // eski kanal playSound: false bilan yaratilgan edi va zaxira
+    // (fallback) bildirishnoma ovozsiz kelardi — ya'ni aynan tovush chiqarishi
+    // kerak bo'lgan yo'l jim edi. Android kanal sozlamalarini yaratilgandan
+    // keyin o'zgartirishga ruxsat bermaydi, shuning uchun yangi ID kerak.
     await androidPlugin?.createNotificationChannel(
       const AndroidNotificationChannel(
-        'incoming_calls',
+        'incoming_calls_v2',
         'Incoming Calls',
         description: "Qo'ng'iroqlar uchun bildirishnomalar",
         importance: Importance.max,
-        playSound: false,
+        playSound: true,
         enableVibration: true,
       ),
     );
+    // Eski jim kanalni ro'yxatdan olib tashlaymiz — sozlamalarda ikkita bir
+    // xil nomli kanal turib qolmasin.
+    await androidPlugin?.deleteNotificationChannel('incoming_calls');
 
     // Xabar kanali — FCM notification shu kanalga yuboriladi
     await androidPlugin?.createNotificationChannel(
@@ -140,11 +149,21 @@ class FcmService {
     _username = null;
     _baseUrl = null;
     try {
+      // Tokenni o'chirishdan oldin olamiz — serverga aynan shu qurilmani
+      // ko'rsatish uchun. Aks holda foydalanuvchining boshqa qurilmalari ham
+      // ro'yxatdan chiqib, u yerda qo'ng'iroqlar kelmay qolardi.
+      String? token;
+      try {
+        token = await FirebaseMessaging.instance.getToken();
+      } catch (_) {}
       await FirebaseMessaging.instance.deleteToken();
       await http.delete(
         Uri.parse('$baseUrl/api/fcm-token'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username}),
+        body: jsonEncode({
+          'username': username,
+          if (token != null) 'token': token,
+        }),
       );
     } catch (e) {
       debugPrint('[FCM] unregister error: $e');

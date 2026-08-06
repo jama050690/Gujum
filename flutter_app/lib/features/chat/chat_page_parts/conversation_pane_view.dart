@@ -43,9 +43,11 @@ extension _ConversationPaneView on _ConversationPaneState {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactHeight = constraints.maxHeight < 220;
+        // Telegram pufakchalarni ekran chetidan ~8dp da ushlaydi — 18dp
+        // gorizontal padding matn uchun joyni keraksiz yeb qo'yardi.
         final messagePadding = compactHeight
-            ? const EdgeInsets.fromLTRB(12, 10, 12, 6)
-            : const EdgeInsets.fromLTRB(18, 18, 18, 8);
+            ? const EdgeInsets.fromLTRB(8, 8, 8, 6)
+            : const EdgeInsets.fromLTRB(8, 10, 8, 8);
 
         return Column(
           children: [
@@ -211,6 +213,10 @@ extension _ConversationPaneView on _ConversationPaneState {
               isPinned: isPinned,
               selectionMode: selectionMode,
               t: t,
+              // Pastdagi xabar ham shu odamniki bo'lsa — zich joylashtiramiz.
+              tightBelow: msgIndex + 1 < messages.length &&
+                  messages[msgIndex + 1].senderUsername ==
+                      message.senderUsername,
               onLongPress: () {
                 if (selectionMode) {
                   _toggleSelectedMessage(message);

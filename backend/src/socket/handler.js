@@ -101,22 +101,41 @@ async function sendPushToUser(username, notification) {
 
 async function sendFcmCallToUser(username, data, withNotification = false) {
   try {
-    const res = await pool.query('SELECT token FROM fcm_tokens WHERE username = $1', [username]);
+    // Foydalanuvchining barcha qurilmalari — telefon, planshet, eski o'rnatma.
+    // Qaysi biri qo'lida ekanini bilmaymiz, shuning uchun hammasiga yuboramiz.
+    const res = await pool.query(
+      'SELECT token FROM fcm_tokens WHERE username = $1 ORDER BY updated_at DESC',
+      [username]
+    );
     if (res.rowCount === 0) {
       console.log(`[FCM] ${username} uchun token DB da topilmadi`);
       return;
     }
     const label = withNotification ? 'fallback(notification)' : 'data-only';
-    console.log(`[FCM] ${username} ga FCM(${label}) yuborilmoqda... callId=${data.callId}`);
-    const result = await sendCallFcm(res.rows[0].token, data, withNotification);
-    if (result === 'expired') {
-      console.log(`[FCM] ${username} token eskirgan — o'chirildi`);
-      await pool.query('DELETE FROM fcm_tokens WHERE username = $1', [username]);
-    } else if (result === true) {
-      console.log(`[FCM] ${username} ga FCM(${label}) muvaffaqiyatli yuborildi ✓`);
-    } else {
-      console.log(`[FCM] ${username} ga FCM yuborishda xato result=${result}`);
+    console.log(
+      `[FCM] ${username} ga FCM(${label}) yuborilmoqda... ` +
+      `qurilmalar=${res.rowCount} callId=${data.callId}`
+    );
+
+    const results = await Promise.all(
+      res.rows.map(async (row) => {
+        const result = await sendCallFcm(row.token, data, withNotification);
+        return { token: row.token, result };
+      })
+    );
+
+    // Faqat o'lgan tokenlar o'chiriladi — qolgan qurilmalar joyida qoladi.
+    const expired = results.filter((r) => r.result === 'expired').map((r) => r.token);
+    if (expired.length > 0) {
+      await pool.query('DELETE FROM fcm_tokens WHERE token = ANY($1::text[])', [expired]);
+      console.log(`[FCM] ${username}: ${expired.length} ta eskirgan token o'chirildi`);
     }
+
+    const ok = results.filter((r) => r.result === true).length;
+    const failed = results.length - ok - expired.length;
+    console.log(
+      `[FCM] ${username} ga FCM(${label}) natija: ✓${ok} eskirgan=${expired.length} xato=${failed}`
+    );
   } catch (e) {
     console.error('[FCM] sendFcmCallToUser error:', e.message);
   }
@@ -616,4 +635,4 @@ async function sendAllUsers() {
   }
 }
 
-export { registerSocketHandlers };
+export { registerSocketHandlers, emitToUser };

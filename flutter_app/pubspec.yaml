@@ -1,5 +1,5 @@
-name: bootchat_flutter
-description: Flutter client for the Bootchat backend.
+name: gujum_chat
+description: Gujum — Flutter client.
 publish_to: "none"
 
 version: 0.1.0+1
@@ -10,6 +10,10 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  # Arabcha uchun o'ngdan chapga yo'nalish va tizim matnlari (dialog
+  # tugmalari, sana tanlagich) shu paketdan keladi.
+  flutter_localizations:
     sdk: flutter
   audioplayers: any
   cached_network_image: ^3.4.1

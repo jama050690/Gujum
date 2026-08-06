@@ -72,9 +72,15 @@ class _InlineAudioMessageState extends State<_InlineAudioMessage> {
     }
   }
 
+  /// Yuklab olingan bo'lsa diskdan, aks holda tarmoqdan.
+  Source _audioSource() {
+    final local = MediaStore.localFor(widget.audioUrl);
+    return local != null ? DeviceFileSource(local) : UrlSource(widget.audioUrl);
+  }
+
   Future<void> _preloadDuration() async {
     try {
-      await _player.setSource(UrlSource(widget.audioUrl));
+      await _player.setSource(_audioSource());
       final d = await _player.getDuration();
       if (!mounted) return;
       setState(() {
@@ -103,7 +109,7 @@ class _InlineAudioMessageState extends State<_InlineAudioMessage> {
     }
     try {
       if (!_hasSource) {
-        await _player.play(UrlSource(widget.audioUrl));
+        await _player.play(_audioSource());
         _hasSource = true;
       } else {
         await _player.resume();

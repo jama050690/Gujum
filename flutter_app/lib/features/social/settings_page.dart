@@ -38,10 +38,26 @@ class SettingsPage extends StatelessWidget {
                   trailing: DropdownButton<String>(
                     value: settings.localeCode,
                     underline: const SizedBox.shrink(),
-                    items: const [
-                      DropdownMenuItem(value: 'uz', child: Text('UZ')),
-                      DropdownMenuItem(value: 'en', child: Text('EN')),
-                      DropdownMenuItem(value: 'ru', child: Text('RU')),
+                    items: [
+                      for (final code in AppStrings.supportedLocales)
+                        DropdownMenuItem(
+                          value: code,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                code.toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Tilning o'z nomi — o'sha tilda yozilgan holda.
+                              Text(AppStrings.languageNames[code] ?? code),
+                            ],
+                          ),
+                        ),
                     ],
                     onChanged: (value) {
                       if (value != null) {

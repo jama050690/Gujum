@@ -13,6 +13,7 @@ class SessionStore {
   static const _darkModeKey = 'bootchat.dark_mode';
   static const _baseUrlKey = 'bootchat.base_url';
   static const _lastLoginUsernameKey = 'bootchat.last_login_username';
+  static const _contactsAskedKey = 'bootchat.contacts_asked';
 
   final SharedPreferences _prefs;
 
@@ -75,6 +76,12 @@ class SessionStore {
 
   Future<void> saveBaseUrl(String value) =>
       _prefs.setString(_baseUrlKey, AppConfig.normalizeBaseUrl(value));
+
+  /// Kontaktlar ruxsati ro'yxatdan o'tishda bir marta so'raladi — bosilgandan
+  /// keyin qayta ko'rsatilmaydi (rad etilgan bo'lsa ham).
+  bool get contactsAsked => _prefs.getBool(_contactsAskedKey) ?? false;
+
+  Future<void> markContactsAsked() => _prefs.setBool(_contactsAskedKey, true);
 
   String? get lastLoginUsername => _prefs.getString(_lastLoginUsernameKey);
 

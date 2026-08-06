@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+
 import '../../core/network/api_client.dart';
 import '../../models/social_models.dart';
 
@@ -27,6 +29,40 @@ class SocialRepository {
         'phone': phone,
         'bio': bio,
         'birthday': birthday,
+      },
+    );
+  }
+
+  /// Faqat telefon raqamini saqlaydi — backend yuborilmagan maydonlarga
+  /// tegmaydi, shuning uchun profilning qolgan qismi o'zgarmaydi.
+  /// Yangi profil rasmini yuklaydi va serverdagi yo'lini qaytaradi.
+  Future<String?> uploadAvatar(String filePath) async {
+    final response = await _apiClient.multipartPut(
+      '/api/users/profile',
+      authenticated: true,
+      files: [await http.MultipartFile.fromPath('avatar', filePath)],
+    );
+    if (response is Map) {
+      return response['avatar']?.toString();
+    }
+    return null;
+  }
+
+  Future<void> saveFullName(String fullName) async {
+    await _apiClient.multipartPut(
+      '/api/users/profile',
+      authenticated: true,
+      fields: {'full_name': fullName},
+    );
+  }
+
+  Future<void> savePhone(String phone, {bool? fromSim}) async {
+    await _apiClient.multipartPut(
+      '/api/users/profile',
+      authenticated: true,
+      fields: {
+        'phone': phone,
+        if (fromSim != null) 'phone_from_sim': fromSim.toString(),
       },
     );
   }

@@ -9,6 +9,8 @@ import '../../core/network/session_store.dart';
 import '../../core/network/socket_service.dart';
 import '../../models/chat_models.dart';
 import '../auth/auth_controller.dart';
+import 'media_store.dart';
+import 'message_store.dart';
 import '../settings/settings_controller.dart';
 import 'chat_repository.dart';
 
@@ -43,6 +45,9 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> _messages = const [];
   InboxItem? _activeChat;
   final Map<String, List<ChatMessage>> _messageCache = {};
+  // Qurilmadagi doimiy nusxa. Server xabarlarni 24 soatdan keyin o'chiradi,
+  // shuning uchun bu yerdagi nusxa hech qachon tozalanmaydi.
+  MessageStore? _store;
   Set<String> _onlineUsers = <String>{};
   Map<String, DateTime?> _lastActiveUsers = const <String, DateTime?>{};
   bool _loadingInbox = false;
@@ -67,7 +72,54 @@ class ChatController extends ChangeNotifier {
   bool get isConnected => _socketService.isConnected;
 
   // --- KOMPILYATSIYA XATOLARINI TUZATUVCHI METODLAR ---
-  Future<void> bootstrap() => _syncSession(force: true);
+  Future<void> bootstrap() async {
+    await _ensureStore();
+    await _syncSession(force: true);
+  }
+
+  /// Joriy foydalanuvchi uchun local do'kon. Akkaunt almashsa qaytadan
+  /// ochiladi — bir qurilmadagi ikki akkaunt tarixi aralashmasin.
+  Future<MessageStore?> _ensureStore() async {
+    final username = _authController.user?.username;
+    if (username == null) return null;
+    if (_store?.owner == username) return _store;
+    try {
+      _store = await MessageStore.create(username);
+    } catch (e) {
+      debugPrint('CHAT_DEBUG MessageStore ochilmadi: $e');
+      _store = null;
+    }
+    return _store;
+  }
+
+  /// Suhbatni xotirada ham, diskda ham yangilaydi.
+  void _persist(String peer, List<ChatMessage> messages) {
+    _messageCache[peer] = List.from(messages);
+    unawaited(_ensureStore().then((store) => store?.save(peer, messages)));
+    unawaited(_cacheAttachments(messages));
+  }
+
+  /// Biriktirilgan fayllarni qurilmaga yuklab qo'yadi.
+  ///
+  /// Serverdagi nusxa 24 soatdan keyin o'chadi, shuning uchun rasm/video/ovoz
+  /// bir marta olinadi va keyin diskdan ko'rsatiladi. Yuklab bo'lingach UI
+  /// yangilanadi — endi mahalliy nusxa ishlatiladi.
+  Future<void> _cacheAttachments(List<ChatMessage> messages) async {
+    final store = await MediaStore.instance();
+    final baseUrl = _settingsController.baseUrl;
+    var changed = false;
+    for (final message in messages) {
+      for (final path in [message.image, message.audio, message.video]) {
+        if (path == null || path.isEmpty) continue;
+        if (MediaStore.localFor(path) != null) continue;
+        final url = AppConfig.resolveMediaUrl(path, baseUrl);
+        if (url.isEmpty) continue;
+        final saved = await store.ensureLocal(path, url);
+        if (saved != null) changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
 
   DateTime? lastActiveFor(String username) => _lastActiveUsers[username];
 
@@ -111,6 +163,10 @@ class ChatController extends ChangeNotifier {
   Future<void> clearChatHistory(String username) async {
     await _chatRepository.clearChatHistory(username);
     _messageCache.remove(username);
+    // Qurilmadagi nusxa faqat shu yerda — foydalanuvchi ataylab tozalaganda
+    // o'chiriladi, aks holda tarix qaytib paydo bo'lardi.
+    final store = await _ensureStore();
+    await store?.deleteConversation(username);
     if (_activeChat?.username == username) _messages = const [];
     _updateInboxPreview(
         peer: username, preview: '', at: DateTime.now(), unreadCount: 0);
@@ -120,6 +176,9 @@ class ChatController extends ChangeNotifier {
   Future<void> deleteChat(String username) async {
     await _chatRepository.deleteChat(username);
     _inbox = _inbox.where((item) => item.username != username).toList();
+    _messageCache.remove(username);
+    final store = await _ensureStore();
+    await store?.deleteConversation(username);
     if (_activeChat?.username == username) closeChat();
     notifyListeners();
   }
@@ -139,6 +198,8 @@ class ChatController extends ChangeNotifier {
   Future<void> deleteActiveMessage(int id) async {
     await _chatRepository.deleteMessage(id);
     _messages = _messages.where((item) => item.id != id).toList();
+    final peer = _activeChat?.username;
+    if (peer != null) _persist(peer, _messages);
     notifyListeners();
   }
 
@@ -148,6 +209,8 @@ class ChatController extends ChangeNotifier {
         await _chatRepository.updateMessage(id: id, message: message);
     _messages =
         _messages.map((item) => item.id == id ? updated : item).toList();
+    final peer = _activeChat?.username;
+    if (peer != null) _persist(peer, _messages);
     notifyListeners();
     return updated;
   }
@@ -156,8 +219,18 @@ class ChatController extends ChangeNotifier {
     final user = _authController.user;
     if (user == null) return;
     _activeChat = item.copyWith(unreadCount: 0);
-    // Bo'sh cache-ni hit sifatida qabul qilmaymiz — spinner ko'rsatib qayta urinish kerak
-    final cached = _messageCache[item.username];
+    // Avval xotiradagi, keyin diskdagi nusxa — ikkalasi ham bo'lmasa spinner.
+    var cached = _messageCache[item.username];
+    if (cached == null || cached.isEmpty) {
+      final store = await _ensureStore();
+      final stored = await store?.load(item.username) ?? const <ChatMessage>[];
+      if (stored.isNotEmpty) {
+        cached = stored;
+        _messageCache[item.username] = List.from(stored);
+      }
+      // Fetch davomida boshqa chat ochilgan bo'lishi mumkin.
+      if (_activeChat?.username != item.username) return;
+    }
     final hasCache = cached != null && cached.isNotEmpty;
     _messages = hasCache ? cached : const [];
     _loadingMessages = !hasCache;
@@ -169,13 +242,12 @@ class ChatController extends ChangeNotifier {
           user1: user.username, user2: item.username);
       // Race condition: fetch davomida boshqa chat ochilgan bo'lishi mumkin
       if (_activeChat?.username == item.username) {
-        _messages = fetched;
+        // Server faqat oxirgi 24 soatni qaytaradi — eskisi qurilmada qoladi,
+        // shuning uchun almashtirmaymiz, birlashtiramiz.
+        _messages = MessageStore.merge(_messages, fetched);
         _messagesLoadFailed = false;
-        // Bo'sh natijani cache qilmaymiz — keyingi ochilishda qayta urinish uchun
-        if (fetched.isNotEmpty) {
-          _messageCache[item.username] = List.from(fetched);
-        } else {
-          _messageCache.remove(item.username);
+        if (_messages.isNotEmpty) {
+          _persist(item.username, _messages);
         }
         _updateInboxPreview(peer: item.username, unreadCount: 0);
       }
@@ -191,6 +263,10 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
       }
     }
+    // Fetch muvaffaqiyatli bo'lsa GET /api/messages o'zi read qiladi, lekin
+    // cache'dan ko'rsatilgan yoki fetch yiqilgan holatda ham peer ✓✓ ni
+    // ko'rishi kerak — shuning uchun bu yerda ham bir marta belgilaymiz.
+    if (_activeChat?.username == item.username) _markChatRead(item.username);
     // Xabarlar bo'sh bo'lsa — 2 soniyadan keyin bir marta qayta urinish
     if (_messages.isEmpty && _activeChat?.username == item.username) {
       await Future.delayed(const Duration(seconds: 2));
@@ -199,9 +275,9 @@ class ChatController extends ChangeNotifier {
         final retried = await _chatRepository.fetchMessages(
             user1: user.username, user2: item.username);
         if (_activeChat?.username != item.username) return;
-        _messages = retried;
-        if (retried.isNotEmpty) {
-          _messageCache[item.username] = List.from(retried);
+        _messages = MessageStore.merge(_messages, retried);
+        if (_messages.isNotEmpty) {
+          _persist(item.username, _messages);
         }
         _updateInboxPreview(peer: item.username, unreadCount: 0);
         notifyListeners();
@@ -310,6 +386,12 @@ class ChatController extends ChangeNotifier {
         });
         break;
 
+      case 'MESSAGES_READ':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final by = data['by']?.toString();
+        if (by != null && by.isNotEmpty) _applyPeerRead(by);
+        break;
+
       case 'ONLINE_USERS_LIST':
         final users =
             (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
@@ -383,9 +465,63 @@ class ChatController extends ChangeNotifier {
     if (_activeChat?.username == peer) {
       _messagesLoadFailed = false;
       _messages = [..._messages, message];
-      _messageCache[peer] = List.from(_messages);
+      _persist(peer, _messages);
+      // Chat ochiq turganda kelgan xabar — darhol o'qilgan hisoblanadi.
+      if (message.senderUsername != currentUser.username) {
+        _markChatRead(peer);
+      }
+    } else {
+      // Chat yopiq bo'lsa ham xabar qurilmada qolishi kerak — server uni
+      // 24 soatdan keyin o'chiradi.
+      unawaited(_appendToStoredConversation(peer, message));
     }
     notifyListeners();
+  }
+
+  Future<void> _appendToStoredConversation(
+      String peer, ChatMessage message) async {
+    final store = await _ensureStore();
+    if (store == null) return;
+    final existing = _messageCache[peer] ?? await store.load(peer);
+    final updated = MessageStore.merge(existing, [message]);
+    _messageCache[peer] = List.from(updated);
+    await store.save(peer, updated);
+  }
+
+  /// Peer'ning bizga yozgan xabarlarini o'qilgan deb belgilaydi va unga
+  /// ✓✓ ni jonli yetkazadi. Socket uzilgan bo'lsa REST orqali.
+  void _markChatRead(String peer) {
+    final currentUser = _authController.user;
+    if (currentUser == null) return;
+    if (_socketService.isConnected) {
+      _socketService.emit('MESSAGES_READ', {'chatWith': peer});
+      return;
+    }
+    unawaited(
+      _chatRepository
+          .markRead(username: currentUser.username, chatWith: peer)
+          .catchError((e) {
+        debugPrint('CHAT_DEBUG markRead xatosi: $e');
+      }),
+    );
+  }
+
+  /// Peer bizning xabarlarimizni o'qidi — barcha o'z xabarlarimizni ✓✓ qilamiz.
+  void _applyPeerRead(String peer) {
+    final currentUser = _authController.user;
+    if (currentUser == null) return;
+    List<ChatMessage> mark(List<ChatMessage> list) => list
+        .map((m) => m.senderUsername == currentUser.username && !m.isRead
+            ? m.copyWith(isRead: true)
+            : m)
+        .toList();
+    if (_activeChat?.username == peer) {
+      _messages = mark(_messages);
+      _persist(peer, _messages);
+      return;
+    }
+    final cached = _messageCache[peer];
+    if (cached != null) _persist(peer, mark(cached));
   }
 
   void _updateInboxPreview(

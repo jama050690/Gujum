@@ -41,23 +41,34 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
     }
     if (mediaPath == null) return;
 
-    final url = AppConfig.resolveMediaUrl(mediaPath, widget.settings.baseUrl);
     final fileName = _fileNameFromPath(mediaPath);
+    final mimeType = MediaSaver.mimeFor(fileName);
 
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) {
+      // Avval qurilmadagi nusxa: server fayli 24 soatdan keyin o'chishi
+      // mumkin, mahalliy nusxa esa qoladi.
+      var sourcePath = MediaStore.localFor(mediaPath);
+      if (sourcePath == null) {
+        final url = AppConfig.resolveMediaUrl(mediaPath, widget.settings.baseUrl);
+        final store = await MediaStore.instance();
+        sourcePath = await store.ensureLocal(mediaPath, url);
+      }
+      if (sourcePath == null) {
         if (mounted) _showInfoSnackBar(t('message_save_failed'));
         return;
       }
-      Directory? dir;
-      if (!kIsWeb && Platform.isAndroid) {
-        dir = await getExternalStorageDirectory();
-      }
-      dir ??= await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(response.bodyBytes);
-      if (mounted) _showInfoSnackBar('$fileName ${t('message_saved')}');
+
+      // Telegram singari: rasm/video galereyaga, qolgani Downloads ga.
+      final saved = MediaSaver.goesToGallery(mimeType)
+          ? await MediaSaver.saveToGallery(
+              path: sourcePath, fileName: fileName, mimeType: mimeType)
+          : await MediaSaver.saveToDownloads(
+              path: sourcePath, fileName: fileName, mimeType: mimeType);
+
+      if (!mounted) return;
+      _showInfoSnackBar(
+        saved ? '$fileName ${t('message_saved')}' : t('message_save_failed'),
+      );
     } catch (_) {
       if (mounted) _showInfoSnackBar(t('message_save_failed'));
     }

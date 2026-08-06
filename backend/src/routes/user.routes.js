@@ -78,8 +78,14 @@ router.post("/phone-contacts", authMiddleware, async (req, res) => {
     return res.status(400).json({ message: "phones massivi kerak" });
   }
 
-  const normalize = (p) => p.replace(/\D/g, "").slice(-9);
-  const normalized = phones.slice(0, 500).map(normalize).filter((p) => p.length >= 7);
+  const normalize = (p) => String(p ?? "").replace(/\D/g, "").slice(-9);
+  // Avval bu yerda .slice(0, 500) bor edi — katta manzillar kitobida 500 dan
+  // keyingi raqamlar jimgina tashlab yuborilardi va kontakt "topilmadi" bo'lib
+  // ko'rinardi. Endi hammasi tekshiriladi, faqat takrorlanuvchilar olib
+  // tashlanadi (bir kontaktda bir nechta raqam bo'lishi odatiy hol).
+  const normalized = [
+    ...new Set(phones.map(normalize).filter((p) => p.length >= 7)),
+  ];
 
   if (normalized.length === 0) return res.json([]);
 
@@ -121,9 +127,27 @@ router.get("/profile/:username", async (req, res) => {
 // PUT /api/users/profile — Profil ma'lumotlarini yangilash
 router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res) => {
   const userId = req.user.id;
-  const { phone, birthday, bio, full_name } = req.body;
+  const { phone, birthday, bio, full_name, phone_from_sim } = req.body;
 
   try {
+    // Bitta raqam — bitta akkaunt. Aks holda ikki foydalanuvchi bir xil
+    // raqamga ega bo'lib, kontaktlarda ikkalasi ham chiqib qolardi.
+    if (phone !== undefined && phone !== null && String(phone).trim() !== "") {
+      const taken = await pool.query(
+        `SELECT id FROM ${USERS_TABLE}
+         WHERE id != $1 AND phone IS NOT NULL
+           AND RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9)
+             = RIGHT(REGEXP_REPLACE($2, '\\D', '', 'g'), 9)
+         LIMIT 1`,
+        [userId, String(phone)]
+      );
+      if (taken.rowCount > 0) {
+        return res
+          .status(409)
+          .json({ message: "Bu telefon raqami boshqa akkauntga biriktirilgan" });
+      }
+    }
+
     const fields = [];
     const values = [];
     let idx = 1;
@@ -134,7 +158,20 @@ router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res)
       values.push(avatarPath);
     }
     if (full_name !== undefined) { fields.push(`full_name = $${idx++}`); values.push(full_name); }
-    if (phone !== undefined) { fields.push(`phone = $${idx++}`); values.push(phone); }
+    if (phone !== undefined) {
+      fields.push(`phone = $${idx++}`);
+      values.push(phone);
+      // Audit maydonlari faqat raqam bilan birga yoziladi — ular o'sha
+      // yozuvning qachon va qanday kelganini bildiradi.
+      fields.push(`phone_set_at = NOW()`);
+      // multipart orqali kelgani uchun qiymat satr bo'lishi mumkin.
+      const fromSim =
+        phone_from_sim === undefined || phone_from_sim === null || phone_from_sim === ''
+          ? null
+          : phone_from_sim === true || phone_from_sim === 'true';
+      fields.push(`phone_from_sim = $${idx++}`);
+      values.push(fromSim);
+    }
     if (birthday !== undefined) { fields.push(`birthday = $${idx++}`); values.push(birthday || null); }
     if (bio !== undefined) { fields.push(`bio = $${idx++}`); values.push(bio); }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/config/app_config.dart';
@@ -24,6 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _loading = true;
   bool _saving = false;
+  bool _uploadingAvatar = false;
   List<SimpleUser> _blockedUsers = const [];
 
   @override
@@ -120,6 +122,141 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+
+  /// Ekran kengligidagi kvadrat profil rasmi.
+  ///
+  /// Bosilganda rasm almashtirish menyusi ochiladi — avval bu sahifada
+  /// rasmni umuman o'zgartirib bo'lmasdi.
+  Widget _buildAvatarHeader(
+    BuildContext context,
+    String imageUrl,
+    String? displayName,
+  ) {
+    final width = MediaQuery.of(context).size.width;
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: _uploadingAvatar ? null : _pickAvatar,
+      child: SizedBox(
+        width: width,
+        height: width, // kvadrat: kenglik bilan bir xil balandlik
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) =>
+                    _avatarPlaceholder(theme, displayName),
+              )
+            else
+              _avatarPlaceholder(theme, displayName),
+            // Pastdagi qorayish — kamera belgisi har qanday rasmda ko'rinsin.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 96,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Colors.black.withAlpha(120), Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: Material(
+                color: theme.colorScheme.primary,
+                shape: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: _uploadingAvatar
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.photo_camera_rounded,
+                          color: Colors.white, size: 24),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarPlaceholder(ThemeData theme, String? displayName) {
+    final name = (displayName ?? '').trim();
+    final letter = name.isEmpty ? 'G' : name.substring(0, 1).toUpperCase();
+    return Container(
+      color: theme.colorScheme.primaryContainer,
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: 96,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+
+  /// Galereya yoki kamera — tizim tanlagichi shu ikkisidan biri uchun
+  /// ochiladi, shuning uchun avval manbani so'raymiz.
+  Future<void> _pickAvatar() async {
+    final settings = context.read<SettingsController>();
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: Text(t('chat_gallery')),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: Text(t('chat_photo')),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        // Profil rasmi uchun original o'lcham keraksiz — yuklash tez bo'lsin.
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (picked == null || !mounted) return;
+      setState(() => _uploadingAvatar = true);
+      final path = await context.read<SocialRepository>().uploadAvatar(picked.path);
+      if (!mounted) return;
+      await context.read<AuthController>().updateAvatar(path);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
   void _showError(Object error) {
     if (!mounted) {
       return;
@@ -155,21 +292,16 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.zero,
               children: [
-                Card(
+                _buildAvatarHeader(context, imageUrl, auth.user?.displayName),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 36,
-                          backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                          child: imageUrl.isEmpty
-                              ? Text((auth.user?.displayName ?? 'B').substring(0, 1).toUpperCase())
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
                         TextField(
                           controller: _fullNameController,
                           decoration: InputDecoration(labelText: t('full_name')),
@@ -200,8 +332,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Card(
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -239,6 +373,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
+                ),
                 ),
               ],
             ),

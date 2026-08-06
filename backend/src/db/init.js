@@ -39,6 +39,16 @@ async function initUsersTable() {
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS birthday DATE;
   `);
+  // Audit uchun: raqam SIM tanlagichidan olindimi (TRUE) yoki qo'lda
+  // yozildimi (FALSE). Hech qanday mantiqqa ta'sir qilmaydi — keyinchalik
+  // suiiste'molni tekshirish kerak bo'lsa shu maydonga qaraladi. Keyin
+  // to'ldirib bo'lmaydi, shuning uchun hozirdan yig'ib boramiz.
+  await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS phone_from_sim BOOLEAN;
+  `);
+  await pool.query(`
+    ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS phone_set_at TIMESTAMPTZ;
+  `);
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS bio VARCHAR(70);
   `);
@@ -51,6 +61,22 @@ async function initUsersTable() {
   await pool.query(`
     ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
   `);
+  // Raqamlar turli formatlarda saqlanadi (+998 90 123 45 67, 901234567, ...),
+  // shuning uchun indeks normallashtirilgan oxirgi 9 raqam ustiga quriladi —
+  // kontaktlarni solishtirish ham aynan shu ko'rinishda ishlaydi.
+  // Bazada allaqachon takrorlanuvchi raqamlar bo'lsa indeks qurilmaydi:
+  // bu holda server ishga tushishi to'xtamasligi kerak, faqat ogohlantiramiz.
+  try {
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ${USERS_TABLE}_phone_norm_uniq
+      ON ${USERS_TABLE} ((RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9)))
+      WHERE phone IS NOT NULL AND phone <> ''
+    `);
+  } catch (e) {
+    console.warn(
+      `[DB] phone unique indeksi qurilmadi (ehtimol takrorlanuvchi raqamlar bor): ${e.message}`,
+    );
+  }
   console.log("Users table tayyor");
 }
 

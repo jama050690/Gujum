@@ -244,12 +244,11 @@ class _CallMessageTile extends StatelessWidget {
     final subtitle =
         info.isMissed ? null : _formatCallDuration(info.durationSeconds);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withAlpha(settings.isDarkMode ? 28 : 10),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    // Telegram qo'ng'iroq yozuvini alohida kartaga o'ramaydi — u pufakcha
+    // ichida oddiy qator bo'lib turadi, shuning uchun fon ham, ichki
+    // padding ham olib tashlandi.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
