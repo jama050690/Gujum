@@ -107,7 +107,7 @@ jobs:
           sed -i "s/^version:.*/version: $NEW_SEMVER+$NEW_BUILD/" pubspec.yaml
 
           # Build number in the name too, or every push overwrites the same artifact.
-          NAME="bootchat-$NEW_SEMVER+$NEW_BUILD"
+          NAME="GujumChat-$NEW_SEMVER+$NEW_BUILD"
           [ "$MODE" = "release" ] || NAME="$NAME-$MODE"
 
           {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:bootchat_flutter/l10n/app_strings.dart';
+import 'package:gujum_chat/l10n/app_strings.dart';
 
 void main() {
   test('app strings fall back safely', () {

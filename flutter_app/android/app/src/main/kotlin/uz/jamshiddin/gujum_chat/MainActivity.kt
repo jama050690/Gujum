@@ -1,4 +1,4 @@
-package com.example.bootchat_flutter
+package uz.jamshiddin.gujum_chat
 
 import android.app.Activity
 import android.content.Context
