@@ -61,6 +61,26 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Profil rasmi almashtirilgandan keyin chaqiriladi.
+  ///
+  /// refreshSession() dan foydalanib bo'lmaydi: u mavjud qiymatlarni ustun
+  /// deb biladi (avatar: _user!.avatar ?? result.avatar), shuning uchun eski
+  /// rasm o'rnida qolib ketardi.
+  Future<void> updateAvatar(String? avatarPath) async {
+    final current = _user;
+    if (current == null) return;
+    _user = SessionUser(
+      username: current.username,
+      fullName: current.fullName,
+      phone: current.phone,
+      birthday: current.birthday,
+      bio: current.bio,
+      avatar: avatarPath,
+    );
+    await _sessionStore.saveUser(_user!.toJson());
+    notifyListeners();
+  }
+
   Future<void> refreshSession() async {
     debugPrint('AUTH_DEBUG refreshSession() start');
     final result = await _authRepository.fetchMe();
