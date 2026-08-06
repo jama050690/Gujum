@@ -191,6 +191,10 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
       }
     }
+    // Fetch muvaffaqiyatli bo'lsa GET /api/messages o'zi read qiladi, lekin
+    // cache'dan ko'rsatilgan yoki fetch yiqilgan holatda ham peer ✓✓ ni
+    // ko'rishi kerak — shuning uchun bu yerda ham bir marta belgilaymiz.
+    if (_activeChat?.username == item.username) _markChatRead(item.username);
     // Xabarlar bo'sh bo'lsa — 2 soniyadan keyin bir marta qayta urinish
     if (_messages.isEmpty && _activeChat?.username == item.username) {
       await Future.delayed(const Duration(seconds: 2));
@@ -310,6 +314,12 @@ class ChatController extends ChangeNotifier {
         });
         break;
 
+      case 'MESSAGES_READ':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final by = data['by']?.toString();
+        if (by != null && by.isNotEmpty) _applyPeerRead(by);
+        break;
+
       case 'ONLINE_USERS_LIST':
         final users =
             (packet.payload as List<dynamic>).cast<Map<dynamic, dynamic>>();
@@ -384,8 +394,46 @@ class ChatController extends ChangeNotifier {
       _messagesLoadFailed = false;
       _messages = [..._messages, message];
       _messageCache[peer] = List.from(_messages);
+      // Chat ochiq turganda kelgan xabar — darhol o'qilgan hisoblanadi.
+      if (message.senderUsername != currentUser.username) {
+        _markChatRead(peer);
+      }
     }
     notifyListeners();
+  }
+
+  /// Peer'ning bizga yozgan xabarlarini o'qilgan deb belgilaydi va unga
+  /// ✓✓ ni jonli yetkazadi. Socket uzilgan bo'lsa REST orqali.
+  void _markChatRead(String peer) {
+    final currentUser = _authController.user;
+    if (currentUser == null) return;
+    if (_socketService.isConnected) {
+      _socketService.emit('MESSAGES_READ', {'chatWith': peer});
+      return;
+    }
+    unawaited(
+      _chatRepository
+          .markRead(username: currentUser.username, chatWith: peer)
+          .catchError((e) {
+        debugPrint('CHAT_DEBUG markRead xatosi: $e');
+      }),
+    );
+  }
+
+  /// Peer bizning xabarlarimizni o'qidi — barcha o'z xabarlarimizni ✓✓ qilamiz.
+  void _applyPeerRead(String peer) {
+    final currentUser = _authController.user;
+    if (currentUser == null) return;
+    List<ChatMessage> mark(List<ChatMessage> list) => list
+        .map((m) => m.senderUsername == currentUser.username && !m.isRead
+            ? m.copyWith(isRead: true)
+            : m)
+        .toList();
+    if (_activeChat?.username == peer) {
+      _messages = mark(_messages);
+    }
+    final cached = _messageCache[peer];
+    if (cached != null) _messageCache[peer] = mark(cached);
   }
 
   void _updateInboxPreview(

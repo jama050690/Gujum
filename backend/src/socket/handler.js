@@ -616,4 +616,4 @@ async function sendAllUsers() {
   }
 }
 
-export { registerSocketHandlers };
+export { registerSocketHandlers, emitToUser };
