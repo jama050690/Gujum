@@ -30,14 +30,28 @@ function getConfig() {
   return { enabled, ttlHours, intervalMinutes };
 }
 
+/**
+ * Qo'ng'iroq yozuvlari xabar jadvalida "__CALL:audio:143__" ko'rinishida
+ * saqlanadi va Qo'ng'iroqlar sahifasi aynan shulardan quriladi. Ular bir
+ * necha bayt matn — media ham, ilova ham yo'q — shuning uchun tozalashdan
+ * chetda qoladi: aks holda tarix 24 soatdan keyin bo'shab qolardi.
+ *
+ * LIKE emas, regexp ishlatilgan: LIKE da '_' bitta belgini almashtiradi va
+ * '__CALL:%' tasodifiy matnlarga ham tushib qolardi.
+ */
+const KEEP_CALL_LOGS = `(content IS NULL OR content !~ '^__CALL:')`;
+
 async function purgeMessages(ttlHours) {
   const cutoff = `${ttlHours} hours`;
   const tables = [MESSAGES_TABLE, GROUP_MESSAGES_TABLE, CHANNEL_MESSAGES_TABLE];
   let total = 0;
   for (const table of tables) {
     try {
+      // Qo'ng'iroqlar faqat shaxsiy chatlarda bo'ladi.
+      const keepCalls = table === MESSAGES_TABLE ? `AND ${KEEP_CALL_LOGS}` : '';
       const res = await pool.query(
-        `DELETE FROM ${table} WHERE created_at < NOW() - $1::interval`,
+        `DELETE FROM ${table}
+         WHERE created_at < NOW() - $1::interval ${keepCalls}`,
         [cutoff]
       );
       if (res.rowCount > 0) {
