@@ -33,6 +33,10 @@ jobs:
   build:
     name: 🔨 arm64-v8a APK
     runs-on: ubuntu-latest
+    # Healthy builds run 12-15 min (slowest observed: 15m14s); the run that lost
+    # its runner was at 21m30s. 20 min clears the former and trips on the latter,
+    # instead of letting the 6-hour default burn hours on a hung Gradle.
+    timeout-minutes: 20
     permissions:
       contents: write
     defaults:
