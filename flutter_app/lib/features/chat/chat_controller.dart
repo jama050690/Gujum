@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -121,6 +122,13 @@ class ChatController extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
+  /// Har bir yuborish uchun bir martalik kalit. Foydalanuvchi nomi + vaqt +
+  /// tasodifiy son: ikki qurilmadan bir vaqtda yozilsa ham to'qnashmaydi.
+  String _newClientMessageId(String username) {
+    final rand = Random().nextInt(1 << 32);
+    return '$username-${DateTime.now().microsecondsSinceEpoch}-$rand';
+  }
+
   DateTime? lastActiveFor(String username) => _lastActiveUsers[username];
 
   Future<List<SearchUser>> searchUsers(String query) async {
@@ -160,8 +168,9 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clearChatHistory(String username) async {
-    await _chatRepository.clearChatHistory(username);
+  Future<void> clearChatHistory(String username,
+      {bool forEveryone = false}) async {
+    await _chatRepository.clearChatHistory(username, forEveryone: forEveryone);
     _messageCache.remove(username);
     // Qurilmadagi nusxa faqat shu yerda — foydalanuvchi ataylab tozalaganda
     // o'chiriladi, aks holda tarix qaytib paydo bo'lardi.
@@ -195,11 +204,28 @@ class ChatController extends ChangeNotifier {
   }
 
   // --- XABARLAR VA MEDIA ---
-  Future<void> deleteActiveMessage(int id) async {
-    await _chatRepository.deleteMessage(id);
-    _messages = _messages.where((item) => item.id != id).toList();
-    final peer = _activeChat?.username;
-    if (peer != null) _persist(peer, _messages);
+  /// Tanlangan xabarlarni o'chiradi. [forEveryone] — suhbatdoshdan ham.
+  Future<void> deleteMessages(List<int> ids, {required bool forEveryone}) async {
+    if (ids.isEmpty) return;
+    final removed = await _chatRepository.deleteMessages(ids, forEveryone: forEveryone);
+    final gone = removed.isEmpty ? ids : removed;
+    _removeMessagesLocally(_activeChat?.username, gone);
+  }
+
+  Future<void> deleteActiveMessage(int id) =>
+      deleteMessages([id], forEveryone: false);
+
+  /// Xabarlarni ekrandan ham, qurilmadagi nusxadan ham olib tashlaydi.
+  void _removeMessagesLocally(String? peer, List<int> ids) {
+    if (peer == null) return;
+    final idSet = ids.toSet();
+    _messages = _messages.where((m) => !idSet.contains(m.id)).toList();
+    final cached = _messageCache[peer];
+    if (cached != null) {
+      _persist(peer, cached.where((m) => !idSet.contains(m.id)).toList());
+    } else {
+      _persist(peer, _messages);
+    }
     notifyListeners();
   }
 
@@ -309,6 +335,10 @@ class ChatController extends ChangeNotifier {
       'CHAT_DEBUG sendMessage() from=${currentUser.username} to=$target socketConnected=${_socketService.isConnected} hasText=${message.trim().isNotEmpty} hasImage=${image != null} hasAudio=${audio != null} hasVideo=${video != null}',
     );
 
+    // Idempotentlik kaliti: qayta yuborilsa (socket uzilib qayta ulandi,
+    // foydalanuvchi ikki marta bosdi) server yangi qator yaratmaydi.
+    final clientMsgId = _newClientMessageId(currentUser.username);
+
     if (_socketService.isConnected) {
       _socketService.emit('NEW_MESSAGE', {
         'user': currentUser.username,
@@ -318,6 +348,7 @@ class ChatController extends ChangeNotifier {
         'audio': audio,
         'video': video,
         'replyTo': replyTo,
+        'clientMsgId': clientMsgId,
       });
       return true;
     }
@@ -330,6 +361,7 @@ class ChatController extends ChangeNotifier {
       audio: audio,
       video: video,
       replyTo: replyTo,
+      clientMsgId: clientMsgId,
     );
     _consumeIncomingMessage(sent, {
       'receiver': target,
@@ -384,6 +416,29 @@ class ChatController extends ChangeNotifier {
         }).catchError((e) {
           debugPrint("DEBUG: Message sound xatosi: $e");
         });
+        break;
+
+      // Suhbatdosh o'z xabarlarini hamma uchun o'chirdi.
+      case 'MESSAGES_DELETED':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final by = data['by']?.toString();
+        final ids = (data['ids'] as List?)
+                ?.map((e) => int.tryParse('$e'))
+                .whereType<int>()
+                .toList() ??
+            const <int>[];
+        if (by != null && ids.isNotEmpty) _removeMessagesLocally(by, ids);
+        break;
+
+      // Suhbatdosh butun tarixni hamma uchun tozaladi.
+      case 'CHAT_CLEARED':
+        final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
+        final by = data['by']?.toString();
+        if (by != null) {
+          if (_activeChat?.username == by) _messages = const [];
+          _messageCache.remove(by);
+          unawaited(_ensureStore().then((s) => s?.deleteConversation(by)));
+        }
         break;
 
       case 'MESSAGES_READ':

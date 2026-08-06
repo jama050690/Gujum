@@ -8,6 +8,7 @@ import {
   CHANNEL_SUBSCRIBERS_TABLE,
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { emitToUser } from "../socket/handler.js";
 import { upload } from "../config/upload.js";
 
 const router = express.Router();
@@ -220,14 +221,32 @@ router.delete("/chat/:username/history", authMiddleware, async (req, res) => {
     }
 
     const chatId = chat.rows[0].id;
-    const deletedMessages = await pool.query(
-      `DELETE FROM ${MESSAGES_TABLE} WHERE chat_id = $1`,
-      [chatId]
-    );
+    // Telegram singari tanlov: standart holatda faqat o'zimizdan o'chadi,
+    // forEveryone=true bo'lsa ikkalasidan ham.
+    const forEveryone = req.body?.forEveryone === true;
+
+    let deletedMessages;
+    if (forEveryone) {
+      deletedMessages = await pool.query(
+        `DELETE FROM ${MESSAGES_TABLE} WHERE chat_id = $1`,
+        [chatId]
+      );
+      emitToUser(username, "CHAT_CLEARED", { by: req.user.username });
+    } else {
+      // Xabarlar bazada qoladi — suhbatdosh ularni ko'raveradi.
+      deletedMessages = await pool.query(
+        `INSERT INTO message_deletions (message_id, user_id)
+         SELECT m.id, $2 FROM ${MESSAGES_TABLE} m
+         WHERE m.chat_id = $1
+         ON CONFLICT DO NOTHING`,
+        [chatId, userId]
+      );
+    }
 
     res.json({
       cleared: true,
       username,
+      forEveryone,
       deletedMessages: deletedMessages.rowCount,
     });
   } catch (err) {

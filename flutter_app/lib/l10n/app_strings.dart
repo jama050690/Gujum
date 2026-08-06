@@ -18,6 +18,9 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> _values = {
     'uz': {
+      'delete_for_me': "Faqat men uchun",
+      'delete_for_everyone': "Hamma uchun",
+      'clear_history_for_everyone': "Ikkalamiz uchun tozalash",
       'invite_friends': "Do'stlarni taklif qilish",
       'invite': "Taklif",
       'invite_message': "Salom! Gujum'da yozishamiz — bepul suhbat va qo'ng'iroq.",
@@ -239,6 +242,9 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'en': {
+      'delete_for_me': "Delete for me",
+      'delete_for_everyone': "Delete for everyone",
+      'clear_history_for_everyone': "Clear for both",
       'invite_friends': "Invite friends",
       'invite': "Invite",
       'invite_message': "Hi! Let's talk on Gujum — free chat and calls.",
@@ -461,6 +467,9 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'delete_for_me': "Только у меня",
+      'delete_for_everyone': "У всех",
+      'clear_history_for_everyone': "Очистить у обоих",
       'invite_friends': "Пригласить друзей",
       'invite': "Пригласить",
       'invite_message': "Привет! Давай общаться в Gujum — бесплатные чаты и звонки.",
@@ -596,6 +605,9 @@ class AppStrings {
       'chat_location_failed': 'Не удалось получить местоположение',
     },
     'ar': {
+      'delete_for_me': "حذف لدي فقط",
+      'delete_for_everyone': "حذف لدى الجميع",
+      'clear_history_for_everyone': "مسح لدى الطرفين",
       'invite_friends': "دعوة الأصدقاء",
       'invite': "دعوة",
       'invite_message': "مرحبًا! لنتحدث على غوجوم — محادثات ومكالمات مجانية.",
@@ -807,6 +819,9 @@ class AppStrings {
       'version_label': "الإصدار",
     },
     'ko': {
+      'delete_for_me': "나에게서만 삭제",
+      'delete_for_everyone': "모두에게서 삭제",
+      'clear_history_for_everyone': "양쪽에서 삭제",
       'invite_friends': "친구 초대",
       'invite': "초대",
       'invite_message': "안녕하세요! 구줌에서 이야기해요 — 무료 채팅과 통화.",

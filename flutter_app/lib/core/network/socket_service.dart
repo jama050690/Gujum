@@ -141,6 +141,8 @@ class SocketService {
       'GROUP_MESSAGE',
       'CHANNEL_MESSAGE',
       'MESSAGE_DELETED',
+      'MESSAGES_DELETED',
+      'CHAT_CLEARED',
       'MESSAGES_READ',
       'TYPING',
       'FRIEND_REQUEST',

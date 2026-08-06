@@ -58,10 +58,13 @@ class ChatRepository {
     );
   }
 
-  Future<void> clearChatHistory(String username) async {
+  /// [forEveryone] false bo'lsa tarix faqat shu foydalanuvchidan yashiriladi.
+  Future<void> clearChatHistory(String username,
+      {bool forEveryone = false}) async {
     await _apiClient.deleteJson(
       '/api/users/chat/$username/history',
       authenticated: true,
+      body: {'forEveryone': forEveryone},
     );
   }
 
@@ -108,11 +111,17 @@ class ChatRepository {
     return ChatMessage.fromApi(response as Map<String, dynamic>);
   }
 
-  Future<void> deleteMessage(int id) async {
-    await _apiClient.deleteJson(
-      '/api/messages/$id',
+  /// Xabarlarni o'chirish. [forEveryone] true bo'lsa suhbatdoshda ham
+  /// yo'qoladi (faqat o'z xabarlaringiz uchun ishlaydi).
+  Future<List<int>> deleteMessages(List<int> ids,
+      {required bool forEveryone}) async {
+    final response = await _apiClient.postJson(
+      '/api/messages/delete',
       authenticated: true,
+      body: {'ids': ids, 'forEveryone': forEveryone},
     );
+    final deleted = (response as Map<String, dynamic>?)?['deleted'] as List?;
+    return deleted?.map((e) => int.parse('$e')).toList() ?? const [];
   }
 
   Future<ChatMessage> sendDirectMessage({
@@ -122,6 +131,7 @@ class ChatRepository {
     String? audio,
     String? video,
     Map<String, String?>? replyTo,
+    String? clientMsgId,
   }) async {
     final response = await _apiClient.postJson(
       '/api/messages',
@@ -136,6 +146,7 @@ class ChatRepository {
             'username': replyTo['username'],
             'content': replyTo['content'],
           },
+        if (clientMsgId != null) 'clientMsgId': clientMsgId,
       },
       authenticated: true,
     );

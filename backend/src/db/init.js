@@ -175,7 +175,36 @@ async function initMessagesTable() {
   await pool.query(`
     ALTER TABLE ${MESSAGES_TABLE} ADD COLUMN IF NOT EXISTS video TEXT;
   `);
+  // Idempotentlik kaliti: klient har bir xabar uchun bir marta ID yaratadi va
+  // qayta yuborishda (uzilib qolgan socket, retry, ikki marta bosilgan tugma)
+  // o'shani jo'natadi. Telegram'dagi random_id bilan bir xil g'oya.
+  await pool.query(`
+    ALTER TABLE ${MESSAGES_TABLE} ADD COLUMN IF NOT EXISTS client_msg_id TEXT;
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ${MESSAGES_TABLE}_client_msg_uniq
+    ON ${MESSAGES_TABLE} (sender_id, client_msg_id)
+    WHERE client_msg_id IS NOT NULL;
+  `);
   console.log("Messages table tayyor");
+}
+
+/// "Faqat men uchun o'chirish" — xabar bazada qoladi, lekin shu foydalanuvchiga
+/// ko'rsatilmaydi. "Hamma uchun" o'chirishda qator butunlay yo'q qilinadi.
+async function initMessageDeletionsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS message_deletions (
+      message_id INT NOT NULL REFERENCES ${MESSAGES_TABLE}(id) ON DELETE CASCADE,
+      user_id INT NOT NULL REFERENCES ${USERS_TABLE}(id) ON DELETE CASCADE,
+      deleted_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (message_id, user_id)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS message_deletions_user_idx
+    ON message_deletions (user_id);
+  `);
+  console.log("Message_deletions table tayyor");
 }
 
 async function initGroupsTable() {
@@ -370,6 +399,7 @@ async function initDb() {
   await ensureAdminUser();
   await initChatsTable();
   await initMessagesTable();
+  await initMessageDeletionsTable();
   await initGroupsTable();
   await initGroupMembersTable();
   await initGroupMessagesTable();
