@@ -1228,24 +1228,48 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _closePeerResources() async {
     _iceConnectTimeout?.cancel();
     _iceConnectTimeout = null;
-    await _peerConnection?.close();
-    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      track.stop();
-    }
-    for (final track in _upgradeVideoStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      track.stop();
-    }
-    _upgradeVideoStream = null;
+
+    // Havolalarni darhol bo'shatamiz: pastdagi close() yoki stop() osilib
+    // qolsa ham controller o'lik obyektlarni ushlab turmasin va keyingi
+    // qo'ng'iroq toza holatdan boshlansin.
+    final pc = _peerConnection;
+    final local = _localStream;
+    final upgrade = _upgradeVideoStream;
     _peerConnection = null;
     _localStream = null;
     _remoteStream = null;
+    _upgradeVideoStream = null;
+
+    for (final track in local?.getTracks() ?? <MediaStreamTrack>[]) {
+      try {
+        track.stop();
+      } catch (_) {}
+    }
+    for (final track in upgrade?.getTracks() ?? <MediaStreamTrack>[]) {
+      try {
+        track.stop();
+      } catch (_) {}
+    }
+    // Kamera/mikrofon treklari to'xtaganidan keyin yopamiz — yarim qurilgan
+    // ulanishda close() javob bermay qolishi mumkin.
+    try {
+      await pc?.close();
+    } catch (_) {}
   }
 
   Future<void> _resetSession({
     bool notifyRemote = false,
     String reason = 'hangup',
   }) async {
-    if (_callId == null && _targetUsername == null && _incomingCall == null) return;
+    // _state ham tekshiriladi: sozlash yarim yo'lda uzilganda id lar allaqachon
+    // tozalangan bo'lishi mumkin, lekin ekranda hali qo'ng'iroq turadi —
+    // bunday holatda ham chiqa olishimiz kerak.
+    if (_callId == null &&
+        _targetUsername == null &&
+        _incomingCall == null &&
+        _state == null) {
+      return;
+    }
     final target = _targetUsername;
     final callId = _callId;
     final effectiveCallId = callId ?? _incomingCall?.callId;
@@ -1259,16 +1283,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         ? 0
         : DateTime.now().difference(_connectedAt!).inSeconds;
 
-    await _stopAlertTone();
-    await _closePeerResources();
-    await _restoreAudioRoute();
-
-    _state = null;
-    _incomingCall = null;
-    _remotePeer = null;
-    _resetInternalState();
-    notifyListeners();
-
+    // Suhbatdoshga birinchi navbatda xabar beramiz: tozalash osilib qolsa ham
+    // u tomonda qo'ng'iroq "ulanmoqda" holatida qolib ketmasin.
     if (notifyRemote && target != null) {
       _socketService.emit('CALL_END', {
         'callId': callId,
@@ -1277,6 +1293,34 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'isVideo': wasVideo,
         'duration': duration,
       });
+    }
+
+    // Ekranni darhol yopamiz. Avval tozalash bajarilardi va uning ichidagi
+    // birorta await (yarim qurilgan PeerConnection.close(), native audio
+    // kanali) osilib qolsa, _state hech qachon tozalanmasdi: qo'ng'iroq
+    // ekranda qolib, "Tugatish" tugmasi esa id lar allaqachon null bo'lgani
+    // uchun hech narsa qilmasdi.
+    _state = null;
+    _incomingCall = null;
+    _remotePeer = null;
+    _resetInternalState();
+    notifyListeners();
+
+    // Tozalash — endi UI ga bog'liq emas. Har biri alohida himoyalangan:
+    // bittasi yiqilsa qolganlari baribir bajariladi.
+    await _safeCleanup('stopAlertTone', _stopAlertTone);
+    await _safeCleanup('closePeerResources', _closePeerResources);
+    await _safeCleanup('restoreAudioRoute', _restoreAudioRoute);
+  }
+
+  /// Tozalash qadamini xato va osilib qolishdan himoyalaydi.
+  Future<void> _safeCleanup(String label, Future<void> Function() action) async {
+    try {
+      await action().timeout(const Duration(seconds: 3));
+    } on TimeoutException {
+      debugPrint('CALL_DEBUG cleanup timeout: $label');
+    } catch (e) {
+      debugPrint('CALL_DEBUG cleanup error ($label): $e');
     }
   }
 
