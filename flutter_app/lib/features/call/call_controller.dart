@@ -80,6 +80,17 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     'sdpSemantics': 'unified-plan',
     'iceTransportPolicy': 'all',
     'iceServers': [
+      // STUN first. Without it the only candidates we can ever gather are host
+      // (same-LAN only) and relay — so any TURN hiccup left ICE with no path at
+      // all and the call sat in "connecting" until the 30s timeout. STUN lets
+      // two peers connect directly whenever NAT allows, and keeps TURN as the
+      // fallback relay it is meant to be rather than a single point of failure.
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+        ],
+      },
       {
         'urls': [
           'turn:gujum.jamshiddin.uz:3478?transport=udp',
