@@ -1,6 +1,6 @@
-name: 📱 Build Android APK
+name: 📱 Build Gujum APK
 
-run-name: 📱 Bootchat ${{ inputs.build_mode || 'release' }} · @${{ github.actor }}
+run-name: 📱 Gujum ${{ inputs.build_mode || 'release' }} · @${{ github.actor }}
 
 on:
   workflow_dispatch:
@@ -177,7 +177,7 @@ jobs:
         run: |
           APK="build/app/outputs/flutter-apk/${{ steps.meta.outputs.apk_name }}.apk"
           {
-            echo "## 📱 Bootchat APK"
+            echo "## 📱 Gujum APK"
             echo ""
             echo "| | |"
             echo "|---|---|"

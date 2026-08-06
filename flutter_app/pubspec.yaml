@@ -1,5 +1,5 @@
 name: gujum_chat
-description: Flutter client for the Bootchat backend.
+description: Gujum — Flutter client.
 publish_to: "none"
 
 version: 0.1.0+1
