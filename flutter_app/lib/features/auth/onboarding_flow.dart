@@ -66,7 +66,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     // Barcha qadamlar tugadi — to'g'ridan-to'g'ri ilovaga o'tamiz.
     //
     // Bu yerga tushish odatiy hol: oxirgi qadam SessionStore ga yozadi, u esa
-    // ChangeNotifier emas, shuning uchun BootchatApp qayta qurilmaydi va
+    // ChangeNotifier emas, shuning uchun GujumApp qayta qurilmaydi va
     // OnboardingFlow ekranda qolaveradi. Avval bu holat SizedBox.shrink()
     // qaytarardi — ya'ni kontaktlar so'ralgandan keyin ekran bo'sh qolardi.
     return const ChatPage();

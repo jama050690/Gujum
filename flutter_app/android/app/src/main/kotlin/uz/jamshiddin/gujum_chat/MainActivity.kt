@@ -41,7 +41,7 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "bootchat/call_audio"
+            "gujum/call_audio"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "startIncomingRingtone" -> {
@@ -96,7 +96,7 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "bootchat/media_save"
+            "gujum/media_save"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "saveToGallery" -> saveMedia(call, result, toGallery = true)
@@ -107,7 +107,7 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "bootchat/phone_hint"
+            "gujum/phone_hint"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "requestPhoneNumberHint" -> requestPhoneNumberHint(result)

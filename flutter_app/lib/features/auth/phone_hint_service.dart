@@ -9,7 +9,7 @@ import 'package:flutter/services.dart';
 class PhoneHintService {
   const PhoneHintService._();
 
-  static const _channel = MethodChannel('bootchat/phone_hint');
+  static const _channel = MethodChannel('gujum/phone_hint');
 
   static Future<String?> requestSimNumber() async {
     try {

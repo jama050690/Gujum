@@ -12,8 +12,8 @@ import '../call/call_overlay.dart';
 import '../chat/chat_page.dart';
 import '../settings/settings_controller.dart';
 
-class BootchatApp extends StatelessWidget {
-  const BootchatApp({super.key});
+class GujumApp extends StatelessWidget {
+  const GujumApp({super.key});
 
   @override
   Widget build(BuildContext context) {

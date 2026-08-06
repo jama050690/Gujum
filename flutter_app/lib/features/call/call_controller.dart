@@ -74,7 +74,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   static const MethodChannel _audioChannel =
-      MethodChannel('bootchat/call_audio');
+      MethodChannel('gujum/call_audio');
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
