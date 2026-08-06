@@ -51,7 +51,9 @@ class MainActivity : FlutterActivity() {
                 "activateCallAudio" -> {
                     result.success(
                         activateCallAudio(
-                        speakerOn = call.argument<Boolean>("speakerOn") ?: true
+                            speakerOn = call.argument<Boolean>("speakerOn") ?: true,
+                            preferWiredHeadset =
+                                call.argument<Boolean>("preferWiredHeadset") ?: true,
                         )
                     )
                 }
@@ -81,6 +83,23 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // Bir joyda: quloqchin (simli yoki bluetooth) ulanganmi?
+    // Ringtone/ringback speaker'ga majburlashdan oldin shu tekshiriladi —
+    // aks holda quloqchin ulangan bo'lsa ham ovoz telefon dinamigidan chiqadi.
+    private fun hasExternalAudioOutput(audioManager: AudioManager): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            }
+        }
+        @Suppress("DEPRECATION")
+        return audioManager.isWiredHeadsetOn || audioManager.isBluetoothScoOn
+    }
+
     private fun startIncomingRingtone() {
         ringtoneStopped = false
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -104,8 +123,10 @@ class MainActivity : FlutterActivity() {
         }
 
         audioManager?.mode = AudioManager.MODE_NORMAL
+        // Kiruvchi qo'ng'iroq ringtone'i ham quloqchinga boradi, agar u ulangan bo'lsa.
         @Suppress("DEPRECATION")
-        audioManager?.isSpeakerphoneOn = true
+        audioManager?.isSpeakerphoneOn =
+            audioManager?.let { !hasExternalAudioOutput(it) } ?: true
         volumeControlStream = AudioManager.STREAM_RING
 
         if (incomingRingtone?.isPlaying != true) {
@@ -133,8 +154,11 @@ class MainActivity : FlutterActivity() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
         audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
+        // Quloqchin ulangan bo'lsa speaker'ni yoqmaymiz — "tuu...tuu" ringback
+        // quloqchindan chiqishi kerak, telefon dinamigidan emas.
         @Suppress("DEPRECATION")
-        audioManager?.isSpeakerphoneOn = true
+        audioManager?.isSpeakerphoneOn =
+            audioManager?.let { !hasExternalAudioOutput(it) } ?: true
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
 
         val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) ?: 0
@@ -167,7 +191,12 @@ class MainActivity : FlutterActivity() {
         outgoingToneGenerator = null
     }
 
-    private fun activateCallAudio(speakerOn: Boolean): Map<String, Any> {
+    // preferWiredHeadset=false faqat foydalanuvchi speaker tugmasini ataylab
+    // bosganda keladi — o'shanda ulangan quloqchin ham speaker'ni to'sib qololmaydi.
+    private fun activateCallAudio(
+        speakerOn: Boolean,
+        preferWiredHeadset: Boolean = true,
+    ): Map<String, Any> {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             ?: return mapOf(
                 "currentRoute" to "speaker",
@@ -190,10 +219,12 @@ class MainActivity : FlutterActivity() {
                 // lekin _prepareForNewSession() har sessiyada _isSpeakerOn=true
                 // qilib qo'yadi — natijada kiruvchi qo'ng'iroqda ulangan simli
                 // quloqchin setCommunicationDevice(speaker) bilan bekor qilinardi.
-                val wiredDevice = audioManager.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                val wiredDevice = if (!preferWiredHeadset) null else {
+                    audioManager.availableCommunicationDevices.firstOrNull {
+                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                    }
                 }
                 if (btDevice != null) {
                     audioManager.setCommunicationDevice(btDevice)
@@ -249,7 +280,7 @@ class MainActivity : FlutterActivity() {
                 @Suppress("DEPRECATION")
                 val btOn = audioManager.isBluetoothScoOn
                 @Suppress("DEPRECATION")
-                val wiredOn = audioManager.isWiredHeadsetOn
+                val wiredOn = preferWiredHeadset && audioManager.isWiredHeadsetOn
                 // Simli quloqchin ulangan bo'lsa speaker'ni yoqmaymiz — aks holda
                 // ovoz quloqchindan emas, dinamikdan chiqadi (Android 12+ bilan bir xil mantiq).
                 if (!btOn && !wiredOn) {
