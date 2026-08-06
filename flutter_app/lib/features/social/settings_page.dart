@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
+import '../auth/auth_controller.dart';
+import '../chat/media_store.dart';
+import '../chat/message_store.dart';
 import '../settings/settings_controller.dart';
+import 'social_repository.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -69,8 +73,126 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          // Xavfli hudud — Google Play akkaunt yaratadigan ilovalardan ilova
+          // ichida o'chirish imkonini talab qiladi.
+          Card(
+            child: ListTile(
+              leading: Icon(
+                Icons.delete_forever_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                t('delete_account'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onTap: () => _confirmDeleteAccount(context, t),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    String Function(String) t,
+  ) async {
+    final reasonKeys = <String>[
+      'reason_not_using',
+      'reason_no_friends',
+      'reason_bugs',
+      'reason_privacy',
+      'reason_other',
+    ];
+    String? selected;
+    final commentController = TextEditingController();
+    var deleting = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(t('delete_account')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t('delete_account_warning'),
+                  style: TextStyle(color: Theme.of(dialogContext).colorScheme.error),
+                ),
+                const SizedBox(height: 16),
+                Text(t('delete_account_reason_q')),
+                for (final key in reasonKeys)
+                  RadioListTile<String>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: key,
+                    groupValue: selected,
+                    title: Text(t(key)),
+                    onChanged: deleting
+                        ? null
+                        : (value) => setDialogState(() => selected = value),
+                  ),
+                TextField(
+                  controller: commentController,
+                  enabled: !deleting,
+                  maxLines: 2,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: t('reason_comment_hint'),
+                    counterText: '',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: deleting ? null : () => Navigator.pop(dialogContext, false),
+              child: Text(t('cancel')),
+            ),
+            TextButton(
+              // Sabab tanlanmaguncha o'chirib bo'lmaydi — tasodifiy bosishdan
+              // himoya ham shu.
+              onPressed: (deleting || selected == null)
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(dialogContext).colorScheme.error,
+              ),
+              child: Text(t('delete_account_confirm')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<SocialRepository>().deleteAccount(
+            reason: selected,
+            comment: commentController.text,
+          );
+      // Serverda hech narsa qolmadi — qurilmadagi nusxalarni ham tozalaymiz,
+      // aks holda keyingi kirishda begona tarix ko'rinib qolardi.
+      final auth = context.read<AuthController>();
+      final username = auth.user?.username;
+      if (username != null) {
+        final store = await MessageStore.create(username);
+        await store.clearAll();
+      }
+      await MediaStore.clearAll();
+      await auth.logout();
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(t('delete_account_failed'))),
+      );
+    }
   }
 }

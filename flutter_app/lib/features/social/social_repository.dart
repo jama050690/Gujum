@@ -48,6 +48,18 @@ class SocialRepository {
     return null;
   }
 
+  /// Akkauntni butunlay o'chiradi. Sabab ixtiyoriy va shaxssiz saqlanadi.
+  Future<void> deleteAccount({String? reason, String? comment}) async {
+    await _apiClient.deleteJson(
+      '/api/account',
+      authenticated: true,
+      body: {
+        if (reason != null) 'reason': reason,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+      },
+    );
+  }
+
   Future<void> saveFullName(String fullName) async {
     await _apiClient.multipartPut(
       '/api/users/profile',

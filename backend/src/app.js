@@ -18,6 +18,7 @@ import friendRoutes from "./routes/friend.routes.js";
 import pushRoutes from "./routes/push.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import fcmTokenRoutes from "./routes/fcm_token.routes.js";
+import accountRoutes from "./routes/account.routes.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -64,6 +65,7 @@ app.use("/api/spam", spamRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api", pushRoutes);
 app.use("/api", fcmTokenRoutes);
+app.use("/api", accountRoutes);
 app.use("/api/admin", adminRoutes);
 
 // 5. Salomatlik tekshiruvi (Health Check)
