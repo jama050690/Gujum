@@ -52,11 +52,16 @@ class PhoneCountry {
 
 /// Hozircha kerak bo'lgan davlatlar. Ro'yxat kengaytiriladigan qilib
 /// tuzilgan — yangi davlat qo'shish uchun bitta qator yetarli.
+/// Standart davlat alohida nomlangan: `phoneCountries[0]` ni const
+/// ifodada ishlatib bo'lmaydi — ro'yxatdan indeks bo'yicha olish
+/// kompilyatsiya vaqtida hisoblanmaydi.
+const _uzbekistan = PhoneCountry(
+  iso: 'UZ', dialCode: '+998', flag: '🇺🇿', name: "O'zbekiston",
+  groups: [2, 3, 2, 2], // 90-123-45-67
+);
+
 const phoneCountries = <PhoneCountry>[
-  PhoneCountry(
-    iso: 'UZ', dialCode: '+998', flag: '🇺🇿', name: "O'zbekiston",
-    groups: [2, 3, 2, 2], // 90-123-45-67
-  ),
+  _uzbekistan,
   PhoneCountry(
     iso: 'RU', dialCode: '+7', flag: '🇷🇺', name: 'Rossiya',
     groups: [3, 3, 2, 2], // 900-123-45-67
@@ -83,7 +88,7 @@ const phoneCountries = <PhoneCountry>[
   ),
 ];
 
-const defaultPhoneCountry = phoneCountries[0]; // O'zbekiston
+const defaultPhoneCountry = _uzbekistan;
 
 /// E.164 raqamdan (masalan SIM tanlagichidan kelgan '+998901234567')
 /// davlatni topadi. Eng uzun dialCode ustun — '+7' va '+998' chalkashmasin.
