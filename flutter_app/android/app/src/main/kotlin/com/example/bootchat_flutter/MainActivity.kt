@@ -185,8 +185,25 @@ class MainActivity : FlutterActivity() {
                     it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
                 }
+                // Simli quloqchin ulangan bo'lsa — u speaker'dan ustun.
+                // Avval bu tekshiruv faqat speakerOn=false shoxobchasida bor edi,
+                // lekin _prepareForNewSession() har sessiyada _isSpeakerOn=true
+                // qilib qo'yadi — natijada kiruvchi qo'ng'iroqda ulangan simli
+                // quloqchin setCommunicationDevice(speaker) bilan bekor qilinardi.
+                val wiredDevice = audioManager.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                }
                 if (btDevice != null) {
                     audioManager.setCommunicationDevice(btDevice)
+                } else if (wiredDevice != null) {
+                    audioManager.stopBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = false
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
+                    audioManager.setCommunicationDevice(wiredDevice)
                 } else {
                     audioManager.stopBluetoothSco()
                     @Suppress("DEPRECATION")
@@ -231,12 +248,19 @@ class MainActivity : FlutterActivity() {
             if (speakerOn) {
                 @Suppress("DEPRECATION")
                 val btOn = audioManager.isBluetoothScoOn
-                if (!btOn) {
+                @Suppress("DEPRECATION")
+                val wiredOn = audioManager.isWiredHeadsetOn
+                // Simli quloqchin ulangan bo'lsa speaker'ni yoqmaymiz — aks holda
+                // ovoz quloqchindan emas, dinamikdan chiqadi (Android 12+ bilan bir xil mantiq).
+                if (!btOn && !wiredOn) {
                     audioManager.stopBluetoothSco()
                     @Suppress("DEPRECATION")
                     audioManager.isBluetoothScoOn = false
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = true
+                } else if (wiredOn) {
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
                 }
             } else {
                 @Suppress("DEPRECATION")

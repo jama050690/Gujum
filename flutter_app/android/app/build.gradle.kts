@@ -75,15 +75,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // --target-platform android-arm64 only filters the Flutter engine
-            // libs; native libs bundled inside plugin AARs (flutter_webrtc's
-            // libjingle_peerconnection_so.so above all) still ship every ABI
-            // they carry. That was 22 MB of the 57 MB APK — dead weight, since
-            // without an arm64 libflutter.so the app cannot run on those ABIs
-            // anyway. Debug builds keep all ABIs so x86_64 emulators still work.
-            ndk {
-                abiFilters += "arm64-v8a"
-            }
         }
     }
 
@@ -94,6 +85,21 @@ android {
                 "META-INF/LICENSE*",
                 "META-INF/NOTICE*",
                 "META-INF/*.kotlin_module",
+            )
+        }
+        jniLibs {
+            // --target-platform android-arm64 only filters the Flutter engine
+            // libs — confirmed: libflutter.so/libapp.so ship arm64 only. Native
+            // libs bundled inside plugin AARs (above all flutter_webrtc's
+            // libjingle_peerconnection_so.so) still carried every ABI: 22 MB of
+            // a 57 MB APK, for architectures that cannot start the app at all
+            // without an engine .so. ndk.abiFilters did NOT drop them; excluding
+            // at packaging time does, because it filters the merged JNI folder
+            // regardless of which dependency contributed the file.
+            excludes += setOf(
+                "**/x86/**",
+                "**/x86_64/**",
+                "**/armeabi-v7a/**",
             )
         }
     }
