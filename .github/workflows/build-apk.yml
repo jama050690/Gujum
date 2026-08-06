@@ -98,7 +98,11 @@ jobs:
           # versionCode must always climb or Android refuses the upgrade. Push
           # runs don't commit back, so deriving it from the (monotonic) run
           # number keeps it unique without needing the file to persist.
-          NEW_BUILD="${{ github.run_number }}"
+          # run_number alone is not enough: it does NOT advance on a re-run
+          # (only run_attempt does), so re-running a build used to emit a
+          # duplicate versionCode that Play rejects. Folding in the attempt
+          # keeps it strictly increasing: run 13 attempt 1 -> 1301, run 14 -> 1401.
+          NEW_BUILD=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
 
           sed -i "s/^version:.*/version: $NEW_SEMVER+$NEW_BUILD/" pubspec.yaml
 
