@@ -347,6 +347,19 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   int _lastRemoteStreamVersion = 0;
   int _lastLocalStreamVersion = 0;
 
+  // Self-view is free-positioned: dragged anywhere, clamped so it can never be
+  // left partly off-screen. null = the default bottom-right resting spot.
+  static const double _pipWidth = 132;
+  static const double _pipHeight = 188;
+  Offset? _pipOffset;
+
+  // Controls auto-hide only during a connected video call — on an audio call
+  // there is nothing underneath worth uncovering, so they stay put.
+  bool _controlsVisible = true;
+  bool _autoHideArmed = false;
+  Timer? _controlsHideTimer;
+  static const _controlsHideDelay = Duration(seconds: 4);
+
   @override
   void initState() {
     super.initState();
@@ -358,9 +371,64 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   void dispose() {
     widget.callController.removeListener(_update);
     _ticker?.cancel();
+    _controlsHideTimer?.cancel();
     _local.dispose();
     _remote.dispose();
     super.dispose();
+  }
+
+  bool _shouldAutoHideControls(CallController ctrl) =>
+      ctrl.isVideo && ctrl.state == CallSessionState.connected;
+
+  void _scheduleControlsHide() {
+    _controlsHideTimer?.cancel();
+    _controlsHideTimer = Timer(_controlsHideDelay, () {
+      if (!mounted) return;
+      if (!_shouldAutoHideControls(widget.callController)) return;
+      setState(() => _controlsVisible = false);
+    });
+  }
+
+  void _toggleControls() {
+    // Outside an active video call the dock is always on, so a tap is a no-op
+    // rather than a way to strand the user with no way to hang up.
+    if (!_shouldAutoHideControls(widget.callController)) return;
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible) {
+      _scheduleControlsHide();
+    } else {
+      _controlsHideTimer?.cancel();
+    }
+  }
+
+  // Armed once per transition into an active video call — not on every notify,
+  // or the 1 s timer would keep pushing the hide back forever.
+  void _syncControlsAutoHide() {
+    final autoHide = _shouldAutoHideControls(widget.callController);
+    if (autoHide && !_autoHideArmed) {
+      _autoHideArmed = true;
+      _scheduleControlsHide();
+    } else if (!autoHide && _autoHideArmed) {
+      _autoHideArmed = false;
+      _controlsHideTimer?.cancel();
+      _controlsHideTimer = null;
+      _controlsVisible = true;
+    }
+  }
+
+  Offset _defaultPipOffset(Size screen) => Offset(
+        screen.width - _pipWidth - 22,
+        screen.height - _pipHeight - 188,
+      );
+
+  Offset _clampPip(Offset value, Size screen) {
+    const margin = 12.0;
+    final maxX = screen.width - _pipWidth - margin;
+    final maxY = screen.height - _pipHeight - margin;
+    return Offset(
+      maxX <= margin ? margin : value.dx.clamp(margin, maxX),
+      maxY <= margin ? margin : value.dy.clamp(margin, maxY),
+    );
   }
 
   Future<void> _init() async {
@@ -374,6 +442,7 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
   void _update() {
     _sync();
     _syncTicker();
+    _syncControlsAutoHide();
     if (mounted) setState(() {});
   }
 
@@ -439,10 +508,17 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final timerText = _buildTimerText(ctrl.connectedAt);
     final titleText = peer?.displayName ?? peer?.username ?? '';
     final subtitleText = timerText ?? statusText;
+    final screen = MediaQuery.sizeOf(context);
+    final pipPos = _clampPip(_pipOffset ?? _defaultPipOffset(screen), screen);
 
     return Scaffold(
       backgroundColor: const Color(0xFF09111C),
-      body: Stack(children: [
+      body: GestureDetector(
+        // Taps that land on a button hit it first; this only catches the
+        // background, which is what toggles the dock during a video call.
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleControls,
+        child: Stack(children: [
         Positioned.fill(
           child: DecoratedBox(
             decoration: const BoxDecoration(
@@ -515,11 +591,17 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
           ),
         if (ctrl.isVideo && !ctrl.isCameraOff && _ready)
           Positioned(
-            right: 22,
-            bottom: 188,
-            width: 132,
-            height: 188,
-            child: _LocalPreviewCard(renderer: _local, ctrl: ctrl),
+            left: pipPos.dx,
+            top: pipPos.dy,
+            width: _pipWidth,
+            height: _pipHeight,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanUpdate: (details) => setState(() {
+                _pipOffset = _clampPip(pipPos + details.delta, screen);
+              }),
+              child: _LocalPreviewCard(renderer: _local, ctrl: ctrl),
+            ),
           ),
         Positioned(
           bottom: 36,
@@ -527,10 +609,18 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
           right: 20,
           child: SafeArea(
             top: false,
-            child: _ControlsDock(ctrl: ctrl),
+            child: AnimatedOpacity(
+              opacity: _controlsVisible ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: !_controlsVisible,
+                child: _ControlsDock(ctrl: ctrl),
+              ),
+            ),
           ),
         ),
-      ]),
+        ]),
+      ),
     );
   }
 
@@ -667,8 +757,8 @@ class _RoundActionButton extends StatelessWidget {
       required this.onPressed,
       this.enabled = true,
       this.iconColor = Colors.white,
-      this.size = 60,
-      this.iconSize = 28});
+      this.size = 52,
+      this.iconSize = 26});
   final IconData icon;
   final Color backgroundColor;
   final Color iconColor;
@@ -859,7 +949,7 @@ class _ControlsDock extends StatelessWidget {
       _RoundActionButton(
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
         backgroundColor: Colors.transparent,
-        size: 58,
+        size: 52,
         onPressed: () => ctrl.toggleMute(),
       ),
       _RoundActionButton(
@@ -874,26 +964,26 @@ class _ControlsDock extends StatelessWidget {
         iconColor:
             ctrl.isVideo && ctrl.isCameraOff ? Colors.black : Colors.white,
         enabled: canToggleCamera,
-        size: 76,
-        iconSize: 34,
+        size: 62,
+        iconSize: 28,
         onPressed: () => ctrl.toggleCamera(),
       ),
       _RoundActionButton(
         icon: Icons.call_end_rounded,
         backgroundColor: const Color(0xFFD84D68),
-        size: 76,
-        iconSize: 34,
+        size: 62,
+        iconSize: 28,
         onPressed: () => ctrl.hangUp(),
       ),
     ];
 
     return Center(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 680),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        constraints: const BoxConstraints(maxWidth: 560),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: const Color(0xFF14161C).withAlpha(244),
-          borderRadius: BorderRadius.circular(40),
+          borderRadius: BorderRadius.circular(34),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(70),
