@@ -429,7 +429,7 @@ function registerSocketHandlers(io) {
     browser.on("NEW_MESSAGE", async (data) => {
       const senderUsername = browser.username;
       if (!senderUsername) return;
-      const { receiver, message = "", image, audio, video, replyTo, persisted, id: persistedId, created_at: persistedAt, avatar: clientAvatar } = data || {};
+      const { receiver, message = "", image, audio, video, replyTo, persisted, id: persistedId, created_at: persistedAt, avatar: clientAvatar, clientMsgId } = data || {};
       if (!receiver) return;
       try {
         // Web frontend REST API orqali allaqachon saqlagan — faqat receiverga yetkazish
@@ -483,16 +483,34 @@ function registerSocketHandlers(io) {
           chatId = chatResult.rows[0].id;
         }
         const text = typeof message === "string" ? message.trim() : "";
-        const msgResult = await pool.query(
-          `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content, image, audio, video, reply_to_username, reply_to_content)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at, is_read`,
+        let msgRes = await pool.query(
+          `INSERT INTO ${MESSAGES_TABLE}
+             (chat_id, sender_id, content, image, audio, video,
+              reply_to_username, reply_to_content, client_msg_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (sender_id, client_msg_id) WHERE client_msg_id IS NOT NULL
+           DO NOTHING
+           RETURNING id, created_at, is_read`,
           [chatId, senderId, text, image || null, audio || null, video || null,
-           replyTo?.username || null, replyTo?.content || null]
+           replyTo?.username || null, replyTo?.content || null,
+           clientMsgId || null]
         );
+
+        // Konflikt bo'lsa hech narsa qaytmaydi — demak bu xabar allaqachon
+        // saqlangan (qayta yuborish). Mavjud qatorni olib, xuddi shu javobni
+        // qaytaramiz: klient dublikat ko'rmaydi.
+        if (msgRes.rowCount === 0 && clientMsgId) {
+          msgRes = await pool.query(
+            `SELECT id, created_at, is_read FROM ${MESSAGES_TABLE}
+             WHERE sender_id = $1 AND client_msg_id = $2`,
+            [senderId, clientMsgId]
+          );
+          console.log(`[MSG] dublikat e'tiborsiz qoldirildi clientMsgId=${clientMsgId}`);
+        }
         const saved = {
-          id: msgResult.rows[0].id,
-          created_at: msgResult.rows[0].created_at,
-          is_read: msgResult.rows[0].is_read,
+          id: msgRes.rows[0].id,
+          created_at: msgRes.rows[0].created_at,
+          is_read: msgRes.rows[0].is_read,
           user: sender.username,
           username: sender.username,
           full_name: sender.full_name,

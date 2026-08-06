@@ -114,11 +114,16 @@ router.get("/messages", async (req, res) => {
            FROM ${MESSAGES_TABLE} m
            JOIN ${USERS_TABLE} u ON m.sender_id = u.id
            WHERE m.chat_id = $1
+             -- "Faqat men uchun" o'chirilganlar bu foydalanuvchiga ko'rinmaydi
+             AND NOT EXISTS (
+               SELECT 1 FROM message_deletions d
+               WHERE d.message_id = m.id AND d.user_id = $2
+             )
            ORDER BY m.created_at DESC
            LIMIT 80
          ) recent
          ORDER BY recent.created_at ASC`,
-        [chatId],
+        [chatId, user1Id],
       );
 
       return res.json(rows);
@@ -148,6 +153,7 @@ router.post("/messages", authMiddleware, async (req, res) => {
     audio = null,
     video = null,
     replyTo,
+    clientMsgId,
   } = req.body || {};
 
   const text = typeof message === "string" ? message.trim() : "";
@@ -202,9 +208,13 @@ router.post("/messages", authMiddleware, async (req, res) => {
       chatId = chatResult.rows[0].id;
     }
 
-    const msgResult = await pool.query(
-      `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content, image, audio, video, reply_to_username, reply_to_content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    // Socket yo'lidagi kabi idempotent: bir xil clientMsgId ikkinchi marta
+    // kelsa yangi qator yaratilmaydi.
+    let msgResult = await pool.query(
+      `INSERT INTO ${MESSAGES_TABLE} (chat_id, sender_id, content, image, audio, video, reply_to_username, reply_to_content, client_msg_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (sender_id, client_msg_id) WHERE client_msg_id IS NOT NULL
+       DO NOTHING
        RETURNING id, created_at, is_read`,
       [
         chatId,
@@ -215,8 +225,17 @@ router.post("/messages", authMiddleware, async (req, res) => {
         videoPath,
         replyTo?.username || null,
         replyTo?.content || null,
+        clientMsgId || null,
       ],
     );
+
+    if (msgResult.rowCount === 0 && clientMsgId) {
+      msgResult = await pool.query(
+        `SELECT id, created_at, is_read FROM ${MESSAGES_TABLE}
+         WHERE sender_id = $1 AND client_msg_id = $2`,
+        [senderId, clientMsgId]
+      );
+    }
 
     return res.status(201).json({
       id: msgResult.rows[0].id,
@@ -356,32 +375,81 @@ router.post("/messages/mark-read", async (req, res) => {
   }
 });
 
-// DELETE /api/messages/:id
-router.delete("/messages/:id", authMiddleware, async (req, res) => {
-  const { id } = req.params;
+// POST /api/messages/delete — bir yoki bir nechta xabarni o'chirish
+//
+// Telegram mantiqi: "faqat men uchun" xabarni bazadan o'chirmaydi, shunchaki
+// shu foydalanuvchiga ko'rsatmaydi; "hamma uchun" esa butunlay yo'q qiladi va
+// suhbatdoshga darhol xabar beradi. Faqat o'z xabaringni hamma uchun
+// o'chirish mumkin.
+router.post("/messages/delete", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const ids = Array.isArray(req.body?.ids)
+    ? req.body.ids.map((v) => Number(v)).filter((v) => Number.isInteger(v))
+    : [];
+  const forEveryone = req.body?.forEveryone === true;
+
+  if (ids.length === 0) {
+    return res.status(400).json({ message: "ids kerak" });
+  }
 
   try {
-    const existing = await pool.query(
-      `SELECT sender_id FROM ${MESSAGES_TABLE} WHERE id = $1`,
-      [id],
+    // Faqat shu foydalanuvchi ishtirok etgan chatlardagi xabarlar.
+    const owned = await pool.query(
+      `SELECT m.id, m.sender_id, m.chat_id
+       FROM ${MESSAGES_TABLE} m
+       JOIN ${CHATS_TABLE} c ON c.id = m.chat_id
+       WHERE m.id = ANY($1::int[]) AND (c.user1_id = $2 OR c.user2_id = $2)`,
+      [ids, userId]
     );
-
-    if (existing.rowCount === 0) {
-      return res.status(404).json({ message: "Xabar topilmadi" });
+    if (owned.rowCount === 0) {
+      return res.json({ deleted: [], forEveryone });
     }
 
-    if (existing.rows[0].sender_id !== req.user.id) {
-      return res.status(403).json({ message: "Bu xabarni o'chirib bo'lmaydi" });
+    if (!forEveryone) {
+      const mine = owned.rows.map((r) => r.id);
+      await pool.query(
+        `INSERT INTO message_deletions (message_id, user_id)
+         SELECT UNNEST($1::int[]), $2
+         ON CONFLICT DO NOTHING`,
+        [mine, userId]
+      );
+      return res.json({ deleted: mine, forEveryone: false });
     }
 
-    const result = await pool.query(
-      `DELETE FROM ${MESSAGES_TABLE} WHERE id = $1 RETURNING id`,
-      [id],
-    );
+    // Hamma uchun — shaxsiy chatda ikkala tomonning xabarlari ham. Suhbat
+    // ikki kishiga tegishli: kimdir yozgan xabarni ham, o'zingga kelgan
+    // xabarni ham yozishmadan butunlay olib tashlash mumkin. Telegram ham
+    // shaxsiy chatlarda shunday ishlaydi. Yuqoridagi so'rov allaqachon
+    // faqat shu foydalanuvchi ishtirokchisi bo'lgan chatlarni qaytargan,
+    // ya'ni begona suhbatga tegib bo'lmaydi.
+    const deletable = owned.rows.map((r) => r.id);
 
-    return res.json({ deleted: true, id: Number(id) });
+    const chatId = owned.rows[0].chat_id;
+    await pool.query(`DELETE FROM ${MESSAGES_TABLE} WHERE id = ANY($1::int[])`, [
+      deletable,
+    ]);
+
+    // Suhbatdoshga darhol bildiramiz — aks holda xabar uning ekranida va
+    // qurilmasidagi nusxasida qolib ketadi.
+    const peer = await pool.query(
+      `SELECT u.username
+       FROM ${CHATS_TABLE} c
+       JOIN ${USERS_TABLE} u
+         ON u.id = CASE WHEN c.user1_id = $2 THEN c.user2_id ELSE c.user1_id END
+       WHERE c.id = $1`,
+      [chatId, userId]
+    );
+    const peerUsername = peer.rows[0]?.username;
+    if (peerUsername) {
+      emitToUser(peerUsername, "MESSAGES_DELETED", {
+        by: req.user.username,
+        ids: deletable,
+      });
+    }
+
+    return res.json({ deleted: deletable, forEveryone: true });
   } catch (err) {
-    console.error("Xabarni o'chirishda xato:", err);
+    console.error("Xabarlarni o'chirishda xato:", err);
     return res.status(500).json({ message: "Xatolik yuz berdi" });
   }
 });

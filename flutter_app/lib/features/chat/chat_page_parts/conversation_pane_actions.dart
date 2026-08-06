@@ -10,18 +10,40 @@ extension _ConversationPaneActions on _ConversationPaneState {
         messages.map((message) => message.id).whereType<int>().toList();
     if (ids.isEmpty) return;
 
-    final confirmed = await _confirmChatAction(
-      title: t('message_delete'),
-      message: t('message_delete_confirm'),
-      confirmLabel: t('message_delete'),
-      destructive: true,
+    // Shaxsiy chatda ikkala tomonning xabarlarini ham hamma uchun o'chirish
+    // mumkin — yozishma ikkovimizniki. Shuning uchun "Hamma uchun" har doim
+    // taklif qilinadi, faqat o'z xabarlaringda emas.
+    final peerName = widget.activeChat?.fullName ?? '';
+
+    final forEveryone = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(t('message_delete')),
+        content: Text(t('message_delete_confirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(t('delete_for_me')),
+          ),
+          TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(dialogContext).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text('${t('delete_for_everyone')}'
+                  '${peerName.isEmpty ? '' : ' ($peerName)'}'),
+            ),
+        ],
+      ),
     );
-    if (!confirmed) return;
+    if (forEveryone == null) return;
 
     try {
-      for (final id in ids) {
-        await chat.deleteActiveMessage(id);
-      }
+      await chat.deleteMessages(ids, forEveryone: forEveryone);
       await _pruneDeletedMessageState(ids.toSet());
     } on ApiException catch (error) {
       _showInfoSnackBar(error.message);
