@@ -29,7 +29,12 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleInstance"
+            <!-- singleInstance edi: bu holatda boshqa ilova natija qaytarib
+                 bera olmaydi (galereya, kamera, hujjat tanlash, SIM raqami
+                 tanlagichi) — Android darhol RESULT_CANCELED qaytaradi va
+                 tanlangan fayl hech qachon yetib kelmaydi. singleTop Flutter
+                 uchun standart va startActivityForResult bilan ishlaydi. -->
+            android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/LaunchTheme"
