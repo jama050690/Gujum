@@ -77,6 +77,16 @@ async function initUsersTable() {
       `[DB] phone unique indeksi qurilmadi (ehtimol takrorlanuvchi raqamlar bor): ${e.message}`,
     );
   }
+  // Akkaunt o'chirilganda a'zolari bor guruh/kanal egasiz qoladi — shuning
+  // uchun created_by NULL bo'la olishi kerak. Jadval NOT NULL bilan
+  // yaratilgan bo'lsa cheklovni olib tashlaymiz.
+  for (const table of [GROUPS_TABLE, CHANNELS_TABLE]) {
+    try {
+      await pool.query(`ALTER TABLE ${table} ALTER COLUMN created_by DROP NOT NULL`);
+    } catch (e) {
+      console.warn(`[DB] ${table}.created_by NOT NULL olib tashlanmadi: ${e.message}`);
+    }
+  }
   console.log("Users table tayyor");
 }
 

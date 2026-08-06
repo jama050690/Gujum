@@ -79,9 +79,13 @@ class ApiClient {
   Future<dynamic> deleteJson(
     String path, {
     bool authenticated = false,
+    Map<String, dynamic>? body,
   }) async {
     final request = http.Request('DELETE', _buildUri(path));
-    _applyHeaders(request.headers, authenticated: authenticated);
+    // Tana bo'lsa Content-Type ham kerak — aks holda express.json() uni
+    // o'qimaydi va req.body bo'sh keladi.
+    _applyHeaders(request.headers, authenticated: authenticated, json: body != null);
+    if (body != null) request.body = jsonEncode(body);
     final response = await request.send();
     return _decode(response);
   }

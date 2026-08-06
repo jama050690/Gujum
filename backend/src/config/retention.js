@@ -132,10 +132,40 @@ async function purgeUploads(ttlHours) {
   return deleted;
 }
 
+/**
+ * O'chirilgan akkauntlar arxivi 2 yildan keyin butunlay yo'q qilinadi.
+ *
+ * Xabar TTL sidan farqli o'laroq bu doim ishlaydi va o'chirib bo'lmaydi:
+ * saqlash muddati cheklovi bo'lgani uchun uni "keyinroq yoqamiz" deb
+ * qoldirish mumkin emas.
+ */
+const DELETED_ACCOUNT_RETENTION_YEARS = 2;
+
+async function purgeDeletedAccounts() {
+  try {
+    const res = await pool.query(
+      `DELETE FROM deleted_accounts
+       WHERE deleted_at < NOW() - $1::interval`,
+      [`${DELETED_ACCOUNT_RETENTION_YEARS} years`]
+    );
+    if (res.rowCount > 0) {
+      console.log(`[TTL] ${res.rowCount} ta eski akkaunt arxivi o'chirildi`);
+    }
+    return res.rowCount;
+  } catch (e) {
+    // Jadval hali yaratilmagan bo'lishi mumkin — bu xato emas.
+    if (e.code !== "42P01") {
+      console.error("[TTL] akkaunt arxivini tozalashda xato:", e.message);
+    }
+    return 0;
+  }
+}
+
 export async function runRetentionOnce(ttlHours) {
   const messages = await purgeMessages(ttlHours);
   const files = await purgeUploads(ttlHours);
-  return { messages, files };
+  const accounts = await purgeDeletedAccounts();
+  return { messages, files, accounts };
 }
 
 export function startRetentionScheduler() {
@@ -146,6 +176,10 @@ export function startRetentionScheduler() {
       "[TTL] Xabar saqlash muddati o'chirilgan. Yoqish uchun MESSAGE_TTL_ENABLED=true " +
         "(faqat klient xabarlarni o'zida saqlaydigan versiyaga o'tgandan keyin!)",
     );
+    // Xabar TTL si o'chiq bo'lsa ham akkaunt arxivi tozalanishi kerak —
+    // u saqlash muddati cheklovi, sozlama emas.
+    purgeDeletedAccounts().catch(() => {});
+    setInterval(() => purgeDeletedAccounts().catch(() => {}), 24 * 60 * 60 * 1000);
     return;
   }
 

@@ -51,6 +51,18 @@ class MediaStore {
   static String? localFor(String? serverPath) =>
       _instance?.localPath(serverPath);
 
+  /// Akkaunt o'chirilganda qurilmadagi barcha media nusxalari ketadi.
+  static Future<void> clearAll() async {
+    final store = _instance;
+    _instance = null;
+    if (store == null) return;
+    try {
+      if (await store._dir.exists()) await store._dir.delete(recursive: true);
+    } catch (e) {
+      debugPrint('MEDIA_STORE clearAll xatosi: $e');
+    }
+  }
+
   static String _nameFor(String serverPath) {
     final cleaned = serverPath.split('?').first.replaceAll('\\', '/');
     final base = cleaned.split('/').where((s) => s.isNotEmpty).toList();
