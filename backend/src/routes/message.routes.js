@@ -416,13 +416,13 @@ router.post("/messages/delete", authMiddleware, async (req, res) => {
       return res.json({ deleted: mine, forEveryone: false });
     }
 
-    // Hamma uchun — faqat o'z xabarlari.
-    const deletable = owned.rows
-      .filter((r) => r.sender_id === userId)
-      .map((r) => r.id);
-    if (deletable.length === 0) {
-      return res.status(403).json({ message: "Bu xabarlarni o'chirib bo'lmaydi" });
-    }
+    // Hamma uchun — shaxsiy chatda ikkala tomonning xabarlari ham. Suhbat
+    // ikki kishiga tegishli: kimdir yozgan xabarni ham, o'zingga kelgan
+    // xabarni ham yozishmadan butunlay olib tashlash mumkin. Telegram ham
+    // shaxsiy chatlarda shunday ishlaydi. Yuqoridagi so'rov allaqachon
+    // faqat shu foydalanuvchi ishtirokchisi bo'lgan chatlarni qaytargan,
+    // ya'ni begona suhbatga tegib bo'lmaydi.
+    const deletable = owned.rows.map((r) => r.id);
 
     const chatId = owned.rows[0].chat_id;
     await pool.query(`DELETE FROM ${MESSAGES_TABLE} WHERE id = ANY($1::int[])`, [

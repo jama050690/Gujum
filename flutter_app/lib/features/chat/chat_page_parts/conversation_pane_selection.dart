@@ -53,7 +53,11 @@ bool _canEditMessage(ChatMessage message, bool mine) {
 }
 
 bool _canDeleteMessage(ChatMessage message, bool mine) {
-  return mine && message.id != null;
+  // Yozishma ikki kishiniki: suhbatdoshning xabarini ham o'chirish mumkin.
+  // Faqat o'zimniki degan cheklov bor edi va shu sababli boshqaning
+  // xabarida "O'chirish" umuman ko'rinmasdi. Kimniki ekani endi faqat
+  // dialogdagi tanlovga ta'sir qiladi, ro'yxatga emas.
+  return message.id != null;
 }
 
 bool _canForwardMessage(ChatMessage message) {

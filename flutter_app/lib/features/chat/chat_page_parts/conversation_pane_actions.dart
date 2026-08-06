@@ -10,10 +10,9 @@ extension _ConversationPaneActions on _ConversationPaneState {
         messages.map((message) => message.id).whereType<int>().toList();
     if (ids.isEmpty) return;
 
-    // Telegram singari tanlov beramiz. "Hamma uchun" faqat o'z xabarlaring
-    // uchun mumkin — server ham shuni tekshiradi.
-    final currentUser = context.read<AuthController>().user?.username;
-    final allMine = messages.every((m) => m.senderUsername == currentUser);
+    // Shaxsiy chatda ikkala tomonning xabarlarini ham hamma uchun o'chirish
+    // mumkin — yozishma ikkovimizniki. Shuning uchun "Hamma uchun" har doim
+    // taklif qilinadi, faqat o'z xabarlaringda emas.
     final peerName = widget.activeChat?.fullName ?? '';
 
     final forEveryone = await showDialog<bool>(
@@ -30,8 +29,7 @@ extension _ConversationPaneActions on _ConversationPaneState {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(t('delete_for_me')),
           ),
-          if (allMine)
-            TextButton(
+          TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(dialogContext).colorScheme.error,
               ),
