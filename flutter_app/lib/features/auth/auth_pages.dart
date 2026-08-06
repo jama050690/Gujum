@@ -10,7 +10,7 @@ import 'auth_controller.dart';
 import 'auth_repository.dart';
 import 'google_auth_service.dart';
 
-enum AuthScreen { login, signup, forgot }
+enum AuthScreen { welcome, login, signup, forgot }
 
 class AuthFlow extends StatefulWidget {
   const AuthFlow({super.key});
@@ -20,13 +20,20 @@ class AuthFlow extends StatefulWidget {
 }
 
 class _AuthFlowState extends State<AuthFlow> {
-  AuthScreen _screen = AuthScreen.login;
+  // Kirish endi Google tugmasidan boshlanadi: parol, username, yosh va
+  // jinsni so'raydigan eski forma "Boshqa usul" ortiga yashirildi. Eski
+  // akkauntlar u yerdan kirishda davom etadi.
+  AuthScreen _screen = AuthScreen.welcome;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
       child: switch (_screen) {
+        AuthScreen.welcome => WelcomePage(
+            key: const ValueKey('welcome'),
+            onOpenOtherMethods: () => setState(() => _screen = AuthScreen.login),
+          ),
         AuthScreen.login => LoginPage(
             key: const ValueKey('login'),
             onOpenSignup: () => setState(() => _screen = AuthScreen.signup),
@@ -41,6 +48,115 @@ class _AuthFlowState extends State<AuthFlow> {
             onBackToLogin: () => setState(() => _screen = AuthScreen.login),
           ),
       },
+    );
+  }
+}
+
+/// Birinchi ekran: bitta katta "Google bilan davom etish" tugmasi.
+///
+/// Raqam, ism va kontaktlar keyingi qadamlarda so'raladi (OnboardingFlow),
+/// shuning uchun bu yerda hech qanday maydon yo'q.
+class WelcomePage extends StatefulWidget {
+  const WelcomePage({super.key, required this.onOpenOtherMethods});
+
+  final VoidCallback onOpenOtherMethods;
+
+  @override
+  State<WelcomePage> createState() => _WelcomePageState();
+}
+
+class _WelcomePageState extends State<WelcomePage> {
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _continueWithGoogle() async {
+    final settings = context.read<SettingsController>();
+    final auth = context.read<AuthController>();
+    final googleAuth = context.read<GoogleAuthService>();
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+
+    setState(() {
+      _error = null;
+      _loading = true;
+    });
+
+    try {
+      final credential = await googleAuth.signInForCredential();
+      await auth.loginWithGoogle(credential: credential);
+    } on GoogleAuthException catch (error) {
+      if (error.code == GoogleAuthErrorCode.cancelled) return;
+      var message = switch (error.code) {
+        GoogleAuthErrorCode.notConfigured => t('google_not_configured'),
+        GoogleAuthErrorCode.androidClientMismatch =>
+          t('google_android_client_mismatch'),
+        GoogleAuthErrorCode.missingIdToken => t('google_token_missing'),
+        GoogleAuthErrorCode.failed => t('google_sign_in_failed'),
+        GoogleAuthErrorCode.cancelled => '',
+      };
+      if (error.details != null && error.details!.trim().isNotEmpty) {
+        debugPrint('Google login details: ${error.details}');
+        message = '$message\n${error.details}';
+      }
+      if (mounted) setState(() => _error = message);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = context.watch<SettingsController>();
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 2),
+              const Center(child: _BootchatLogo(size: 96, withShadow: true)),
+              const SizedBox(height: 28),
+              Text(
+                'Gujum',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Yaqinlaringiz bilan bepul suhbat va qo'ng'iroq",
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const Spacer(flex: 3),
+              if (_error != null) ...[
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: 12),
+              ],
+              _GoogleSignInButton(
+                loading: _loading,
+                label: t('sign_in_google'),
+                onPressed: _loading ? null : _continueWithGoogle,
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loading ? null : widget.onOpenOtherMethods,
+                child: Text(t('other_sign_in_methods')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

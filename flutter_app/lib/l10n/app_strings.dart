@@ -16,6 +16,7 @@ class AppStrings {
       'male': 'Erkak',
       'female': 'Ayol',
       'sign_in': 'Kirish',
+      'other_sign_in_methods': 'Boshqa usul bilan kirish',
       'sign_in_google': 'Google orqali kirish',
       'sign_in_google_loading': 'Google tekshirilmoqda...',
       'sign_up': "Ro'yxatdan o'tish",
@@ -221,6 +222,7 @@ class AppStrings {
       'male': 'Male',
       'female': 'Female',
       'sign_in': 'Sign in',
+      'other_sign_in_methods': 'Other sign-in options',
       'sign_in_google': 'Continue with Google',
       'sign_in_google_loading': 'Checking Google account...',
       'sign_up': 'Sign up',
@@ -414,6 +416,7 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'other_sign_in_methods': 'Другие способы входа',
       'app_title': 'Gujum',
       'login_title': 'Войдите в аккаунт',
       'signup_title': 'Регистрация',

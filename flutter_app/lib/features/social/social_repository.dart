@@ -33,6 +33,14 @@ class SocialRepository {
 
   /// Faqat telefon raqamini saqlaydi — backend yuborilmagan maydonlarga
   /// tegmaydi, shuning uchun profilning qolgan qismi o'zgarmaydi.
+  Future<void> saveFullName(String fullName) async {
+    await _apiClient.multipartPut(
+      '/api/users/profile',
+      authenticated: true,
+      fields: {'full_name': fullName},
+    );
+  }
+
   Future<void> savePhone(String phone, {bool? fromSim}) async {
     await _apiClient.multipartPut(
       '/api/users/profile',

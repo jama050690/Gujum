@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../social/social_repository.dart';
 import 'auth_controller.dart';
+import 'phone_countries.dart';
 import 'phone_hint_service.dart';
 
-/// Kirgandan keyin bir marta ko'rsatiladigan telefon raqami ekrani.
+/// Ro'yxatdan o'tishning 1-qadami: telefon raqami.
 ///
 /// Ochilishi bilan SIM tanlagichini so'raydi — ikki SIM bo'lsa foydalanuvchi
-/// bittasini bosadi va yozishga hojat qolmaydi. Tanlanmasa, raqamni qo'lda
-/// kiritish uchun telefon klaviaturasi ochiladi.
+/// bittasini bosadi va hech narsa yozmaydi. Tanlanmasa, davlat kodi bilan
+/// raqam kiritish oynasi ochiladi: '+' oldindan turadi, standart kod +998,
+/// raqam esa yozilayotganda o'sha davlat formatiga solinadi.
 class PhoneSetupPage extends StatefulWidget {
-  const PhoneSetupPage({super.key});
+  const PhoneSetupPage({super.key, this.onDone});
+
+  final VoidCallback? onDone;
 
   @override
   State<PhoneSetupPage> createState() => _PhoneSetupPageState();
@@ -20,11 +23,11 @@ class PhoneSetupPage extends StatefulWidget {
 
 class _PhoneSetupPageState extends State<PhoneSetupPage> {
   final _controller = TextEditingController();
+  PhoneCountry _country = defaultPhoneCountry;
   bool _saving = false;
   bool _askingSim = true;
   String? _error;
-  // Raqam SIM tanlagichidan keldimi yoki qo'lda yozildimi — kelajakda
-  // suiiste'molni aniqlash uchun foydali signal.
+  // Raqam SIM tanlagichidan keldimi yoki qo'lda yozildimi — audit uchun.
   bool _fromSim = false;
 
   @override
@@ -40,26 +43,36 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
   }
 
   Future<void> _askSim() async {
+    setState(() => _askingSim = true);
     final number = await PhoneHintService.requestSimNumber();
     if (!mounted) return;
     setState(() {
       _askingSim = false;
-      if (number != null) {
-        _controller.text = number;
-        _fromSim = true;
-      } else if (_controller.text.isEmpty) {
-        _controller.text = '+998 ';
-        _controller.selection =
-            TextSelection.collapsed(offset: _controller.text.length);
+      if (number == null) return;
+      // SIM dan kelgan raqam E.164 ko'rinishida: +998901234567.
+      final matched = countryFromE164(number);
+      final digits = number.replaceAll(RegExp(r'\D'), '');
+      if (matched != null) {
+        _country = matched;
+        final national =
+            digits.substring(matched.dialCode.replaceAll('+', '').length);
+        _controller.text = matched.format(national);
+      } else {
+        _controller.text = digits;
       }
+      _fromSim = true;
     });
   }
 
+  String get _e164 {
+    final digits = _controller.text.replaceAll(RegExp(r'\D'), '');
+    return '${_country.dialCode}$digits';
+  }
+
   Future<void> _save() async {
-    final phone = _controller.text.trim();
-    final digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 9) {
-      setState(() => _error = "Telefon raqamini to'liq kiriting");
+    final digits = _controller.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < _country.nationalLength) {
+      setState(() => _error = "Raqam to'liq emas");
       return;
     }
     setState(() {
@@ -67,13 +80,12 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
       _error = null;
     });
     try {
-      await context.read<SocialRepository>().savePhone(phone, fromSim: _fromSim);
+      await context.read<SocialRepository>().savePhone(_e164, fromSim: _fromSim);
       await context.read<AuthController>().refreshSession();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        // 409 — raqam boshqa akkauntda.
         _error = e.toString().contains('409')
             ? "Bu raqam boshqa akkauntga biriktirilgan"
             : "Saqlab bo'lmadi, qaytadan urinib ko'ring";
@@ -82,6 +94,38 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
     }
     if (!mounted) return;
     setState(() => _saving = false);
+    widget.onDone?.call();
+  }
+
+  Future<void> _pickCountry() async {
+    final picked = await showModalBottomSheet<PhoneCountry>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final country in phoneCountries)
+              ListTile(
+                leading: Text(country.flag, style: const TextStyle(fontSize: 26)),
+                title: Text(country.name),
+                trailing: Text(
+                  country.dialCode,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                onTap: () => Navigator.pop(context, country),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _country = picked;
+      // Format o'zgardi — bor raqamni yangi formatga solamiz.
+      _controller.text =
+          picked.format(_controller.text.replaceAll(RegExp(r'\D'), ''));
+      _fromSim = false;
+    });
   }
 
   @override
@@ -89,67 +133,102 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
     final theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
               Icon(Icons.smartphone_rounded,
-                  size: 64, color: theme.colorScheme.primary),
-              const SizedBox(height: 24),
+                  size: 56, color: theme.colorScheme.primary),
+              const SizedBox(height: 20),
               Text(
                 'Telefon raqamingiz',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
-                "Raqamingizni kiriting — shunda tanishlaringiz sizni "
-                "kontaktlaridan topa oladi. Hech kimga ko'rsatilmaydi.",
+                "Tanishlaringiz sizni shu raqam orqali topadi. "
+                "Hech kimga ko'rsatilmaydi.",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
-              TextField(
-                controller: _controller,
-                // Telefon klaviaturasi — harflar emas, katta raqamlar.
-                keyboardType: TextInputType.phone,
-                autofocus: false,
-                style: const TextStyle(fontSize: 22, letterSpacing: 1.2),
-                textAlign: TextAlign.center,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s\-()]')),
-                  LengthLimitingTextInputFormatter(20),
-                ],
-                onChanged: (_) {
-                  if (_fromSim) _fromSim = false;
-                  if (_error != null) setState(() => _error = null);
-                },
-                decoration: InputDecoration(
-                  hintText: '+998 90 123 45 67',
-                  border: const OutlineInputBorder(),
-                  errorText: _error,
-                  suffixIcon: IconButton(
-                    tooltip: 'SIM kartadan tanlash',
-                    icon: const Icon(Icons.sim_card_rounded),
-                    onPressed: _saving ? null : _askSim,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Davlat kodi — bosilsa ro'yxat ochiladi.
+                  InkWell(
+                    onTap: _saving ? null : _pickCountry,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: theme.dividerColor),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_country.flag,
+                              style: const TextStyle(fontSize: 22)),
+                          const SizedBox(width: 6),
+                          Text(
+                            _country.dialCode,
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600),
+                          ),
+                          const Icon(Icons.arrow_drop_down_rounded),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      // Telefon klaviaturasi — harflar emas, katta raqamlar.
+                      keyboardType: TextInputType.phone,
+                      autofocus: false,
+                      style: const TextStyle(fontSize: 20, letterSpacing: 1.1),
+                      inputFormatters: [PhoneNumberFormatter(_country)],
+                      onChanged: (_) {
+                        if (_fromSim) _fromSim = false;
+                        if (_error != null) setState(() => _error = null);
+                      },
+                      decoration: InputDecoration(
+                        hintText: _country.hint,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 18),
+                        errorText: _error,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              if (_askingSim) ...[
-                const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              if (_askingSim)
                 const Center(
                   child: SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
+                )
+              else
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _saving ? null : _askSim,
+                    icon: const Icon(Icons.sim_card_rounded, size: 18),
+                    label: const Text('SIM kartadan tanlash'),
+                  ),
                 ),
-              ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
@@ -164,7 +243,7 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
                       )
                     : const Text('Davom etish', style: TextStyle(fontSize: 17)),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               TextButton(
                 onPressed: _saving
                     ? null
