@@ -1,10 +1,13 @@
 package com.example.bootchat_flutter
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import com.google.android.gms.auth.api.identity.GetPhoneNumberHintIntentRequest
+import com.google.android.gms.auth.api.identity.Identity
 import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -23,6 +26,11 @@ class MainActivity : FlutterActivity() {
     private var ringtoneStopped = false
     private var outgoingToneGenerator: ToneGenerator? = null
     private var outgoingToneTimer: Timer? = null
+    private var phoneHintResult: MethodChannel.Result? = null
+
+    companion object {
+        private const val REQ_PHONE_HINT = 7301
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -81,6 +89,70 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "bootchat/phone_hint"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "requestPhoneNumberHint" -> requestPhoneNumberHint(result)
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /**
+     * Qurilmadagi SIM raqamlarini tizim tanlagichida ko'rsatadi (ikki SIM bo'lsa
+     * ikkalasi ham chiqadi). Hech qanday ruxsat so'ralmaydi — foydalanuvchi
+     * o'zi tanlaydi. Tanlanmasa yoki qurilma qo'llab-quvvatlamasa null qaytadi
+     * va Flutter tomonda oddiy raqam kiritish oynasi ko'rsatiladi.
+     */
+    private fun requestPhoneNumberHint(result: MethodChannel.Result) {
+        if (phoneHintResult != null) {
+            result.success(null)
+            return
+        }
+        try {
+            val request = GetPhoneNumberHintIntentRequest.builder().build()
+            Identity.getSignInClient(this)
+                .getPhoneNumberHintIntent(request)
+                .addOnSuccessListener { pendingIntent ->
+                    try {
+                        phoneHintResult = result
+                        startIntentSenderForResult(
+                            pendingIntent.intentSender,
+                            REQ_PHONE_HINT,
+                            null, 0, 0, 0
+                        )
+                    } catch (e: Exception) {
+                        phoneHintResult = null
+                        result.success(null)
+                    }
+                }
+                .addOnFailureListener {
+                    result.success(null)
+                }
+        } catch (e: Exception) {
+            result.success(null)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_PHONE_HINT) return
+        val pending = phoneHintResult
+        phoneHintResult = null
+        if (pending == null) return
+        if (resultCode != Activity.RESULT_OK || data == null) {
+            pending.success(null)
+            return
+        }
+        val number = try {
+            Identity.getSignInClient(this).getPhoneNumberFromIntent(data)
+        } catch (e: Exception) {
+            null
+        }
+        pending.success(number)
     }
 
     // Bir joyda: quloqchin (simli yoki bluetooth) ulanganmi?

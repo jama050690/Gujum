@@ -9,6 +9,10 @@ plugins {
 
 dependencies {
     implementation("com.google.android.play:core:1.10.3")
+    // Telefon raqami "hint" tanlagichi (SIM dagi raqamlar ro'yxati) shu
+    // kutubxonadagi Identity API orqali keladi. google_sign_in ham buni tortadi,
+    // lekin versiyasi kafolatlanmagani uchun aniq e'lon qilamiz.
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 

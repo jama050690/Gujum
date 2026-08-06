@@ -43,7 +43,9 @@ export async function sendCallFcm(token, { callerName, isVideo, callId }, withNo
       msg.android.notification = {
         title: callerName,
         body: isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
-        channelId: 'incoming_calls',
+        // Klientdagi kanal bilan bir xil bo'lishi shart — aks holda Android
+        // bildirishnomani standart (jim) kanalga tushiradi.
+        channelId: 'incoming_calls_v2',
         sound: 'default',
         color: '#4D82E3',
       };

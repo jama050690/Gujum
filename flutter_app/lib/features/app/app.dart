@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_pages.dart';
+import '../auth/phone_setup_page.dart';
 import '../call/call_overlay.dart';
 import '../chat/chat_page.dart';
 import '../settings/settings_controller.dart';
@@ -24,7 +25,11 @@ class BootchatApp extends StatelessWidget {
       themeMode: settings.themeMode,
       locale: settings.locale,
       home: CallOverlayHost(
-        child: auth.isAuthenticated ? const ChatPage() : const AuthFlow(),
+        child: !auth.isAuthenticated
+            ? const AuthFlow()
+            : auth.needsPhoneNumber
+                ? const PhoneSetupPage()
+                : const ChatPage(),
       ),
     );
   }

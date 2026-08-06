@@ -17,10 +17,25 @@ class AuthController extends ChangeNotifier {
 
   SessionUser? _user;
   bool _loading = false;
+  bool _phonePromptSkipped = false;
 
   SessionUser? get user => _user;
   bool get isLoading => _loading;
   bool get isAuthenticated => _user != null;
+
+  /// Google orqali kirgan akkauntlarda telefon raqami bo'lmaydi — usiz esa
+  /// foydalanuvchi tanishlarining kontaktlarida ko'rinmaydi. Shuning uchun
+  /// kirgandan keyin bir ekran so'raymiz. "Keyinroq" bosilsa shu seans uchun
+  /// yashiriladi, keyingi ochilishda yana chiqadi.
+  bool get needsPhoneNumber =>
+      isAuthenticated &&
+      !_phonePromptSkipped &&
+      (_user?.phone == null || _user!.phone!.trim().isEmpty);
+
+  void skipPhonePrompt() {
+    _phonePromptSkipped = true;
+    notifyListeners();
+  }
 
   Future<void> bootstrap() async {
     debugPrint(
