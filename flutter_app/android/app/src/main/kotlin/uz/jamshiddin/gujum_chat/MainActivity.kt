@@ -1,6 +1,7 @@
 package uz.jamshiddin.gujum_chat
 
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -15,6 +16,9 @@ import android.media.Ringtone
 import android.media.RingtoneManager
 import android.media.ToneGenerator
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -92,6 +96,17 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            "bootchat/media_save"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "saveToGallery" -> saveMedia(call, result, toGallery = true)
+                "saveToDownloads" -> saveMedia(call, result, toGallery = false)
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             "bootchat/phone_hint"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -107,6 +122,103 @@ class MainActivity : FlutterActivity() {
      * o'zi tanlaydi. Tanlanmasa yoki qurilma qo'llab-quvvatlamasa null qaytadi
      * va Flutter tomonda oddiy raqam kiritish oynasi ko'rsatiladi.
      */
+
+    /**
+     * Faylni tizim galereyasiga yoki Downloads papkasiga nusxalaydi.
+     *
+     * Android 10 dan boshlab ilova ochiq papkalarga to'g'ridan-to'g'ri yoza
+     * olmaydi, lekin MediaStore orqali yozish uchun hech qanday ruxsat ham
+     * so'ralmaydi. Eski versiyalarda esa oddiy fayl nusxalash ishlatiladi va
+     * fayl galereyada ko'rinishi uchun MediaScanner ga xabar beriladi.
+     */
+    private fun saveMedia(
+        call: io.flutter.plugin.common.MethodCall,
+        result: MethodChannel.Result,
+        toGallery: Boolean,
+    ) {
+        val sourcePath = call.argument<String>("path")
+        val fileName = call.argument<String>("fileName") ?: "gujum_file"
+        val mimeType = call.argument<String>("mimeType") ?: "application/octet-stream"
+
+        if (sourcePath.isNullOrBlank()) {
+            result.error("no_path", "path kerak", null)
+            return
+        }
+        val source = File(sourcePath)
+        if (!source.exists()) {
+            result.error("not_found", "Fayl topilmadi", null)
+            return
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val collection = when {
+                    !toGallery -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                    mimeType.startsWith("video") ->
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                    else -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                }
+                // Telegram singari: rasm va videolar alohida albomga tushadi,
+                // hujjatlar esa Downloads ichiga.
+                val relative = when {
+                    !toGallery -> "${Environment.DIRECTORY_DOWNLOADS}/Gujum"
+                    mimeType.startsWith("video") -> "${Environment.DIRECTORY_MOVIES}/Gujum"
+                    else -> "${Environment.DIRECTORY_PICTURES}/Gujum"
+                }
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relative)
+                    // Yozish tugagunicha boshqa ilovalar faylni ko'rmasin.
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val uri = contentResolver.insert(collection, values)
+                if (uri == null) {
+                    result.error("insert_failed", "MediaStore yozuvi yaratilmadi", null)
+                    return
+                }
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    source.inputStream().use { input -> input.copyTo(out) }
+                } ?: run {
+                    contentResolver.delete(uri, null, null)
+                    result.error("open_failed", "Fayl yozilmadi", null)
+                    return
+                }
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+                result.success(uri.toString())
+            } else {
+                @Suppress("DEPRECATION")
+                val baseDir = when {
+                    !toGallery -> Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS
+                    )
+                    mimeType.startsWith("video") ->
+                        Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_MOVIES
+                        )
+                    else -> Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_PICTURES
+                    )
+                }
+                val dir = File(baseDir, "Gujum")
+                if (!dir.exists()) dir.mkdirs()
+                val target = File(dir, fileName)
+                source.inputStream().use { input ->
+                    target.outputStream().use { out -> input.copyTo(out) }
+                }
+                // Galereya yangi faylni darhol ko'rsin.
+                android.media.MediaScannerConnection.scanFile(
+                    this, arrayOf(target.absolutePath), arrayOf(mimeType), null
+                )
+                result.success(target.absolutePath)
+            }
+        } catch (e: Exception) {
+            result.error("save_failed", e.message, null)
+        }
+    }
+
     private fun requestPhoneNumberHint(result: MethodChannel.Result) {
         if (phoneHintResult != null) {
             result.success(null)
