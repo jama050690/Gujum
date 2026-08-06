@@ -51,7 +51,7 @@ String? _activeConversationKey() {
 }
 
 String _pinnedMessagesStorageKey(String conversationKey) =>
-    'bootchat.pinned_messages.$conversationKey';
+    'gujum.pinned_messages.$conversationKey';
 
 Future<void> _restoreMessagePreferencesForActiveChat() async {
   final conversationKey = _activeConversationKey();

@@ -2,11 +2,11 @@ part of '../chat_page.dart';
 
 extension _ChatPageStateStorage on _ChatPageState {
 String _archiveStorageKey(String username) =>
-    'bootchat.archived_chats.$username';
+    'gujum.archived_chats.$username';
 
-String _pinnedStorageKey(String username) => 'bootchat.pinned_chats.$username';
+String _pinnedStorageKey(String username) => 'gujum.pinned_chats.$username';
 
-String _mutedStorageKey(String username) => 'bootchat.muted_chats.$username';
+String _mutedStorageKey(String username) => 'gujum.muted_chats.$username';
 
 Future<void> _restoreChatPreferences() async {
   final username = context.read<AuthController>().user?.username;

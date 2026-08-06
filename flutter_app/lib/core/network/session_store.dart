@@ -7,13 +7,13 @@ import '../config/app_config.dart';
 class SessionStore {
   SessionStore._(this._prefs);
 
-  static const _cookieKey = 'bootchat.cookie';
-  static const _userKey = 'bootchat.user';
-  static const _localeKey = 'bootchat.locale';
-  static const _darkModeKey = 'bootchat.dark_mode';
-  static const _baseUrlKey = 'bootchat.base_url';
-  static const _lastLoginUsernameKey = 'bootchat.last_login_username';
-  static const _contactsAskedKey = 'bootchat.contacts_asked';
+  static const _cookieKey = 'gujum.cookie';
+  static const _userKey = 'gujum.user';
+  static const _localeKey = 'gujum.locale';
+  static const _darkModeKey = 'gujum.dark_mode';
+  static const _baseUrlKey = 'gujum.base_url';
+  static const _lastLoginUsernameKey = 'gujum.last_login_username';
+  static const _contactsAskedKey = 'gujum.contacts_asked';
 
   final SharedPreferences _prefs;
 

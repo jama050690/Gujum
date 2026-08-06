@@ -1,6 +1,6 @@
 Future<String> createRecordingPath(String extension) async {
   final normalizedExtension = extension.trim().replaceFirst('.', '');
-  return 'bootchat_voice_${DateTime.now().millisecondsSinceEpoch}.'
+  return 'gujum_voice_${DateTime.now().millisecondsSinceEpoch}.'
       '$normalizedExtension';
 }
 
