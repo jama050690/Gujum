@@ -131,6 +131,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   bool _isCameraOff = false;
   bool _toneActive = false;
   bool _isSpeakerOn = true;
+  // _isSpeakerOn starts true as a *default*, not as a choice the user made.
+  // Only a deliberate tap on the speaker control may outrank a plugged-in
+  // headset — otherwise the session default silently hijacks call audio to the
+  // loudspeaker even though an earphone is connected.
+  bool _speakerExplicit = false;
   bool _isFrontCamera = true;
   bool _hasBluetoothAudio = false;
   bool _hasHeadsetAudio = false;
@@ -455,6 +460,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> toggleSpeaker() async {
     _isSpeakerOn = !_isSpeakerOn;
+    // Deliberate tap — from here on the user's choice outranks the headset.
+    _speakerExplicit = true;
     debugPrint(
       'CALL_DEBUG toggleSpeaker() speakerOn=$_isSpeakerOn hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
     );
@@ -464,6 +471,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> setAudioRoute(CallAudioRoute route) async {
     if (kIsWeb) return;
+    // Picking a route from the sheet is always deliberate.
+    _speakerExplicit = true;
     try {
       if (route == CallAudioRoute.bluetooth) {
         await _audioChannel.invokeMethod<void>('activateBluetooth');
@@ -853,6 +862,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _isMuted = false;
     _isCameraOff = false;
     _isSpeakerOn = true;
+    _speakerExplicit = false;
     _hasBluetoothAudio = false;
     _hasHeadsetAudio = false;
     _isUpgradingToVideo = false;
@@ -1124,6 +1134,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'activateCallAudio',
         {
           'speakerOn': requestedSpeaker,
+          // A wired headset beats the speaker default, but never beats an
+          // explicit tap on the speaker button.
+          'preferWiredHeadset': !_speakerExplicit,
         },
       );
       debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');
@@ -1139,9 +1152,14 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
-    // WebRTC audio engine uses setSpeakerphoneOn — call after native to not be overridden.
+    // WebRTC's audio engine keeps its own speakerphone flag, so it has to be
+    // told too — but with the RESOLVED route, not the original request. Passing
+    // requestedSpeaker here was the bug: it runs last by design, so it undid the
+    // native setCommunicationDevice(wiredHeadset) and pushed call audio out of
+    // the loudspeaker with an earphone plugged in.
+    final effectiveSpeaker = _audioRoute == CallAudioRoute.speaker;
     try {
-      await Helper.setSpeakerphoneOn(requestedSpeaker);
+      await Helper.setSpeakerphoneOn(effectiveSpeaker);
     } catch (_) {}
   }
 
