@@ -337,7 +337,6 @@ class _FriendsPageState extends State<FriendsPage> {
         showPhoneContactsSection: _showPhoneContactsSection,
         onSearch: _runSearch,
         onSearchChanged: _onSearchChanged,
-        searchFocusNode: _searchFocusNode,
         onRefreshContacts: _loadPhoneContactMatches,
         onOpenChat: _openChat,
         onInvite: _invite,
@@ -364,7 +363,6 @@ class _SearchTab extends StatelessWidget {
     required this.inviteCandidates,
     required this.inviteLimit,
     required this.onShowMoreInvites,
-    required this.searchFocusNode,
   });
 
   final TextEditingController controller;
@@ -383,7 +381,6 @@ class _SearchTab extends StatelessWidget {
   final List<_InviteCandidate> inviteCandidates;
   final int inviteLimit;
   final VoidCallback onShowMoreInvites;
-  final FocusNode searchFocusNode;
 
   @override
   Widget build(BuildContext context) {
