@@ -509,26 +509,6 @@ export default function UsersPanel({ onOpenSidebar }) {
             }
           },
         },
-        {
-          id: "spam-report",
-          label: t("block_mark_spam"),
-          icon: "fa-shield-halved",
-          danger: true,
-          onClick: async () => {
-            const reason = prompt(t("block_spam_reason"));
-            if (reason === null) return;
-            try {
-              await fetchJSON("/api/spam/report", {
-                method: "POST",
-                body: JSON.stringify({ targetUsername: item.username, reason }),
-              });
-              setBlockedUsers((prev) => new Set(prev).add(item.username));
-              alert(t("block_spam_done"));
-            } catch (err) {
-              console.error("Spam reportda xato:", err);
-            }
-          },
-        },
       ] : []),
     ];
   }, [menuState.item, archivedChats, pinnedChats, mutedChats, unreadMessages, activeChat, dispatch, blockedUsers]);

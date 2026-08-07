@@ -153,9 +153,6 @@ class AppStrings {
       'chat_block': 'Bloklash',
       'chat_block_confirm':
           'Ushbu foydalanuvchini bloklab, chatni yashirmoqchimisiz?',
-      'chat_report_spam': 'Spam deb belgilash',
-      'chat_report_spam_confirm':
-          'Foydalanuvchini spam deb belgilab, avtomatik bloklaysiz.',
       'chat_action_failed': 'Amalni bajarib bo\'lmadi. Qayta urinib ko\'ring',
       'message_reply': 'Javob berish',
       'message_replying_to': 'Javob yozilyapti',
@@ -402,9 +399,6 @@ class AppStrings {
       'chat_block': 'Block user',
       'chat_block_confirm':
           'Do you want to block this user and hide the chat?',
-      'chat_report_spam': 'Report spam',
-      'chat_report_spam_confirm':
-          'This will report the user as spam and block them automatically.',
       'chat_action_failed': 'Could not complete the action. Try again',
       'message_reply': 'Reply',
       'message_replying_to': 'Replying to',
@@ -542,8 +536,6 @@ class AppStrings {
       'chat_delete_confirm': "Убрать этот чат из списка?",
       'chat_block': "Заблокировать пользователя",
       'chat_block_confirm': "Заблокировать этого пользователя и скрыть чат?",
-      'chat_report_spam': "Пожаловаться на спам",
-      'chat_report_spam_confirm': "Пользователь будет отмечен как спам и заблокирован автоматически.",
       'chat_action_failed': "Не удалось выполнить действие. Попробуйте снова",
       'message_reply': "Ответить",
       'message_replying_to': "Ответ",
@@ -885,8 +877,6 @@ class AppStrings {
       'chat_delete_confirm': "هل تريد حذف هذه المحادثة؟",
       'chat_block': "حظر",
       'chat_block_confirm': "هل تريد حظر هذا المستخدم؟",
-      'chat_report_spam': "الإبلاغ عن رسائل مزعجة",
-      'chat_report_spam_confirm': "هل تريد الإبلاغ عن هذا المستخدم؟",
       'chat_action_failed': "فشل تنفيذ الإجراء",
       'message_reply': "رد",
       'message_replying_to': "رد على",
@@ -1123,8 +1113,6 @@ class AppStrings {
       'chat_delete_confirm': "이 채팅을 삭제할까요?",
       'chat_block': "차단",
       'chat_block_confirm': "이 사용자를 차단할까요?",
-      'chat_report_spam': "스팸 신고",
-      'chat_report_spam_confirm': "이 사용자를 신고할까요?",
       'chat_action_failed': "작업에 실패했습니다",
       'message_reply': "답장",
       'message_replying_to': "답장 대상",

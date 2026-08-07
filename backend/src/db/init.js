@@ -4,7 +4,6 @@ import {
   CHATS_TABLE,
   MESSAGES_TABLE,
   BLOCKED_USERS_TABLE,
-  SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
   MIGRATIONS_TABLE,
 } from "../config/database.js";
@@ -205,19 +204,6 @@ async function initBlockedUsersTable() {
   console.log("Blocked_users table tayyor");
 }
 
-async function initSpamReportsTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${SPAM_REPORTS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      reporter_id INT NOT NULL REFERENCES ${USERS_TABLE}(id) ON DELETE CASCADE,
-      reported_id INT NOT NULL REFERENCES ${USERS_TABLE}(id) ON DELETE CASCADE,
-      reason TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  console.log("Spam_reports table tayyor");
-}
-
 async function initFriendsTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${FRIENDS_TABLE} (
@@ -311,6 +297,11 @@ const MIGRATIONS = [
       "DROP TABLE IF EXISTS channels CASCADE",
     ],
   },
+  {
+    id: "2026_08_drop_spam_reports",
+    // Spam haqida xabar berish ilovadan olib tashlandi.
+    statements: ["DROP TABLE IF EXISTS spam_reports CASCADE"],
+  },
 ];
 
 async function runMigrations() {
@@ -358,7 +349,6 @@ async function initDb() {
   await initMessagesTable();
   await initMessageDeletionsTable();
   await initBlockedUsersTable();
-  await initSpamReportsTable();
   await initFriendsTable();
   await initPushSubscriptionsTable();
   await initIndexes();

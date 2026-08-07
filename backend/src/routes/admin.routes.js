@@ -5,7 +5,6 @@ import {
   CHATS_TABLE,
   MESSAGES_TABLE,
   BLOCKED_USERS_TABLE,
-  SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
 } from "../config/database.js";
 import { adminMiddleware } from "../middleware/auth.js";
@@ -103,7 +102,6 @@ router.delete("/users/:username", adminMiddleware, async (req, res) => {
 
     await client.query(`DELETE FROM push_subscriptions WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM ${BLOCKED_USERS_TABLE} WHERE blocker_id = $1 OR blocked_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${SPAM_REPORTS_TABLE} WHERE reporter_id = $1 OR reported_id = $1`, [userId]);
     await client.query(`DELETE FROM ${FRIENDS_TABLE} WHERE sender_id = $1 OR receiver_id = $1`, [userId]);
 
     await client.query(

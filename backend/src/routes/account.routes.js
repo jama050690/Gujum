@@ -99,7 +99,7 @@ router.delete("/account", authMiddleware, async (req, res) => {
       ]);
     }
 
-    // 2. Ijtimoiy graf va qurilma yozuvlari. blocked_users, spam_reports,
+    // 2. Ijtimoiy graf va qurilma yozuvlari. blocked_users,
     // friends va push_subscriptions da ON DELETE CASCADE bor, lekin
     // fcm_tokens username bo'yicha saqlanadi — uni qo'lda o'chiramiz.
     const username = req.user.username

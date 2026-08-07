@@ -55,24 +55,6 @@ export default function UserInfo({ user, isOnline, onDeleteChat }) {
     setLoading(false);
   };
 
-  const handleSpam = async () => {
-    if (loading) return;
-    const reason = prompt(t("block_spam_reason"));
-    if (reason === null) return;
-    setLoading(true);
-    try {
-      await fetchJSON("/api/spam/report", {
-        method: "POST",
-        body: JSON.stringify({ targetUsername: user.username, reason }),
-      });
-      setIsBlocked(true);
-      alert(t("block_spam_done"));
-    } catch (err) {
-      console.error("Spam reportda xato:", err);
-    }
-    setLoading(false);
-  };
-
   const handleDeleteChat = async () => {
     if (!confirm(`${user.username} bilan chat tarixini o'chirishni xohlaysizmi?`)) return;
     try {
@@ -131,7 +113,6 @@ export default function UserInfo({ user, isOnline, onDeleteChat }) {
           danger
           onClick={handleBlock}
         />
-        <BottomAction icon="fa-shield-halved" label={t("block_mark_spam")} danger onClick={handleSpam} />
         <BottomAction icon="fa-trash" label={t("chat_delete_chat")} danger onClick={handleDeleteChat} />
       </div>
     </div>

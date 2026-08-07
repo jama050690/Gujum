@@ -82,15 +82,6 @@ Future<void> _showChatActions(
               ),
               onTap: () => Navigator.of(context).pop(_InboxAction.block),
             ),
-            ListTile(
-              leading: const Icon(Icons.report_gmailerrorred_rounded,
-                  color: Colors.redAccent),
-              title: Text(
-                t('chat_report_spam'),
-                style: const TextStyle(color: Colors.redAccent),
-              ),
-              onTap: () => Navigator.of(context).pop(_InboxAction.reportSpam),
-            ),
           ],
         ),
       );
@@ -153,19 +144,6 @@ Future<void> _showChatActions(
           return;
         }
         await context.read<SocialRepository>().blockUser(item.username);
-        chat.removeChat(item.username);
-        await _removeChatPreferences(item.username);
-        break;
-      case _InboxAction.reportSpam:
-        if (!await _confirmChatAction(
-          title: t('chat_report_spam'),
-          message: t('chat_report_spam_confirm'),
-          confirmLabel: t('chat_report_spam'),
-          destructive: true,
-        )) {
-          return;
-        }
-        await context.read<SocialRepository>().reportSpam(item.username);
         chat.removeChat(item.username);
         await _removeChatPreferences(item.username);
         break;

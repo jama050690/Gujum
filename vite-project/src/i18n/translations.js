@@ -176,10 +176,7 @@ export const translations = {
     calls_outgoing: "Chiquvchi",
     calls_incoming: "Kiruvchi",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Spam deb belgilash",
-    block_spam_reason: "Spam sababini yozing (ixtiyoriy):",
-    block_spam_done: "Spam report yuborildi va user bloklandi",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Sozlamalar",
@@ -448,10 +445,7 @@ export const translations = {
     calls_outgoing: "Outgoing",
     calls_incoming: "Incoming",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Mark as Spam",
-    block_spam_reason: "Write spam reason (optional):",
-    block_spam_done: "Spam reported and user blocked",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Settings",
@@ -701,10 +695,7 @@ export const translations = {
     calls_outgoing: "拨出",
     calls_incoming: "来电",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "标记为垃圾信息",
-    block_spam_reason: "请填写垃圾信息原因（可选）：",
-    block_spam_done: "已举报垃圾信息并屏蔽用户",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "设置",
@@ -953,10 +944,7 @@ export const translations = {
     calls_outgoing: "発信",
     calls_incoming: "着信",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "スパムとして報告",
-    block_spam_reason: "スパムの理由を記入（任意）：",
-    block_spam_done: "スパムを報告し、ユーザーをブロックしました",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "設定",
@@ -1220,10 +1208,7 @@ export const translations = {
     calls_outgoing: "Исходящий",
     calls_incoming: "Входящий",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Отметить как спам",
-    block_spam_reason: "Укажите причину спама (необязательно):",
-    block_spam_done: "Жалоба на спам отправлена, пользователь заблокирован",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Настройки",
@@ -1473,10 +1458,7 @@ export const translations = {
     calls_outgoing: "Giden",
     calls_incoming: "Gelen",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Spam Olarak İşaretle",
-    block_spam_reason: "Spam nedenini yazın (isteğe bağlı):",
-    block_spam_done: "Spam raporu gönderildi ve kullanıcı engellendi",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Ayarlar",
@@ -1725,10 +1707,7 @@ export const translations = {
     calls_outgoing: "Ausgehend",
     calls_incoming: "Eingehend",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Als Spam markieren",
-    block_spam_reason: "Spam-Grund angeben (optional):",
-    block_spam_done: "Spam gemeldet und Benutzer blockiert",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Einstellungen",
@@ -1977,10 +1956,7 @@ export const translations = {
     calls_outgoing: "Sortant",
     calls_incoming: "Entrant",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Signaler comme spam",
-    block_spam_reason: "Raison du spam (optionnel) :",
-    block_spam_done: "Spam signalé et utilisateur bloqué",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Paramètres",
@@ -2229,10 +2205,7 @@ export const translations = {
     calls_outgoing: "Saliente",
     calls_incoming: "Entrante",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "Marcar como spam",
-    block_spam_reason: "Escribe la razón del spam (opcional):",
-    block_spam_done: "Spam reportado y usuario bloqueado",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "Configuración",
@@ -2481,10 +2454,7 @@ export const translations = {
     calls_outgoing: "صادرة",
     calls_incoming: "واردة",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "الإبلاغ كرسالة مزعجة",
-    block_spam_reason: "اكتب سبب الإبلاغ (اختياري):",
-    block_spam_done: "تم الإبلاغ عن البريد المزعج وحظر المستخدم",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "الإعدادات",
@@ -2733,10 +2703,7 @@ export const translations = {
     calls_outgoing: "발신",
     calls_incoming: "수신",
 
-    // ===== Block / Spam =====
-    block_mark_spam: "스팸으로 신고",
-    block_spam_reason: "스팸 사유를 입력하세요 (선택사항):",
-    block_spam_done: "스팸 신고 완료 및 사용자 차단됨",
+    // ===== Block =====
 
     // ===== Settings =====
     settings_title: "설정",

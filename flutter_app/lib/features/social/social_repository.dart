@@ -116,16 +116,6 @@ class SocialRepository {
     );
   }
 
-  Future<void> reportSpam(String username, {String? reason}) async {
-    await _apiClient.postJson(
-      '/api/spam/report',
-      authenticated: true,
-      body: {
-        'targetUsername': username,
-        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
-      },
-    );
-  }
 
   Future<void> unblockUser(String username) async {
     await _apiClient.deleteJson('/api/block/$username', authenticated: true);
