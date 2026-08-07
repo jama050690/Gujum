@@ -106,7 +106,10 @@ Future<void> main() async {
 
   // FCM init runApp dan keyin — UI bloklanmasin
   unawaited(() async {
-    await FcmService.instance.init();
+    // Ruxsatlar faqat birinchi ishga tushishda so'raladi.
+    final askPermissions = !sessionStore.permissionsAsked;
+    await FcmService.instance.init(askPermissions: askPermissions);
+    if (askPermissions) await sessionStore.markPermissionsAsked();
     if (authController.isAuthenticated && authController.user != null) {
       await FcmService.instance.register(
         baseUrl: settingsController.baseUrl,

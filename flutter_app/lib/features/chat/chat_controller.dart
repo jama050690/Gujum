@@ -15,6 +15,9 @@ import 'message_store.dart';
 import '../settings/settings_controller.dart';
 import 'chat_repository.dart';
 
+/// Tarmoq holati — yuqoridagi banner shu asosda ko'rsatiladi.
+enum ConnectionStatus { connected, connecting, offline }
+
 class ChatController extends ChangeNotifier {
   ChatController({
     required ChatRepository chatRepository,
@@ -56,7 +59,7 @@ class ChatController extends ChangeNotifier {
   bool _messagesLoadFailed = false;
   String? _messagesErrorDetail;
   bool _searching = false;
-  String? _connectionLabel;
+  ConnectionStatus _connectionStatus = ConnectionStatus.connected;
   bool _syncingSession = false;
   String? _lastSessionKey;
 
@@ -69,7 +72,14 @@ class ChatController extends ChangeNotifier {
   bool get messagesLoadFailed => _messagesLoadFailed;
   String? get messagesErrorDetail => _messagesErrorDetail;
   bool get searching => _searching;
-  String? get connectionLabel => _connectionLabel;
+  ConnectionStatus get connectionStatus => _connectionStatus;
+
+  /// Tarjima kaliti — ulanish yaxshi bo'lsa null (banner ko'rsatilmaydi).
+  String? get connectionLabel => switch (_connectionStatus) {
+        ConnectionStatus.connected => null,
+        ConnectionStatus.connecting => 'connection_connecting',
+        ConnectionStatus.offline => 'connection_offline',
+      };
   bool get isConnected => _socketService.isConnected;
 
   // --- KOMPILYATSIYA XATOLARINI TUZATUVCHI METODLAR ---
@@ -397,15 +407,16 @@ class ChatController extends ChangeNotifier {
   void _handleSocketPacket(SocketPacket packet) {
     switch (packet.event) {
       case 'connect':
-        _connectionLabel = null;
+        _connectionStatus = ConnectionStatus.connected;
         if (_activeChat != null && !_loadingMessages) unawaited(reloadActiveChat());
         break;
       case 'disconnect':
-        _connectionLabel = 'Socket uzildi';
+        // socket.io o'zi qayta ulanadi — foydalanuvchiga "ulanmoqda" deymiz.
+        _connectionStatus = ConnectionStatus.connecting;
         break;
       case 'connect_error':
       case 'error':
-        _connectionLabel = 'Socket ulanmayapti';
+        _connectionStatus = ConnectionStatus.offline;
         break;
       // Qo'ng'iroq audio → CallController o'zi boshqaradi, bu yerda kerak emas
 

@@ -146,8 +146,10 @@ class _UsersPanel extends StatelessWidget {
                       onBack: onHideArchived,
                       onChanged: onSearchChanged,
                     ),
-                    if (connectionText != null &&
-                        chat.connectionLabel != 'connected')
+                    // connectionText ulanish yaxshi bo'lganda null bo'ladi,
+                    // shuning uchun alohida 'connected' tekshiruvi kerak emas
+                    // (u hech qachon bunday qiymat qaytarmasdi ham).
+                    if (connectionText != null)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: DecoratedBox(

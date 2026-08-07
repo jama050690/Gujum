@@ -18,6 +18,9 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> _values = {
     'uz': {
+      'connection_connecting': "Ulanmoqda…",
+      'connection_offline': "Tarmoq yo'q — xabarlar yuborilmayapti",
+      'message_not_sent': "Xabar yuborilmadi — qayta urinib ko'ring",
       'delete_for_me': "Faqat men uchun",
       'delete_for_everyone': "Hamma uchun",
       'clear_history_for_everyone': "Ikkalamiz uchun tozalash",
@@ -242,6 +245,9 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'en': {
+      'connection_connecting': "Connecting…",
+      'connection_offline': "No network — messages aren't being sent",
+      'message_not_sent': "Message not sent — try again",
       'delete_for_me': "Delete for me",
       'delete_for_everyone': "Delete for everyone",
       'clear_history_for_everyone': "Clear for both",
@@ -467,6 +473,9 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'connection_connecting': "Подключение…",
+      'connection_offline': "Нет сети — сообщения не отправляются",
+      'message_not_sent': "Сообщение не отправлено — попробуйте снова",
       'delete_for_me': "Только у меня",
       'delete_for_everyone': "У всех",
       'clear_history_for_everyone': "Очистить у обоих",
@@ -605,6 +614,9 @@ class AppStrings {
       'chat_location_failed': 'Не удалось получить местоположение',
     },
     'ar': {
+      'connection_connecting': "جارٍ الاتصال…",
+      'connection_offline': "لا يوجد اتصال — لا تُرسل الرسائل",
+      'message_not_sent': "لم تُرسل الرسالة — حاول مرة أخرى",
       'delete_for_me': "حذف لدي فقط",
       'delete_for_everyone': "حذف لدى الجميع",
       'clear_history_for_everyone': "مسح لدى الطرفين",
@@ -819,6 +831,9 @@ class AppStrings {
       'version_label': "الإصدار",
     },
     'ko': {
+      'connection_connecting': "연결 중…",
+      'connection_offline': "네트워크 없음 — 메시지가 전송되지 않습니다",
+      'message_not_sent': "메시지를 보내지 못했습니다 — 다시 시도하세요",
       'delete_for_me': "나에게서만 삭제",
       'delete_for_everyone': "모두에게서 삭제",
       'clear_history_for_everyone': "양쪽에서 삭제",

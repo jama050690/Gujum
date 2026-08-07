@@ -60,7 +60,7 @@ class FcmService {
   String? _username;
   String? _baseUrl;
 
-  Future<void> init() async {
+  Future<void> init({bool askPermissions = true}) async {
     await _plugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -104,8 +104,11 @@ class FcmService {
       ),
     );
 
+    // Kanallar har safar tekshiriladi (arzon), ruxsatlar esa faqat bir marta
+    // so'raladi. Aks holda har ishga tushishda tizim oynalari chiqaverardi.
+    if (!askPermissions) return;
+
     // Battery optimization o'chirilmasa data-only FCM killed app'ga yetmaydi.
-    // Qurilma shu dialogni bir marta ko'rsatadi — foydalanuvchi "Allow" bosadi.
     _requestBatteryExemption();
 
     await FirebaseMessaging.instance.requestPermission(

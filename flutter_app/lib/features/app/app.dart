@@ -10,6 +10,7 @@ import '../auth/auth_pages.dart';
 import '../auth/onboarding_flow.dart';
 import '../call/call_overlay.dart';
 import '../chat/chat_page.dart';
+import 'connection_banner.dart';
 import '../settings/settings_controller.dart';
 
 class GujumApp extends StatelessWidget {
@@ -35,12 +36,16 @@ class GujumApp extends StatelessWidget {
       ],
       supportedLocales:
           AppStrings.supportedLocales.map((code) => Locale(code)).toList(),
-      home: CallOverlayHost(
-        child: !auth.isAuthenticated
-            ? const AuthFlow()
-            : OnboardingFlow.isNeeded(auth, context.read<SessionStore>())
-                ? const OnboardingFlow()
-                : const ChatPage(),
+      // Tarmoq holati butun ilova bo'ylab ko'rinadi — qaysi ekranda
+      // bo'lishidan qat'i nazar.
+      home: ConnectionBanner(
+        child: CallOverlayHost(
+          child: !auth.isAuthenticated
+              ? const AuthFlow()
+              : OnboardingFlow.isNeeded(auth, context.read<SessionStore>())
+                  ? const OnboardingFlow()
+                  : const ChatPage(),
+        ),
       ),
     );
   }
