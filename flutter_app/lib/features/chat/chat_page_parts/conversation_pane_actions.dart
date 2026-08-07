@@ -13,7 +13,7 @@ extension _ConversationPaneActions on _ConversationPaneState {
     // Shaxsiy chatda ikkala tomonning xabarlarini ham hamma uchun o'chirish
     // mumkin — yozishma ikkovimizniki. Shuning uchun "Hamma uchun" har doim
     // taklif qilinadi, faqat o'z xabarlaringda emas.
-    final peerName = widget.activeChat?.fullName ?? '';
+    final peerName = chat.activeChat?.fullName ?? '';
 
     final forEveryone = await showDialog<bool>(
       context: context,

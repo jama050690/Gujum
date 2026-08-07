@@ -146,6 +146,13 @@ jobs:
       - name: 📦 Install dependencies
         run: flutter pub get
 
+      # Runs inside the same job, before the build. A Dart type error fails
+      # here in under a minute and reports every problem at once, instead of
+      # surfacing one error eight minutes into a Gradle run. Only errors are
+      # fatal — existing lint warnings and infos must not block a release.
+      - name: 🔍 Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
       - name: 🔨 Build APK (arm64-v8a only)
         run: flutter build apk --${{ steps.meta.outputs.mode }} --target-platform android-arm64
 
