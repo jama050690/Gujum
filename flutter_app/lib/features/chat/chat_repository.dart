@@ -101,16 +101,6 @@ class ChatRepository {
         .toList();
   }
 
-  Future<List<SimpleUser>> fetchFriends() async {
-    final response = await _apiClient.getJson(
-      '/api/friends',
-      authenticated: true,
-    );
-
-    return (response as List<dynamic>)
-        .map((item) => SimpleUser.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
 
   Future<ChatMessage> updateMessage({
     required int id,

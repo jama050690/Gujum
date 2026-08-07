@@ -101,52 +101,6 @@ class SocialRepository {
         .toList();
   }
 
-  Future<List<SimpleUser>> fetchFriends() async {
-    final response = await _apiClient.getJson('/api/friends', authenticated: true);
-    return (response as List<dynamic>)
-        .map((item) => SimpleUser.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<List<FriendRequestItem>> fetchFriendRequests() async {
-    final response = await _apiClient.getJson('/api/friends/requests', authenticated: true);
-    return (response as List<dynamic>)
-        .map((item) => FriendRequestItem.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<FriendStatus> fetchFriendStatus(String username) async {
-    final response = await _apiClient.getJson(
-      '/api/friends/status/$username',
-      authenticated: true,
-    );
-    return FriendStatus.fromJson(response as Map<String, dynamic>);
-  }
-
-  Future<void> sendFriendRequest(String targetUsername) async {
-    await _apiClient.postJson(
-      '/api/friends/request',
-      authenticated: true,
-      body: {'targetUsername': targetUsername},
-    );
-  }
-
-  Future<void> acceptFriendRequest(int requestId) async {
-    await _apiClient.postJson(
-      '/api/friends/accept',
-      authenticated: true,
-      body: {'requestId': requestId},
-    );
-  }
-
-  Future<void> rejectFriendRequest(int requestId) async {
-    await _apiClient.postJson(
-      '/api/friends/reject',
-      authenticated: true,
-      body: {'requestId': requestId},
-    );
-  }
-
   Future<List<SimpleUser>> fetchBlockedUsers() async {
     final response = await _apiClient.getJson('/api/block', authenticated: true);
     return (response as List<dynamic>)

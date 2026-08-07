@@ -36,7 +36,6 @@ class _AuthFlowState extends State<AuthFlow> {
           ),
         AuthScreen.login => LoginPage(
             key: const ValueKey('login'),
-            onOpenSignup: () => setState(() => _screen = AuthScreen.signup),
             onOpenForgot: () => setState(() => _screen = AuthScreen.forgot),
           ),
         AuthScreen.signup => SignupPage(
@@ -207,11 +206,8 @@ class _GujumLogo extends StatelessWidget {
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
-    required this.onOpenSignup,
     required this.onOpenForgot,
   });
-
-  final VoidCallback onOpenSignup;
   final VoidCallback onOpenForgot;
 
   @override
@@ -379,31 +375,9 @@ class _LoginPageState extends State<LoginPage> {
               label: t('forgot_password'),
             ),
           ),
-          SizedBox(height: compact ? 2 : 4),
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: compact ? 2 : 4,
-            runSpacing: compact ? 2 : 4,
-            children: [
-              Text(t('no_account')),
-              TextButton(
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 4 : 8,
-                    vertical: compact ? 2 : 4,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: widget.onOpenSignup,
-                child: _AuthActionLabel(
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: t('sign_up'),
-                ),
-              ),
-            ],
-          ),
+          // Ro'yxatdan o'tish oqimi hozircha ko'rsatilmaydi: yangi
+          // foydalanuvchilar Google orqali kiradi (WelcomePage), eski
+          // akkauntlar esa shu sahifadan kirishda davom etadi.
         ],
       ),
     );

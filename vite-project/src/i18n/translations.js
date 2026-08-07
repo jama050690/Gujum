@@ -78,8 +78,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Akkaunt qo'shish",
     sidebar_profile: "Profilim",
-    sidebar_new_group: "Yangi guruh",
-    sidebar_new_channel: "Yangi kanal",
     sidebar_add_friend: "Do'st qo'shish",
     sidebar_friend_requests: "Do'stlik so'rovlari",
     sidebar_contacts: "Kontaktlar",
@@ -101,8 +99,6 @@ export const translations = {
     chat_block: "Bloklash",
     chat_search_in_chat: "Shu chatda qidirish",
     chat_saved_messages: "Saqlangan xabarlar",
-    chat_members: "a'zo",
-    chat_subscribers: "obunachi",
     chat_last_seen: "oxirgi",
     chat_photo: "Rasm",
     chat_photo_audio: "Rasm / Audio",
@@ -135,26 +131,10 @@ export const translations = {
     search_tap_to_chat: "Chat boshlash uchun bosing",
 
     // ===== Groups / Channels =====
-    group_info: "Guruh ma'lumoti",
-    group_leave: "Guruhdan chiqish",
-    channel_info: "Kanal ma'lumoti",
-    channel_manage: "Kanalni boshqarish",
-    channel_poll: "So'rovnoma",
-    channel_leave: "Kanaldan chiqish",
-    group_new: "Yangi guruh",
-    group_name: "Guruh nomi",
-    group_name_placeholder: "Guruh nomini kiriting",
-    channel_new: "Yangi kanal",
-    channel_name: "Kanal nomi",
-    channel_name_placeholder: "Kanal nomini kiriting",
-    channel_desc: "Tavsif",
-    channel_desc_placeholder: "Kanal haqida",
 
     // ===== Modals =====
-    modal_add_member: "A'zo qo'shish",
-    modal_add_subscriber: "Obunachi qo'shish",
     modal_view_profile: "Profilni ko'rish",
-    portfolio_title: "Mening profilim",
+    profile_modal_title: "Mening profilim",
 
     // ===== Contacts =====
     contacts_title: "Kontaktlar",
@@ -370,8 +350,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Add Account",
     sidebar_profile: "My Profile",
-    sidebar_new_group: "New Group",
-    sidebar_new_channel: "New Channel",
     sidebar_add_friend: "Add Friend",
     sidebar_friend_requests: "Friend Requests",
     sidebar_contacts: "Contacts",
@@ -393,8 +371,6 @@ export const translations = {
     chat_block: "Block",
     chat_search_in_chat: "Search in this chat",
     chat_saved_messages: "Saved Messages",
-    chat_members: "members",
-    chat_subscribers: "subscribers",
     chat_last_seen: "last seen",
     chat_photo: "Photo",
     chat_photo_audio: "Photo / Audio",
@@ -427,26 +403,10 @@ export const translations = {
     search_tap_to_chat: "Tap to start chatting",
 
     // ===== Groups / Channels =====
-    group_info: "Group Info",
-    group_leave: "Leave Group",
-    channel_info: "Channel Info",
-    channel_manage: "Manage Channel",
-    channel_poll: "Poll",
-    channel_leave: "Leave Channel",
-    group_new: "New Group",
-    group_name: "Group Name",
-    group_name_placeholder: "Enter group name",
-    channel_new: "New Channel",
-    channel_name: "Channel Name",
-    channel_name_placeholder: "Enter channel name",
-    channel_desc: "Description",
-    channel_desc_placeholder: "About the channel",
 
     // ===== Modals =====
-    modal_add_member: "Add Member",
-    modal_add_subscriber: "Add Subscriber",
     modal_view_profile: "View Profile",
-    portfolio_title: "My Profile",
+    profile_modal_title: "My Profile",
 
     // ===== Contacts =====
     contacts_title: "Contacts",
@@ -658,8 +618,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "添加账户",
     sidebar_profile: "我的资料",
-    sidebar_new_group: "新建群组",
-    sidebar_new_channel: "新建频道",
     sidebar_add_friend: "添加好友",
     sidebar_friend_requests: "好友请求",
     sidebar_contacts: "联系人",
@@ -680,8 +638,6 @@ export const translations = {
     chat_block: "屏蔽",
     chat_search_in_chat: "在此聊天中搜索",
     chat_saved_messages: "已保存消息",
-    chat_members: "成员",
-    chat_subscribers: "订阅者",
     chat_last_seen: "最后上线",
     chat_photo: "照片",
     chat_photo_audio: "照片 / 音频",
@@ -710,24 +666,8 @@ export const translations = {
     search_tap_to_chat: "点击开始聊天",
 
     // ===== Groups / Channels =====
-    group_info: "群组信息",
-    group_leave: "退出群组",
-    channel_info: "频道信息",
-    channel_manage: "管理频道",
-    channel_poll: "投票",
-    channel_leave: "退出频道",
-    group_new: "新建群组",
-    group_name: "群组名称",
-    group_name_placeholder: "请输入群组名称",
-    channel_new: "新建频道",
-    channel_name: "频道名称",
-    channel_name_placeholder: "请输入频道名称",
-    channel_desc: "描述",
-    channel_desc_placeholder: "关于频道",
 
     // ===== Modals =====
-    modal_add_member: "添加成员",
-    modal_add_subscriber: "添加订阅者",
     modal_view_profile: "查看资料",
 
     // ===== Contacts =====
@@ -930,8 +870,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "アカウント追加",
     sidebar_profile: "マイプロフィール",
-    sidebar_new_group: "新しいグループ",
-    sidebar_new_channel: "新しいチャンネル",
     sidebar_add_friend: "友達を追加",
     sidebar_friend_requests: "友達リクエスト",
     sidebar_contacts: "連絡先",
@@ -952,8 +890,6 @@ export const translations = {
     chat_block: "ブロック",
     chat_search_in_chat: "このチャットで検索",
     chat_saved_messages: "保存済みメッセージ",
-    chat_members: "メンバー",
-    chat_subscribers: "登録者",
     chat_last_seen: "最終オンライン",
     chat_photo: "写真",
     chat_photo_audio: "写真 / 音声",
@@ -982,24 +918,8 @@ export const translations = {
     search_tap_to_chat: "タップしてチャットを開始",
 
     // ===== Groups / Channels =====
-    group_info: "グループ情報",
-    group_leave: "グループを退出",
-    channel_info: "チャンネル情報",
-    channel_manage: "チャンネルを管理",
-    channel_poll: "投票",
-    channel_leave: "チャンネルを退出",
-    group_new: "新しいグループ",
-    group_name: "グループ名",
-    group_name_placeholder: "グループ名を入力",
-    channel_new: "新しいチャンネル",
-    channel_name: "チャンネル名",
-    channel_name_placeholder: "チャンネル名を入力",
-    channel_desc: "説明",
-    channel_desc_placeholder: "チャンネルについて",
 
     // ===== Modals =====
-    modal_add_member: "メンバーを追加",
-    modal_add_subscriber: "登録者を追加",
     modal_view_profile: "プロフィールを表示",
 
     // ===== Contacts =====
@@ -1206,8 +1126,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Добавить аккаунт",
     sidebar_profile: "Мой профиль",
-    sidebar_new_group: "Новая группа",
-    sidebar_new_channel: "Новый канал",
     sidebar_add_friend: "Добавить друга",
     sidebar_friend_requests: "Заявки в друзья",
     sidebar_contacts: "Контакты",
@@ -1229,8 +1147,6 @@ export const translations = {
     chat_block: "Заблокировать",
     chat_search_in_chat: "Поиск в этом чате",
     chat_saved_messages: "Сохранённые сообщения",
-    chat_members: "участников",
-    chat_subscribers: "подписчиков",
     chat_last_seen: "был(а) в сети",
     chat_photo: "Фото",
     chat_photo_audio: "Фото / Аудио",
@@ -1259,26 +1175,10 @@ export const translations = {
     search_tap_to_chat: "Нажмите для начала чата",
 
     // ===== Groups / Channels =====
-    group_info: "Информация о группе",
-    group_leave: "Покинуть группу",
-    channel_info: "Информация о канале",
-    channel_manage: "Управление каналом",
-    channel_poll: "Опрос",
-    channel_leave: "Покинуть канал",
-    group_new: "Новая группа",
-    group_name: "Название группы",
-    group_name_placeholder: "Введите название группы",
-    channel_new: "Новый канал",
-    channel_name: "Название канала",
-    channel_name_placeholder: "Введите название канала",
-    channel_desc: "Описание",
-    channel_desc_placeholder: "О канале",
 
     // ===== Modals =====
-    modal_add_member: "Добавить участника",
-    modal_add_subscriber: "Добавить подписчика",
     modal_view_profile: "Просмотреть профиль",
-    portfolio_title: "Мой профиль",
+    profile_modal_title: "Мой профиль",
 
     // ===== Contacts =====
     contacts_title: "Контакты",
@@ -1490,8 +1390,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Hesap Ekle",
     sidebar_profile: "Profilim",
-    sidebar_new_group: "Yeni Grup",
-    sidebar_new_channel: "Yeni Kanal",
     sidebar_add_friend: "Arkadaş Ekle",
     sidebar_friend_requests: "Arkadaşlık İstekleri",
     sidebar_contacts: "Kişiler",
@@ -1512,8 +1410,6 @@ export const translations = {
     chat_block: "Engelle",
     chat_search_in_chat: "Bu sohbette ara",
     chat_saved_messages: "Kayıtlı Mesajlar",
-    chat_members: "üye",
-    chat_subscribers: "abone",
     chat_last_seen: "son görülme",
     chat_photo: "Fotoğraf",
     chat_photo_audio: "Fotoğraf / Ses",
@@ -1542,24 +1438,8 @@ export const translations = {
     search_tap_to_chat: "Sohbet başlatmak için dokunun",
 
     // ===== Groups / Channels =====
-    group_info: "Grup Bilgisi",
-    group_leave: "Gruptan Ayrıl",
-    channel_info: "Kanal Bilgisi",
-    channel_manage: "Kanalı Yönet",
-    channel_poll: "Anket",
-    channel_leave: "Kanaldan Ayrıl",
-    group_new: "Yeni Grup",
-    group_name: "Grup Adı",
-    group_name_placeholder: "Grup adını girin",
-    channel_new: "Yeni Kanal",
-    channel_name: "Kanal Adı",
-    channel_name_placeholder: "Kanal adını girin",
-    channel_desc: "Açıklama",
-    channel_desc_placeholder: "Kanal hakkında",
 
     // ===== Modals =====
-    modal_add_member: "Üye Ekle",
-    modal_add_subscriber: "Abone Ekle",
     modal_view_profile: "Profili Gör",
 
     // ===== Contacts =====
@@ -1762,8 +1642,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Konto hinzufügen",
     sidebar_profile: "Mein Profil",
-    sidebar_new_group: "Neue Gruppe",
-    sidebar_new_channel: "Neuer Kanal",
     sidebar_add_friend: "Freund hinzufügen",
     sidebar_friend_requests: "Freundschaftsanfragen",
     sidebar_contacts: "Kontakte",
@@ -1784,8 +1662,6 @@ export const translations = {
     chat_block: "Blockieren",
     chat_search_in_chat: "In diesem Chat suchen",
     chat_saved_messages: "Gespeicherte Nachrichten",
-    chat_members: "Mitglieder",
-    chat_subscribers: "Abonnenten",
     chat_last_seen: "zuletzt gesehen",
     chat_photo: "Foto",
     chat_photo_audio: "Foto / Audio",
@@ -1814,24 +1690,8 @@ export const translations = {
     search_tap_to_chat: "Tippen, um Chat zu starten",
 
     // ===== Groups / Channels =====
-    group_info: "Gruppeninfo",
-    group_leave: "Gruppe verlassen",
-    channel_info: "Kanalinfo",
-    channel_manage: "Kanal verwalten",
-    channel_poll: "Umfrage",
-    channel_leave: "Kanal verlassen",
-    group_new: "Neue Gruppe",
-    group_name: "Gruppenname",
-    group_name_placeholder: "Gruppenname eingeben",
-    channel_new: "Neuer Kanal",
-    channel_name: "Kanalname",
-    channel_name_placeholder: "Kanalname eingeben",
-    channel_desc: "Beschreibung",
-    channel_desc_placeholder: "Über den Kanal",
 
     // ===== Modals =====
-    modal_add_member: "Mitglied hinzufügen",
-    modal_add_subscriber: "Abonnent hinzufügen",
     modal_view_profile: "Profil anzeigen",
 
     // ===== Contacts =====
@@ -2034,8 +1894,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Ajouter un compte",
     sidebar_profile: "Mon profil",
-    sidebar_new_group: "Nouveau groupe",
-    sidebar_new_channel: "Nouveau canal",
     sidebar_add_friend: "Ajouter un ami",
     sidebar_friend_requests: "Demandes d'amitié",
     sidebar_contacts: "Contacts",
@@ -2056,8 +1914,6 @@ export const translations = {
     chat_block: "Bloquer",
     chat_search_in_chat: "Rechercher dans ce chat",
     chat_saved_messages: "Messages enregistrés",
-    chat_members: "membres",
-    chat_subscribers: "abonnés",
     chat_last_seen: "vu(e) pour la dernière fois",
     chat_photo: "Photo",
     chat_photo_audio: "Photo / Audio",
@@ -2086,24 +1942,8 @@ export const translations = {
     search_tap_to_chat: "Appuyez pour commencer le chat",
 
     // ===== Groups / Channels =====
-    group_info: "Info du groupe",
-    group_leave: "Quitter le groupe",
-    channel_info: "Info du canal",
-    channel_manage: "Gérer le canal",
-    channel_poll: "Sondage",
-    channel_leave: "Quitter le canal",
-    group_new: "Nouveau groupe",
-    group_name: "Nom du groupe",
-    group_name_placeholder: "Entrez le nom du groupe",
-    channel_new: "Nouveau canal",
-    channel_name: "Nom du canal",
-    channel_name_placeholder: "Entrez le nom du canal",
-    channel_desc: "Description",
-    channel_desc_placeholder: "À propos du canal",
 
     // ===== Modals =====
-    modal_add_member: "Ajouter un membre",
-    modal_add_subscriber: "Ajouter un abonné",
     modal_view_profile: "Voir le profil",
 
     // ===== Contacts =====
@@ -2306,8 +2146,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "Añadir cuenta",
     sidebar_profile: "Mi perfil",
-    sidebar_new_group: "Nuevo grupo",
-    sidebar_new_channel: "Nuevo canal",
     sidebar_add_friend: "Añadir amigo",
     sidebar_friend_requests: "Solicitudes de amistad",
     sidebar_contacts: "Contactos",
@@ -2328,8 +2166,6 @@ export const translations = {
     chat_block: "Bloquear",
     chat_search_in_chat: "Buscar en este chat",
     chat_saved_messages: "Mensajes guardados",
-    chat_members: "miembros",
-    chat_subscribers: "suscriptores",
     chat_last_seen: "visto por última vez",
     chat_photo: "Foto",
     chat_photo_audio: "Foto / Audio",
@@ -2358,24 +2194,8 @@ export const translations = {
     search_tap_to_chat: "Toca para iniciar chat",
 
     // ===== Groups / Channels =====
-    group_info: "Info del grupo",
-    group_leave: "Salir del grupo",
-    channel_info: "Info del canal",
-    channel_manage: "Gestionar canal",
-    channel_poll: "Encuesta",
-    channel_leave: "Salir del canal",
-    group_new: "Nuevo grupo",
-    group_name: "Nombre del grupo",
-    group_name_placeholder: "Ingresa el nombre del grupo",
-    channel_new: "Nuevo canal",
-    channel_name: "Nombre del canal",
-    channel_name_placeholder: "Ingresa el nombre del canal",
-    channel_desc: "Descripción",
-    channel_desc_placeholder: "Sobre el canal",
 
     // ===== Modals =====
-    modal_add_member: "Añadir miembro",
-    modal_add_subscriber: "Añadir suscriptor",
     modal_view_profile: "Ver perfil",
 
     // ===== Contacts =====
@@ -2578,8 +2398,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "إضافة حساب",
     sidebar_profile: "ملفي الشخصي",
-    sidebar_new_group: "مجموعة جديدة",
-    sidebar_new_channel: "قناة جديدة",
     sidebar_add_friend: "إضافة صديق",
     sidebar_friend_requests: "طلبات الصداقة",
     sidebar_contacts: "جهات الاتصال",
@@ -2600,8 +2418,6 @@ export const translations = {
     chat_block: "حظر",
     chat_search_in_chat: "البحث في هذه المحادثة",
     chat_saved_messages: "الرسائل المحفوظة",
-    chat_members: "أعضاء",
-    chat_subscribers: "مشتركين",
     chat_last_seen: "آخر ظهور",
     chat_photo: "صورة",
     chat_photo_audio: "صورة / صوت",
@@ -2630,24 +2446,8 @@ export const translations = {
     search_tap_to_chat: "اضغط لبدء المحادثة",
 
     // ===== Groups / Channels =====
-    group_info: "معلومات المجموعة",
-    group_leave: "مغادرة المجموعة",
-    channel_info: "معلومات القناة",
-    channel_manage: "إدارة القناة",
-    channel_poll: "استطلاع",
-    channel_leave: "مغادرة القناة",
-    group_new: "مجموعة جديدة",
-    group_name: "اسم المجموعة",
-    group_name_placeholder: "أدخل اسم المجموعة",
-    channel_new: "قناة جديدة",
-    channel_name: "اسم القناة",
-    channel_name_placeholder: "أدخل اسم القناة",
-    channel_desc: "الوصف",
-    channel_desc_placeholder: "حول القناة",
 
     // ===== Modals =====
-    modal_add_member: "إضافة عضو",
-    modal_add_subscriber: "إضافة مشترك",
     modal_view_profile: "عرض الملف الشخصي",
 
     // ===== Contacts =====
@@ -2850,8 +2650,6 @@ export const translations = {
     // ===== Sidebar =====
     sidebar_add_account: "계정 추가",
     sidebar_profile: "내 프로필",
-    sidebar_new_group: "새 그룹",
-    sidebar_new_channel: "새 채널",
     sidebar_add_friend: "친구 추가",
     sidebar_friend_requests: "친구 요청",
     sidebar_contacts: "연락처",
@@ -2872,8 +2670,6 @@ export const translations = {
     chat_block: "차단",
     chat_search_in_chat: "이 채팅에서 검색",
     chat_saved_messages: "저장된 메시지",
-    chat_members: "멤버",
-    chat_subscribers: "구독자",
     chat_last_seen: "마지막 접속",
     chat_photo: "사진",
     chat_photo_audio: "사진 / 오디오",
@@ -2902,24 +2698,8 @@ export const translations = {
     search_tap_to_chat: "탭하여 채팅 시작",
 
     // ===== Groups / Channels =====
-    group_info: "그룹 정보",
-    group_leave: "그룹 나가기",
-    channel_info: "채널 정보",
-    channel_manage: "채널 관리",
-    channel_poll: "투표",
-    channel_leave: "채널 나가기",
-    group_new: "새 그룹",
-    group_name: "그룹 이름",
-    group_name_placeholder: "그룹 이름을 입력하세요",
-    channel_new: "새 채널",
-    channel_name: "채널 이름",
-    channel_name_placeholder: "채널 이름을 입력하세요",
-    channel_desc: "설명",
-    channel_desc_placeholder: "채널 소개",
 
     // ===== Modals =====
-    modal_add_member: "멤버 추가",
-    modal_add_subscriber: "구독자 추가",
     modal_view_profile: "프로필 보기",
 
     // ===== Contacts =====

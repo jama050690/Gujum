@@ -11,7 +11,7 @@ export default function ProfileModal({ isOpen, onClose, onEdit }) {
   const fallbackValue = t("common_not_specified");
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t("portfolio_title")}>
+    <Modal isOpen={isOpen} onClose={onClose} title={t("profile_modal_title")}>
       <div className="p-5">
         <div className="flex flex-col items-center text-center mb-6">
           <Avatar src={avatar} name={user} size={80} />
