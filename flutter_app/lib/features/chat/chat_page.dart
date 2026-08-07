@@ -28,7 +28,6 @@ import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../settings/settings_controller.dart';
 import '../social/calls_page.dart';
-import '../social/community_page.dart';
 import '../social/friends_page.dart';
 import '../social/contact_profile_page.dart';
 import '../social/profile_page.dart';

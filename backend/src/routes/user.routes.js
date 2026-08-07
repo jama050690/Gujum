@@ -4,8 +4,6 @@ import {
   USERS_TABLE,
   CHATS_TABLE,
   MESSAGES_TABLE,
-  GROUP_MEMBERS_TABLE,
-  CHANNEL_SUBSCRIBERS_TABLE,
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { emitToUser } from "../socket/handler.js";
@@ -28,39 +26,16 @@ router.get("/", async (req, res) => {
 
 // GET /api/users/search
 router.get("/search", async (req, res) => {
-  const { q, excludeGroupId, excludeChannelId } = req.query;
+  const { q } = req.query;
 
   try {
-    let query;
-    let params = [];
-
-    if (excludeGroupId) {
-      query = `
-        SELECT id, username, avatar, full_name FROM ${USERS_TABLE}
-        WHERE id NOT IN (SELECT user_id FROM ${GROUP_MEMBERS_TABLE} WHERE group_id = $1)
-        ${q ? `AND (username ILIKE $2 OR full_name ILIKE $2)` : ''}
-        ORDER BY username ASC
-        LIMIT 50
-      `;
-      params = q ? [excludeGroupId, `%${q}%`] : [excludeGroupId];
-    } else if (excludeChannelId) {
-      query = `
-        SELECT id, username, avatar, full_name FROM ${USERS_TABLE}
-        WHERE id NOT IN (SELECT user_id FROM ${CHANNEL_SUBSCRIBERS_TABLE} WHERE channel_id = $1)
-        ${q ? `AND (username ILIKE $2 OR full_name ILIKE $2)` : ''}
-        ORDER BY username ASC
-        LIMIT 50
-      `;
-      params = q ? [excludeChannelId, `%${q}%`] : [excludeChannelId];
-    } else {
-      query = `
-        SELECT id, username, avatar, full_name FROM ${USERS_TABLE}
-        ${q ? `WHERE (username ILIKE $1 OR full_name ILIKE $1)` : ''}
-        ORDER BY username ASC
-        LIMIT 50
-      `;
-      params = q ? [`%${q}%`] : [];
-    }
+    const query = `
+      SELECT id, username, avatar, full_name FROM ${USERS_TABLE}
+      ${q ? `WHERE (username ILIKE $1 OR full_name ILIKE $1)` : ''}
+      ORDER BY username ASC
+      LIMIT 50
+    `;
+    const params = q ? [`%${q}%`] : [];
 
     const { rows } = await pool.query(query, params);
     res.json(rows);

@@ -44,22 +44,6 @@ extension _ChatPageStateBuild on _ChatPageState {
             MaterialPageRoute(builder: (_) => const ProfilePage()),
           );
         },
-        onOpenNewGroup: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  const CommunityPage(initialTab: 0, openComposer: true),
-            ),
-          );
-        },
-        onOpenNewChannel: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  const CommunityPage(initialTab: 1, openComposer: true),
-            ),
-          );
-        },
         onOpenContacts: () {
           Navigator.of(context).push(
             MaterialPageRoute(

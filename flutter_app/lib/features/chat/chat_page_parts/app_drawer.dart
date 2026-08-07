@@ -5,8 +5,6 @@ class _AppDrawer extends StatelessWidget {
     required this.settings,
     required this.user,
     required this.onOpenProfile,
-    required this.onOpenNewGroup,
-    required this.onOpenNewChannel,
     required this.onOpenContacts,
     required this.onOpenCalls,
     required this.onOpenSavedMessages,
@@ -16,8 +14,6 @@ class _AppDrawer extends StatelessWidget {
   final SettingsController settings;
   final SessionUser? user;
   final VoidCallback onOpenProfile;
-  final VoidCallback onOpenNewGroup;
-  final VoidCallback onOpenNewChannel;
   final VoidCallback onOpenContacts;
   final VoidCallback onOpenCalls;
   final VoidCallback onOpenSavedMessages;
@@ -101,16 +97,6 @@ class _AppDrawer extends StatelessWidget {
                       icon: Icons.person_outline_rounded,
                       label: t('profile_my'),
                       onTap: () => _handleTap(context, onOpenProfile),
-                    ),
-                    _DrawerMenuTile(
-                      icon: Icons.group_outlined,
-                      label: t('new_group'),
-                      onTap: () => _handleTap(context, onOpenNewGroup),
-                    ),
-                    _DrawerMenuTile(
-                      icon: Icons.campaign_outlined,
-                      label: t('new_channel'),
-                      onTap: () => _handleTap(context, onOpenNewChannel),
                     ),
                     _DrawerMenuTile(
                       icon: Icons.contact_page_outlined,
