@@ -70,6 +70,7 @@ class AuthController extends ChangeNotifier {
     final current = _user;
     if (current == null) return;
     _user = SessionUser(
+      id: current.id,
       username: current.username,
       fullName: current.fullName,
       phone: current.phone,
@@ -98,6 +99,7 @@ class AuthController extends ChangeNotifier {
     }
 
     _user = SessionUser(
+      id: _user!.id ?? result.id,
       username: _user!.username,
       fullName: _user!.fullName ?? result.fullName,
       phone: _user!.phone ?? result.phone,
@@ -189,6 +191,7 @@ class AuthController extends ChangeNotifier {
     }
 
     _user = SessionUser(
+      id: current.id,
       username: current.username,
       fullName: fullName ?? current.fullName,
       phone: phone ?? current.phone,

@@ -81,11 +81,16 @@ class ChatController extends ChangeNotifier {
   /// Joriy foydalanuvchi uchun local do'kon. Akkaunt almashsa qaytadan
   /// ochiladi — bir qurilmadagi ikki akkaunt tarixi aralashmasin.
   Future<MessageStore?> _ensureStore() async {
-    final username = _authController.user?.username;
-    if (username == null) return null;
-    if (_store?.owner == username) return _store;
+    final user = _authController.user;
+    if (user == null) return null;
+    // Akkaunt id si bo'yicha ajratamiz. Username bo'yicha ajratilganda
+    // o'chirilgan akkaunt bilan bir xil pochtadan qayta ro'yxatdan o'tilsa
+    // aynan o'sha username qaytadi va yangi akkaunt eski yozishmalarni
+    // ko'rib qolardi.
+    final owner = user.id != null ? 'u${user.id}' : user.username;
+    if (_store?.owner == owner) return _store;
     try {
-      _store = await MessageStore.create(username);
+      _store = await MessageStore.create(owner);
     } catch (e) {
       debugPrint('CHAT_DEBUG MessageStore ochilmadi: $e');
       _store = null;

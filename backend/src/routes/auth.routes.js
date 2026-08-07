@@ -67,6 +67,11 @@ function setSessionCookie(res, user) {
 
 function formatUser(user, avatarOverride = user.avatar) {
   return {
+    // Klient qurilmadagi yozishmalarni shu id bo'yicha ajratadi. Username
+    // qayta ishlatilishi mumkin (o'chirilgan akkaunt bilan bir xil pochtadan
+    // qayta ro'yxatdan o'tilsa aynan o'sha username beriladi), id esa hech
+    // qachon takrorlanmaydi.
+    id: user.id,
     username: user.username,
     fullName: user.full_name,
     phone: user.phone,

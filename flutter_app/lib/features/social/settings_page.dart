@@ -194,9 +194,14 @@ class SettingsPage extends StatelessWidget {
     // foydalanuvchini o'chirilgan akkauntda qoldirib bo'lmaydi.
     final username = auth.user?.username;
     try {
+      // Ikkalasini ham tozalaymiz: yangi kalit (akkaunt id si) va eski
+      // username kaliti — eski build qoldirgan papka qolib ketmasin.
+      final id = auth.user?.id;
+      if (id != null) {
+        await (await MessageStore.create('u$id')).clearAll();
+      }
       if (username != null) {
-        final store = await MessageStore.create(username);
-        await store.clearAll();
+        await (await MessageStore.create(username)).clearAll();
       }
       await MediaStore.clearAll();
     } catch (_) {

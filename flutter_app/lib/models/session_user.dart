@@ -1,6 +1,7 @@
 class SessionUser {
   const SessionUser({
     required this.username,
+    this.id,
     this.fullName,
     this.phone,
     this.birthday,
@@ -9,6 +10,8 @@ class SessionUser {
   });
 
   final String username;
+  /// Server akkaunt id si — qurilmadagi yozishmalarni ajratish uchun.
+  final int? id;
   final String? fullName;
   final String? phone;
   final String? birthday;
@@ -19,6 +22,7 @@ class SessionUser {
 
   Map<String, dynamic> toJson() => {
         'username': username,
+        'id': id,
         'fullName': fullName,
         'phone': phone,
         'birthday': birthday,
@@ -29,6 +33,9 @@ class SessionUser {
   factory SessionUser.fromJson(Map<String, dynamic> json) {
     return SessionUser(
       username: (json['username'] ?? '').toString(),
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse('${json['id'] ?? ''}'),
       fullName: json['fullName']?.toString() ?? json['full_name']?.toString(),
       phone: json['phone']?.toString(),
       birthday: json['birthday']?.toString(),
