@@ -36,7 +36,6 @@ class _AuthFlowState extends State<AuthFlow> {
           ),
         AuthScreen.login => LoginPage(
             key: const ValueKey('login'),
-            onOpenSignup: () => setState(() => _screen = AuthScreen.signup),
             onOpenForgot: () => setState(() => _screen = AuthScreen.forgot),
           ),
         AuthScreen.signup => SignupPage(
@@ -129,7 +128,7 @@ class _WelcomePageState extends State<WelcomePage> {
               ),
               const SizedBox(height: 12),
               Text(
-                "Yaqinlaringiz bilan bepul suhbat va qo'ng'iroq",
+                t('auth_tagline'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -207,11 +206,8 @@ class _GujumLogo extends StatelessWidget {
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
-    required this.onOpenSignup,
     required this.onOpenForgot,
   });
-
-  final VoidCallback onOpenSignup;
   final VoidCallback onOpenForgot;
 
   @override
@@ -254,16 +250,8 @@ class _LoginPageState extends State<LoginPage> {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
     final compact = MediaQuery.sizeOf(context).height < 900;
     final showSavedUsernameSuggestion = _shouldShowSavedUsernameSuggestion();
-    final suggestionPrompt = switch (settings.localeCode) {
-      'ru' => 'Использовать сохраненный username?',
-      'en' => 'Use saved username?',
-      _ => 'Shuni xohlaysizmi?',
-    };
-    final suggestionActionLabel = switch (settings.localeCode) {
-      'ru' => 'Выбрать',
-      'en' => 'Use',
-      _ => 'Tanlash',
-    };
+    final suggestionPrompt = t('auth_use_saved_username');
+    final suggestionActionLabel = t('use_saved_username_action');
 
     return _AuthScaffold(
       title: t('app_title'),
@@ -387,31 +375,9 @@ class _LoginPageState extends State<LoginPage> {
               label: t('forgot_password'),
             ),
           ),
-          SizedBox(height: compact ? 2 : 4),
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: compact ? 2 : 4,
-            runSpacing: compact ? 2 : 4,
-            children: [
-              Text(t('no_account')),
-              TextButton(
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 4 : 8,
-                    vertical: compact ? 2 : 4,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: widget.onOpenSignup,
-                child: _AuthActionLabel(
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: t('sign_up'),
-                ),
-              ),
-            ],
-          ),
+          // Ro'yxatdan o'tish oqimi hozircha ko'rsatilmaydi: yangi
+          // foydalanuvchilar Google orqali kiradi (WelcomePage), eski
+          // akkauntlar esa shu sahifadan kirishda davom etadi.
         ],
       ),
     );
@@ -435,6 +401,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text,
       );
     } on ApiException catch (error) {
+      if (!mounted) return;
       setState(() => _error = error.message);
     }
   }
@@ -815,6 +782,7 @@ class _SignupPageState extends State<SignupPage> {
       );
       widget.onBackToLogin();
     } on ApiException catch (error) {
+      if (!mounted) return;
       setState(() => _error = error.message);
     } finally {
       if (mounted) {
@@ -833,6 +801,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await auth.resendSignupOtp(_emailController.text.trim());
+      if (!mounted) return;
       setState(() {
         _info = response.devOtp == null
             ? response.message
@@ -1036,6 +1005,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       final response =
           await auth.requestPasswordReset(_emailController.text.trim());
+      if (!mounted) return;
       setState(() {
         _otpStep = true;
         _info = response.devOtp == null
@@ -1067,6 +1037,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         code: _otpController.text.trim(),
         newPassword: _passwordController.text,
       );
+      if (!mounted) return;
       setState(() {
         _done = true;
         _otpStep = false;

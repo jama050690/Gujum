@@ -4,14 +4,7 @@ import {
   USERS_TABLE,
   CHATS_TABLE,
   MESSAGES_TABLE,
-  GROUPS_TABLE,
-  GROUP_MEMBERS_TABLE,
-  GROUP_MESSAGES_TABLE,
-  CHANNELS_TABLE,
-  CHANNEL_SUBSCRIBERS_TABLE,
-  CHANNEL_MESSAGES_TABLE,
   BLOCKED_USERS_TABLE,
-  SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
 } from "../config/database.js";
 import { adminMiddleware } from "../middleware/auth.js";
@@ -25,8 +18,6 @@ router.get("/dashboard", adminMiddleware, async (req, res) => {
       adminsResult,
       chatsResult,
       messagesResult,
-      groupsResult,
-      channelsResult,
       newUsersTodayResult,
       recentUsersResult,
       usersResultAll,
@@ -35,8 +26,6 @@ router.get("/dashboard", adminMiddleware, async (req, res) => {
       pool.query(`SELECT COUNT(*)::int AS count FROM ${USERS_TABLE} WHERE role = 'admin'`),
       pool.query(`SELECT COUNT(*)::int AS count FROM ${CHATS_TABLE}`),
       pool.query(`SELECT COUNT(*)::int AS count FROM ${MESSAGES_TABLE}`),
-      pool.query(`SELECT COUNT(*)::int AS count FROM ${GROUPS_TABLE}`),
-      pool.query(`SELECT COUNT(*)::int AS count FROM ${CHANNELS_TABLE}`),
       pool.query(
         `SELECT COUNT(*)::int AS count
          FROM ${USERS_TABLE}
@@ -61,8 +50,6 @@ router.get("/dashboard", adminMiddleware, async (req, res) => {
         admins: adminsResult.rows[0].count,
         chats: chatsResult.rows[0].count,
         messages: messagesResult.rows[0].count,
-        groups: groupsResult.rows[0].count,
-        channels: channelsResult.rows[0].count,
         activeToday: newUsersTodayResult.rows[0].count,
       },
       recentUsers: recentUsersResult.rows,
@@ -115,16 +102,7 @@ router.delete("/users/:username", adminMiddleware, async (req, res) => {
 
     await client.query(`DELETE FROM push_subscriptions WHERE user_id = $1`, [userId]);
     await client.query(`DELETE FROM ${BLOCKED_USERS_TABLE} WHERE blocker_id = $1 OR blocked_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${SPAM_REPORTS_TABLE} WHERE reporter_id = $1 OR reported_id = $1`, [userId]);
     await client.query(`DELETE FROM ${FRIENDS_TABLE} WHERE sender_id = $1 OR receiver_id = $1`, [userId]);
-
-    await client.query(`DELETE FROM ${GROUP_MESSAGES_TABLE} WHERE sender_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${CHANNEL_MESSAGES_TABLE} WHERE sender_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${GROUP_MEMBERS_TABLE} WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${CHANNEL_SUBSCRIBERS_TABLE} WHERE user_id = $1`, [userId]);
-
-    await client.query(`DELETE FROM ${GROUPS_TABLE} WHERE created_by = $1`, [userId]);
-    await client.query(`DELETE FROM ${CHANNELS_TABLE} WHERE created_by = $1`, [userId]);
 
     await client.query(
       `DELETE FROM ${MESSAGES_TABLE}

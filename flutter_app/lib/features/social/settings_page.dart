@@ -6,6 +6,7 @@ import '../auth/auth_controller.dart';
 import '../chat/media_store.dart';
 import '../chat/message_store.dart';
 import '../settings/settings_controller.dart';
+import 'blocked_users_page.dart';
 import 'social_repository.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -74,6 +75,19 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          // Bloklanganlar profil sahifasidan shu yerga ko'chirildi: profilni
+          // tahrirlash bilan aloqasi yo'q edi.
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.block_rounded),
+              title: Text(t('blocked_users')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BlockedUsersPage()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           // Xavfli hudud — Google Play akkaunt yaratadigan ilovalardan ilova
           // ichida o'chirish imkonini talab qiladi.
           Card(
@@ -109,6 +123,8 @@ class SettingsPage extends StatelessWidget {
     final commentController = TextEditingController();
     var deleting = false;
 
+    // Dialog yopilgach controller bo'shatiladi — aks holda har ochilishda
+    // bittadan TextEditingController xotirada qolib ketardi.
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -171,6 +187,9 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
+    final comment = commentController.text;
+    commentController.dispose();
+
     if (confirmed != true || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -180,7 +199,7 @@ class SettingsPage extends StatelessWidget {
     try {
       await repository.deleteAccount(
         reason: selected,
-        comment: commentController.text,
+        comment: comment,
       );
     } catch (_) {
       messenger.showSnackBar(

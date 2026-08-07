@@ -4,8 +4,6 @@ import {
   pool,
   USERS_TABLE,
   MESSAGES_TABLE,
-  GROUP_MESSAGES_TABLE,
-  CHANNEL_MESSAGES_TABLE,
 } from "./database.js";
 
 const UPLOADS_DIR = "uploads";
@@ -43,7 +41,7 @@ const KEEP_CALL_LOGS = `(content IS NULL OR content !~ '^__CALL:')`;
 
 async function purgeMessages(ttlHours) {
   const cutoff = `${ttlHours} hours`;
-  const tables = [MESSAGES_TABLE, GROUP_MESSAGES_TABLE, CHANNEL_MESSAGES_TABLE];
+  const tables = [MESSAGES_TABLE];
   let total = 0;
   for (const table of tables) {
     try {
@@ -76,10 +74,6 @@ async function collectReferencedFiles() {
     `SELECT image AS f FROM ${MESSAGES_TABLE} WHERE image IS NOT NULL
      UNION ALL SELECT audio FROM ${MESSAGES_TABLE} WHERE audio IS NOT NULL
      UNION ALL SELECT video FROM ${MESSAGES_TABLE} WHERE video IS NOT NULL`,
-    `SELECT image AS f FROM ${GROUP_MESSAGES_TABLE} WHERE image IS NOT NULL
-     UNION ALL SELECT audio FROM ${GROUP_MESSAGES_TABLE} WHERE audio IS NOT NULL`,
-    `SELECT image AS f FROM ${CHANNEL_MESSAGES_TABLE} WHERE image IS NOT NULL
-     UNION ALL SELECT audio FROM ${CHANNEL_MESSAGES_TABLE} WHERE audio IS NOT NULL`,
   ];
   for (const sql of queries) {
     try {

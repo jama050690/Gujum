@@ -8,6 +8,10 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/config/app_config.dart';
+import '../../l10n/app_strings.dart';
 
 // Top-level — background/killed holatda ishlaydi
 @pragma('vm:entry-point')
@@ -25,6 +29,16 @@ Future<void> onBackgroundMessage(RemoteMessage message) async {
 
   if (callId.isEmpty) return;
 
+  // Background isolate da Provider yo'q — til to'g'ridan-to'g'ri saqlangan
+  // sozlamalardan o'qiladi, shunda bildirishnoma matnlari ham tarjima
+  // qilinadi va hech qayerda qatorlar qotib qolmaydi.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    AppStrings.currentLocale =
+        prefs.getString('gujum.locale') ?? AppConfig.defaultLocale;
+  } catch (_) {}
+  String t(String key) => AppStrings.t(key);
+
   try {
     await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
       id: callId,
@@ -40,14 +54,13 @@ Future<void> onBackgroundMessage(RemoteMessage message) async {
         ringtonePath: 'system_ringtone_default',
         backgroundColor: '#0C111A',
         actionColor: '#4D82E3',
-        textAccept: "Qabul qilish",
-        textDecline: "Rad etish",
-        incomingCallNotificationChannelName: "Qo'ng'iroq",
-        missedCallNotificationChannelName: "O'tkazib yuborilgan",
+        textAccept: t('call_accept'),
+        textDecline: t('call_decline'),
+        incomingCallNotificationChannelName: t('call_channel_incoming'),
+        missedCallNotificationChannelName: t('call_channel_missed'),
       ),
     ));
   } catch (e) {
-    debugPrint('[FCM] showCallkitIncoming error: $e');
   }
 }
 
@@ -79,10 +92,10 @@ class FcmService {
     // kerak bo'lgan yo'l jim edi. Android kanal sozlamalarini yaratilgandan
     // keyin o'zgartirishga ruxsat bermaydi, shuning uchun yangi ID kerak.
     await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         'incoming_calls_v2',
-        'Incoming Calls',
-        description: "Qo'ng'iroqlar uchun bildirishnomalar",
+        AppStrings.t('notif_calls_channel'),
+        description: AppStrings.t('notif_calls_channel_desc'),
         importance: Importance.max,
         playSound: true,
         enableVibration: true,
@@ -94,10 +107,10 @@ class FcmService {
 
     // Xabar kanali — FCM notification shu kanalga yuboriladi
     await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         'messages',
-        'Xabarlar',
-        description: "Yangi xabarlar uchun bildirishnomalar",
+        AppStrings.t('notif_messages_channel'),
+        description: AppStrings.t('notif_messages_channel_desc'),
         importance: Importance.high,
         playSound: true,
         enableVibration: true,
@@ -119,8 +132,9 @@ class FcmService {
 
     // Android 13+ uchun notification permission
     await FlutterCallkitIncoming.requestNotificationPermission({
-      'rationaleMessagePermission': "Qo'ng'iroqlar uchun bildirishnoma ruxsati kerak",
-      'postNotificationMessagePermission': "Bildirishnomalar uchun ruxsat bering",
+      'rationaleMessagePermission': AppStrings.t('notif_permission_calls'),
+      'postNotificationMessagePermission':
+          AppStrings.t('notif_permission_generic'),
     });
 
     // Android 14+ uchun to'liq ekran ruxsati (lock screen da ko'rinishi uchun)
@@ -141,7 +155,6 @@ class FcmService {
       if (token != null) await _saveToken(token);
       FirebaseMessaging.instance.onTokenRefresh.listen(_saveToken);
     } catch (e) {
-      debugPrint('[FCM] register error: $e');
     }
   }
 
@@ -169,7 +182,6 @@ class FcmService {
         }),
       );
     } catch (e) {
-      debugPrint('[FCM] unregister error: $e');
     }
   }
 
@@ -187,9 +199,7 @@ class FcmService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': _username, 'token': token}),
       );
-      debugPrint('[FCM] Token saqlandi');
     } catch (e) {
-      debugPrint('[FCM] save token error: $e');
     }
   }
 }

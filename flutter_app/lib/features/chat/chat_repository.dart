@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/network/api_client.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
+import '../../l10n/app_strings.dart';
 
 class ChatRepository {
   ChatRepository({
@@ -100,16 +101,6 @@ class ChatRepository {
         .toList();
   }
 
-  Future<List<SimpleUser>> fetchFriends() async {
-    final response = await _apiClient.getJson(
-      '/api/friends',
-      authenticated: true,
-    );
-
-    return (response as List<dynamic>)
-        .map((item) => SimpleUser.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
 
   Future<ChatMessage> updateMessage({
     required int id,
@@ -178,7 +169,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -197,7 +188,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -216,7 +207,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -235,7 +226,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -254,7 +245,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -273,7 +264,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -292,7 +283,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -311,7 +302,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -330,7 +321,7 @@ class ChatRepository {
     final path = (response as Map<String, dynamic>)['path']?.toString();
     if (path == null || path.isEmpty) {
       throw ApiException(
-        message: 'Upload failed',
+        message: AppStrings.t('upload_failed'),
         statusCode: 0,
         payload: response,
       );
@@ -395,7 +386,7 @@ class ChatRepository {
     }
 
     throw ApiException(
-      message: 'Selected file is not readable',
+      message: AppStrings.t('file_not_readable'),
       statusCode: 0,
       payload: file.name,
     );

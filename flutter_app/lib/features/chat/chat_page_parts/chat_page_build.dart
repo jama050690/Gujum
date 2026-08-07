@@ -25,9 +25,11 @@ extension _ChatPageStateBuild on _ChatPageState {
         }
         _lastBackPress = now;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Chiqish uchun qayta bosing'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(AppStrings.text(
+                context.read<SettingsController>().localeCode,
+                'exit_press_again')),
+            duration: const Duration(seconds: 2),
           ),
         );
       },
@@ -40,22 +42,6 @@ extension _ChatPageStateBuild on _ChatPageState {
         onOpenProfile: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const ProfilePage()),
-          );
-        },
-        onOpenNewGroup: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  const CommunityPage(initialTab: 0, openComposer: true),
-            ),
-          );
-        },
-        onOpenNewChannel: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  const CommunityPage(initialTab: 1, openComposer: true),
-            ),
           );
         },
         onOpenContacts: () {
@@ -101,14 +87,6 @@ extension _ChatPageStateBuild on _ChatPageState {
             onOpenSearchResult: (user) => _openChatFromSearch(chat, user),
             onShowChatActions: (item) =>
                 _showChatActions(context, chat, item, settings),
-            onOpenNewChat: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const FriendsPage(titleKey: 'search_users'),
-                ),
-              );
-            },
-            onOpenCamera: () => _openQuickCamera(settings),
             onOpenContacts: () {
               Navigator.of(context).push(
                 MaterialPageRoute(

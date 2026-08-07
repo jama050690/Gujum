@@ -17,6 +17,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/widgets/app_search_field.dart';
+import '../../core/widgets/avatar_image.dart';
 import '../../core/network/api_client.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
@@ -27,7 +29,6 @@ import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../settings/settings_controller.dart';
 import '../social/calls_page.dart';
-import '../social/community_page.dart';
 import '../social/friends_page.dart';
 import '../social/contact_profile_page.dart';
 import '../social/profile_page.dart';
@@ -80,7 +81,6 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
-  final ImagePicker _quickCameraPicker = ImagePicker();
 
   Timer? _searchDebounce;
   Set<String> _archivedChats = <String>{};

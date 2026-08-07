@@ -9,7 +9,6 @@ enum _InboxAction {
   clearHistory,
   deleteChat,
   block,
-  reportSpam,
 }
 
 enum _MessageAction {

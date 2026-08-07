@@ -3,15 +3,9 @@ import {
   USERS_TABLE,
   CHATS_TABLE,
   MESSAGES_TABLE,
-  GROUPS_TABLE,
-  GROUP_MEMBERS_TABLE,
-  GROUP_MESSAGES_TABLE,
-  CHANNELS_TABLE,
-  CHANNEL_SUBSCRIBERS_TABLE,
-  CHANNEL_MESSAGES_TABLE,
   BLOCKED_USERS_TABLE,
-  SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
+  MIGRATIONS_TABLE,
 } from "../config/database.js";
 import argon2 from "argon2";
 
@@ -76,16 +70,6 @@ async function initUsersTable() {
     console.warn(
       `[DB] phone unique indeksi qurilmadi (ehtimol takrorlanuvchi raqamlar bor): ${e.message}`,
     );
-  }
-  // Akkaunt o'chirilganda a'zolari bor guruh/kanal egasiz qoladi — shuning
-  // uchun created_by NULL bo'la olishi kerak. Jadval NOT NULL bilan
-  // yaratilgan bo'lsa cheklovni olib tashlaymiz.
-  for (const table of [GROUPS_TABLE, CHANNELS_TABLE]) {
-    try {
-      await pool.query(`ALTER TABLE ${table} ALTER COLUMN created_by DROP NOT NULL`);
-    } catch (e) {
-      console.warn(`[DB] ${table}.created_by NOT NULL olib tashlanmadi: ${e.message}`);
-    }
   }
   console.log("Users table tayyor");
 }
@@ -207,96 +191,6 @@ async function initMessageDeletionsTable() {
   console.log("Message_deletions table tayyor");
 }
 
-async function initGroupsTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${GROUPS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      avatar TEXT,
-      created_by INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`
-    ALTER TABLE ${GROUPS_TABLE} ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT FALSE;
-  `);
-  console.log("Groups table tayyor");
-}
-
-async function initGroupMembersTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${GROUP_MEMBERS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      group_id INT NOT NULL REFERENCES ${GROUPS_TABLE}(id) ON DELETE CASCADE,
-      user_id INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      role VARCHAR(20) DEFAULT 'member',
-      joined_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(group_id, user_id)
-    );
-  `);
-  console.log("Group_members table tayyor");
-}
-
-async function initGroupMessagesTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${GROUP_MESSAGES_TABLE} (
-      id SERIAL PRIMARY KEY,
-      group_id INT NOT NULL REFERENCES ${GROUPS_TABLE}(id) ON DELETE CASCADE,
-      sender_id INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      content TEXT,
-      image TEXT,
-      audio TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  console.log("Group_messages table tayyor");
-}
-
-async function initChannelsTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${CHANNELS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      description TEXT,
-      avatar TEXT,
-      created_by INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  await pool.query(`
-    ALTER TABLE ${CHANNELS_TABLE} ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT FALSE;
-  `);
-  console.log("Channels table tayyor");
-}
-
-async function initChannelSubscribersTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${CHANNEL_SUBSCRIBERS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      channel_id INT NOT NULL REFERENCES ${CHANNELS_TABLE}(id) ON DELETE CASCADE,
-      user_id INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      subscribed_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(channel_id, user_id)
-    );
-  `);
-  console.log("Channel_subscribers table tayyor");
-}
-
-async function initChannelMessagesTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${CHANNEL_MESSAGES_TABLE} (
-      id SERIAL PRIMARY KEY,
-      channel_id INT NOT NULL REFERENCES ${CHANNELS_TABLE}(id) ON DELETE CASCADE,
-      sender_id INT NOT NULL REFERENCES ${USERS_TABLE}(id),
-      content TEXT,
-      image TEXT,
-      audio TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  console.log("Channel_messages table tayyor");
-}
-
 async function initBlockedUsersTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${BLOCKED_USERS_TABLE} (
@@ -308,19 +202,6 @@ async function initBlockedUsersTable() {
     );
   `);
   console.log("Blocked_users table tayyor");
-}
-
-async function initSpamReportsTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${SPAM_REPORTS_TABLE} (
-      id SERIAL PRIMARY KEY,
-      reporter_id INT NOT NULL REFERENCES ${USERS_TABLE}(id) ON DELETE CASCADE,
-      reported_id INT NOT NULL REFERENCES ${USERS_TABLE}(id) ON DELETE CASCADE,
-      reason TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
-  console.log("Spam_reports table tayyor");
 }
 
 async function initFriendsTable() {
@@ -370,16 +251,6 @@ async function initIndexes() {
     `CREATE INDEX IF NOT EXISTS idx_${CHATS_TABLE}_user2
        ON ${CHATS_TABLE} (user2_id)`,
 
-    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MESSAGES_TABLE}_group_created
-       ON ${GROUP_MESSAGES_TABLE} (group_id, created_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_MESSAGES_TABLE}_channel_created
-       ON ${CHANNEL_MESSAGES_TABLE} (channel_id, created_at DESC)`,
-
-    // "which groups/channels am I in" — UNIQUE covers the other direction
-    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MEMBERS_TABLE}_user
-       ON ${GROUP_MEMBERS_TABLE} (user_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_SUBSCRIBERS_TABLE}_user
-       ON ${CHANNEL_SUBSCRIBERS_TABLE} (user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_${FRIENDS_TABLE}_receiver
        ON ${FRIENDS_TABLE} (receiver_id)`,
     `CREATE INDEX IF NOT EXISTS idx_${BLOCKED_USERS_TABLE}_blocked
@@ -392,10 +263,6 @@ async function initIndexes() {
     // yaramaydi — usiz har safar to'liq skan bo'lardi.
     `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_created
        ON ${MESSAGES_TABLE} (created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MESSAGES_TABLE}_created
-       ON ${GROUP_MESSAGES_TABLE} (created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_MESSAGES_TABLE}_created
-       ON ${CHANNEL_MESSAGES_TABLE} (created_at)`,
 
     // O'chirilgan akkauntlar arxivi 2 yildan keyin shu ustun bo'yicha
     // tozalanadi.
@@ -409,20 +276,79 @@ async function initIndexes() {
   console.log(`Indexlar tayyor (${indexes.length} ta)`);
 }
 
+/// Bir marta bajariladigan migratsiyalar ro'yxati.
+///
+/// Har bir migratsiya bajarilgach ${MIGRATIONS_TABLE} ga yoziladi va
+/// keyingi ishga tushishlarda o'tkazib yuboriladi. Aks holda jadval
+/// tashlash kabi buyruqlar server har qayta ishga tushganda qaytadan
+/// bajarilaverardi.
+const MIGRATIONS = [
+  {
+    id: "2026_08_drop_groups_and_channels",
+    // Guruh va kanallar ilovadan butunlay chiqarildi. Jadvallari qolsa,
+    // faqat joy egallaydi va zaxira nusxalarni kattalashtiradi. Bog'liq
+    // jadvallar CASCADE bilan birga ketadi.
+    statements: [
+      "DROP TABLE IF EXISTS group_messages CASCADE",
+      "DROP TABLE IF EXISTS group_members CASCADE",
+      "DROP TABLE IF EXISTS groups CASCADE",
+      "DROP TABLE IF EXISTS channel_messages CASCADE",
+      "DROP TABLE IF EXISTS channel_subscribers CASCADE",
+      "DROP TABLE IF EXISTS channels CASCADE",
+    ],
+  },
+  {
+    id: "2026_08_drop_spam_reports",
+    // Spam haqida xabar berish ilovadan olib tashlandi.
+    statements: ["DROP TABLE IF EXISTS spam_reports CASCADE"],
+  },
+];
+
+async function runMigrations() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+      id VARCHAR(120) PRIMARY KEY,
+      applied_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  for (const migration of MIGRATIONS) {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM ${MIGRATIONS_TABLE} WHERE id = $1`,
+      [migration.id]
+    );
+    if (rows.length > 0) continue;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const sql of migration.statements) {
+        await client.query(sql);
+      }
+      await client.query(`INSERT INTO ${MIGRATIONS_TABLE} (id) VALUES ($1)`, [
+        migration.id,
+      ]);
+      await client.query("COMMIT");
+      console.log(`Migratsiya bajarildi: ${migration.id}`);
+    } catch (e) {
+      await client.query("ROLLBACK");
+      // Migratsiya o'tmasa server baribir ko'tarilishi kerak — keyingi
+      // ishga tushishda qayta urinadi.
+      console.error(`Migratsiya xatosi (${migration.id}): ${e.message}`);
+    } finally {
+      client.release();
+    }
+  }
+}
+
 async function initDb() {
+  await runMigrations();
   await initUsersTable();
   await ensureAdminUser();
   await initChatsTable();
   await initMessagesTable();
   await initMessageDeletionsTable();
-  await initGroupsTable();
-  await initGroupMembersTable();
-  await initGroupMessagesTable();
-  await initChannelsTable();
-  await initChannelSubscribersTable();
-  await initChannelMessagesTable();
   await initBlockedUsersTable();
-  await initSpamReportsTable();
   await initFriendsTable();
   await initPushSubscriptionsTable();
   await initIndexes();

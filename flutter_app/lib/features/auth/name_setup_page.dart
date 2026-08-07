@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../social/social_repository.dart';
 import 'auth_controller.dart';
+import '../../l10n/app_strings.dart';
+import '../settings/settings_controller.dart';
 
 /// Ro'yxatdan o'tishning 2-qadami: ism.
 ///
@@ -18,6 +20,9 @@ class NameSetupPage extends StatefulWidget {
 }
 
 class _NameSetupPageState extends State<NameSetupPage> {
+  String _t(String key) => AppStrings.text(
+      context.read<SettingsController>().localeCode, key);
+
   late final TextEditingController _controller;
   bool _saving = false;
   String? _error;
@@ -38,7 +43,7 @@ class _NameSetupPageState extends State<NameSetupPage> {
   Future<void> _save() async {
     final name = _controller.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Ismingizni kiriting');
+      setState(() => _error = _t('onboarding_name_required'));
       return;
     }
     setState(() {
@@ -52,7 +57,7 @@ class _NameSetupPageState extends State<NameSetupPage> {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = "Saqlab bo'lmadi, qaytadan urinib ko'ring";
+        _error = _t('onboarding_save_failed');
       });
       return;
     }
@@ -75,14 +80,14 @@ class _NameSetupPageState extends State<NameSetupPage> {
                   size: 56, color: theme.colorScheme.primary),
               const SizedBox(height: 20),
               Text(
-                'Ismingiz',
+                _t('onboarding_name_title'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Text(
-                "Tanishlaringiz sizni shu nom bilan ko'radi.",
+                _t('onboarding_name_body'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -98,7 +103,7 @@ class _NameSetupPageState extends State<NameSetupPage> {
                   if (_error != null) setState(() => _error = null);
                 },
                 decoration: InputDecoration(
-                  hintText: 'Ism Familiya',
+                  hintText: _t('onboarding_name_hint'),
                   border: const OutlineInputBorder(),
                   errorText: _error,
                   counterText: '',
@@ -117,7 +122,8 @@ class _NameSetupPageState extends State<NameSetupPage> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Davom etish', style: TextStyle(fontSize: 17)),
+                    : Text(_t('onboarding_continue'),
+                        style: const TextStyle(fontSize: 17)),
               ),
             ],
           ),

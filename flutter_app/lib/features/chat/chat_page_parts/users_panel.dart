@@ -21,8 +21,6 @@ class _UsersPanel extends StatelessWidget {
     required this.onOpenChat,
     required this.onOpenSearchResult,
     required this.onShowChatActions,
-    required this.onOpenNewChat,
-    required this.onOpenCamera,
     required this.onOpenContacts,
     required this.onOpenSettings,
     required this.onOpenProfile,
@@ -47,8 +45,6 @@ class _UsersPanel extends StatelessWidget {
   final Future<void> Function(InboxItem item) onOpenChat;
   final Future<void> Function(SearchUser user) onOpenSearchResult;
   final ValueChanged<InboxItem> onShowChatActions;
-  final VoidCallback onOpenNewChat;
-  final VoidCallback onOpenCamera;
   final VoidCallback onOpenContacts;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenProfile;
@@ -268,34 +264,6 @@ class _UsersPanel extends StatelessWidget {
                 ),
               ),
             ),
-            if (!showArchived)
-              Positioned(
-                right: 20,
-                bottom: safeBottom + 156,
-                child: FloatingActionButton.small(
-                  heroTag: 'camera_fab',
-                  onPressed: onOpenCamera,
-                  backgroundColor: settings.isDarkMode
-                      ? Colors.white
-                      : const Color(0xFFE4EDF6),
-                  foregroundColor: const Color(0xFF1C2B3A),
-                  elevation: 8,
-                  child: const Icon(Icons.photo_camera_rounded, size: 20),
-                ),
-              ),
-            if (!showArchived)
-              Positioned(
-                right: 20,
-                bottom: safeBottom + 92,
-                child: FloatingActionButton(
-                  heroTag: 'new_chat_fab',
-                  onPressed: onOpenNewChat,
-                  backgroundColor: const Color(0xFF2EA6FF),
-                  foregroundColor: Colors.white,
-                  elevation: 10,
-                  child: const Icon(Icons.add_rounded, size: 32),
-                ),
-              ),
             if (!showArchived)
               Positioned(
                 left: 18,

@@ -67,9 +67,19 @@ class MessageStore {
     return next;
   }
 
+  /// Diskda saqlanadigan eng ko'p xabar soni.
+  ///
+  /// Har bir yozuv butun suhbatni qaytadan JSON ga o'giradi — cheklovsiz
+  /// uzun suhbatda bu har yuborilgan xabarda megabaytlab ish demakdi.
+  /// Eskiroq xabarlar kerak bo'lsa serverdan sahifalab yuklanadi.
+  static const _maxStoredMessages = 500;
+
   Future<void> _write(String peer, List<ChatMessage> messages) async {
     try {
-      final encoded = jsonEncode(messages.map(_toStorage).toList());
+      final trimmed = messages.length > _maxStoredMessages
+          ? messages.sublist(messages.length - _maxStoredMessages)
+          : messages;
+      final encoded = jsonEncode(trimmed.map(_toStorage).toList());
       // Avval vaqtinchalik faylga, keyin o'rniga qo'yamiz — yozish yarmida
       // ilova yopilsa, eski nusxa buzilmay qoladi.
       final target = _fileFor(peer);

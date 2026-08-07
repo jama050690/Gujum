@@ -101,7 +101,7 @@ Future<void> _stopAndSendVoiceRecording(
   try {
     filePath = await _audioRecorder.stop();
     if (filePath == null || filePath.isEmpty) {
-      throw StateError('Recorded file path is empty');
+      throw StateError(AppStrings.t('recording_failed'));
     }
 
     if (mounted) {
@@ -126,7 +126,7 @@ Future<void> _stopAndSendVoiceRecording(
       replyTo: _replyPayloadForMessage(_replyingTo, t),
     );
     if (sent) {
-      if (_replyingTo != null) {
+      if (_replyingTo != null && mounted) {
         setState(() => _replyingTo = null);
       }
       _requestScrollToNewest();

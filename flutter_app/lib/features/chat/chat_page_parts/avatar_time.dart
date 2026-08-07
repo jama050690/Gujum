@@ -45,7 +45,7 @@ class _Avatar extends StatelessWidget {
         CircleAvatar(
           radius: radius,
           backgroundColor: background,
-          foregroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+          foregroundImage: imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
           child: Text(initials.isEmpty ? '?' : initials, style: textStyle),
         ),
         if (online)
@@ -120,20 +120,12 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
   // Bugun: aniq soat "21:37 da"
   if (target == today) {
     final clock = _formatClock(value);
-    return switch (localeCode) {
-      'ru' => 'в $clock',
-      'en' => 'at $clock',
-      _ => '$clock da',
-    };
+    return AppStrings.text(localeCode, 'time_at').replaceAll('{time}', clock);
   }
 
   // Kecha
   if (target == today.subtract(const Duration(days: 1))) {
-    return switch (localeCode) {
-      'ru' => 'вчера',
-      'en' => 'yesterday',
-      _ => 'kecha',
-    };
+    return AppStrings.text(localeCode, 'time_yesterday');
   }
 
   // 30 kundan kam
@@ -147,18 +139,12 @@ String _formatLastSeenClock(DateTime? value, String localeCode) {
   // 30 kundan ortiq
   final months = (diff.inDays / 30).floor();
   if (months < 12) {
-    return switch (localeCode) {
-      'ru' => '$months мес. назад',
-      'en' => '$months months ago',
-      _ => '$months oy oldin',
-    };
+    return AppStrings.text(localeCode, 'time_months_ago')
+        .replaceAll('{n}', '$months');
   }
   final years = (diff.inDays / 365).floor();
-  return switch (localeCode) {
-    'ru' => '$years г. назад',
-    'en' => '$years years ago',
-    _ => '$years yil oldin',
-  };
+  return AppStrings.text(localeCode, 'time_years_ago')
+      .replaceAll('{n}', '$years');
 }
 
 // Chat header uchun: X daqiqa/soat oldin, kecha, yoki DD.MM.YYYY
@@ -167,11 +153,7 @@ String _formatLastSeenStatus(DateTime? value, String localeCode) {
     return AppStrings.text(localeCode, 'offline');
   }
 
-  final prefix = switch (localeCode) {
-    'ru' => 'Был(а) в сети ',
-    'en' => 'last seen ',
-    _ => 'Oxirgi marta ',
-  };
+  final prefix = AppStrings.text(localeCode, 'last_seen_prefix');
   return '$prefix${_formatRelativeTime(value, localeCode)}';
 }
 
@@ -180,37 +162,23 @@ String _formatRelativeTime(DateTime value, String localeCode) {
   final difference = now.difference(value);
 
   if (difference.inMinutes < 1) {
-    return switch (localeCode) {
-      'ru' => 'только что',
-      'en' => 'just now',
-      _ => 'hozirgina',
-    };
+    return AppStrings.text(localeCode, 'time_just_now');
   }
 
   if (difference.inHours < 1) {
     final minutes = difference.inMinutes;
-    return switch (localeCode) {
-      'ru' => '$minutes мин назад',
-      'en' => '$minutes minutes ago',
-      _ => '$minutes daqiqa oldin',
-    };
+    return AppStrings.text(localeCode, 'time_minutes_ago')
+        .replaceAll('{n}', '$minutes');
   }
 
   if (difference.inDays < 1) {
     final hours = difference.inHours;
-    return switch (localeCode) {
-      'ru' => '$hours ч назад',
-      'en' => '$hours hours ago',
-      _ => '$hours soat oldin',
-    };
+    return AppStrings.text(localeCode, 'time_hours_ago')
+        .replaceAll('{n}', '$hours');
   }
 
   if (difference.inDays < 2) {
-    return switch (localeCode) {
-      'ru' => 'вчера',
-      'en' => 'yesterday',
-      _ => 'kecha',
-    };
+    return AppStrings.text(localeCode, 'time_yesterday');
   }
 
   if (difference.inDays < 30) {
@@ -221,17 +189,11 @@ String _formatRelativeTime(DateTime value, String localeCode) {
 
   final months = (difference.inDays / 30).floor();
   if (months < 12) {
-    return switch (localeCode) {
-      'ru' => '$months мес. назад',
-      'en' => '$months months ago',
-      _ => '$months oy oldin',
-    };
+    return AppStrings.text(localeCode, 'time_months_ago')
+        .replaceAll('{n}', '$months');
   }
 
   final years = (difference.inDays / 365).floor();
-  return switch (localeCode) {
-    'ru' => '$years г. назад',
-    'en' => '$years years ago',
-    _ => '$years yil oldin',
-  };
+  return AppStrings.text(localeCode, 'time_years_ago')
+      .replaceAll('{n}', '$years');
 }

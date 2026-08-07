@@ -6,12 +6,6 @@ import {
   USERS_TABLE,
   CHATS_TABLE,
   MESSAGES_TABLE,
-  GROUPS_TABLE,
-  GROUP_MEMBERS_TABLE,
-  GROUP_MESSAGES_TABLE,
-  CHANNELS_TABLE,
-  CHANNEL_SUBSCRIBERS_TABLE,
-  CHANNEL_MESSAGES_TABLE,
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
 
@@ -83,11 +77,7 @@ router.delete("/account", authMiddleware, async (req, res) => {
     const media = await client.query(
       `SELECT image AS f FROM ${MESSAGES_TABLE} WHERE sender_id = $1 AND image IS NOT NULL
        UNION ALL SELECT audio FROM ${MESSAGES_TABLE} WHERE sender_id = $1 AND audio IS NOT NULL
-       UNION ALL SELECT video FROM ${MESSAGES_TABLE} WHERE sender_id = $1 AND video IS NOT NULL
-       UNION ALL SELECT image FROM ${GROUP_MESSAGES_TABLE} WHERE sender_id = $1 AND image IS NOT NULL
-       UNION ALL SELECT audio FROM ${GROUP_MESSAGES_TABLE} WHERE sender_id = $1 AND audio IS NOT NULL
-       UNION ALL SELECT image FROM ${CHANNEL_MESSAGES_TABLE} WHERE sender_id = $1 AND image IS NOT NULL
-       UNION ALL SELECT audio FROM ${CHANNEL_MESSAGES_TABLE} WHERE sender_id = $1 AND audio IS NOT NULL`,
+       UNION ALL SELECT video FROM ${MESSAGES_TABLE} WHERE sender_id = $1 AND video IS NOT NULL`,
       [userId]
     );
     for (const row of media.rows) if (row.f) files.push(row.f);
@@ -109,48 +99,7 @@ router.delete("/account", authMiddleware, async (req, res) => {
       ]);
     }
 
-    // 2. Guruh va kanallardagi xabarlari.
-    await client.query(`DELETE FROM ${GROUP_MESSAGES_TABLE} WHERE sender_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${CHANNEL_MESSAGES_TABLE} WHERE sender_id = $1`, [userId]);
-
-    // 3. A'zoliklar.
-    await client.query(`DELETE FROM ${GROUP_MEMBERS_TABLE} WHERE user_id = $1`, [userId]);
-    await client.query(`DELETE FROM ${CHANNEL_SUBSCRIBERS_TABLE} WHERE user_id = $1`, [userId]);
-
-    // 4. O'zi yaratgan guruh/kanallar: boshqa a'zosi qolmagani o'chiriladi,
-    // qolgani egasiz bo'lib yashaydi — odamlar ostidan jamoa yo'qolmasin.
-    const emptyGroups = await client.query(
-      `SELECT g.id FROM ${GROUPS_TABLE} g
-       WHERE g.created_by = $1
-         AND NOT EXISTS (SELECT 1 FROM ${GROUP_MEMBERS_TABLE} m WHERE m.group_id = g.id)`,
-      [userId]
-    );
-    for (const row of emptyGroups.rows) {
-      // group_members / group_messages ON DELETE CASCADE bilan ketadi.
-      await client.query(`DELETE FROM ${GROUPS_TABLE} WHERE id = $1`, [row.id]);
-    }
-    await client.query(
-      `UPDATE ${GROUPS_TABLE} SET created_by = NULL WHERE created_by = $1`,
-      [userId]
-    );
-
-    const emptyChannels = await client.query(
-      `SELECT c.id FROM ${CHANNELS_TABLE} c
-       WHERE c.created_by = $1
-         AND NOT EXISTS (
-           SELECT 1 FROM ${CHANNEL_SUBSCRIBERS_TABLE} s WHERE s.channel_id = c.id
-         )`,
-      [userId]
-    );
-    for (const row of emptyChannels.rows) {
-      await client.query(`DELETE FROM ${CHANNELS_TABLE} WHERE id = $1`, [row.id]);
-    }
-    await client.query(
-      `UPDATE ${CHANNELS_TABLE} SET created_by = NULL WHERE created_by = $1`,
-      [userId]
-    );
-
-    // 5. Ijtimoiy graf va qurilma yozuvlari. blocked_users, spam_reports,
+    // 2. Ijtimoiy graf va qurilma yozuvlari. blocked_users,
     // friends va push_subscriptions da ON DELETE CASCADE bor, lekin
     // fcm_tokens username bo'yicha saqlanadi — uni qo'lda o'chiramiz.
     const username = req.user.username

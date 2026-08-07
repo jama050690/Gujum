@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import '../../l10n/app_strings.dart';
+import '../settings/settings_controller.dart';
 
 /// Ro'yxatdan o'tishning 3-qadami: kontaktlarni ulash.
 ///
@@ -15,6 +17,9 @@ class ContactsSetupPage extends StatefulWidget {
 }
 
 class _ContactsSetupPageState extends State<ContactsSetupPage> {
+  String _t(String key) => AppStrings.text(
+      context.read<SettingsController>().localeCode, key);
+
   bool _busy = false;
 
   Future<void> _requestAccess() async {
@@ -45,15 +50,14 @@ class _ContactsSetupPageState extends State<ContactsSetupPage> {
                   size: 64, color: theme.colorScheme.primary),
               const SizedBox(height: 24),
               Text(
-                "Do'stlaringizni toping",
+                _t('onboarding_contacts_title'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(
-                "Kontaktlaringizga ruxsat bering — kim allaqachon Gujum'da "
-                "borligini ko'rsatamiz. Raqamlar hech kimga tarqatilmaydi.",
+                _t('onboarding_contacts_body'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -71,13 +75,13 @@ class _ContactsSetupPageState extends State<ContactsSetupPage> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Kontaktlarni ulash',
+                    : Text(_t('onboarding_contacts_connect'),
                         style: TextStyle(fontSize: 17)),
               ),
               const SizedBox(height: 4),
               TextButton(
                 onPressed: _busy ? null : widget.onDone,
-                child: const Text('Keyinroq'),
+                child: Text(_t('onboarding_later')),
               ),
             ],
           ),

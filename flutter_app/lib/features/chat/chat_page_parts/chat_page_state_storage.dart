@@ -74,23 +74,6 @@ void _showInfoSnackBar(String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-Future<void> _openQuickCamera(SettingsController settings) async {
-  final t = (String key) => AppStrings.text(settings.localeCode, key);
-  try {
-    await _quickCameraPicker.pickImage(source: ImageSource.camera);
-  } on PlatformException {
-    if (!mounted) {
-      return;
-    }
-    _showInfoSnackBar(t('call_permission_denied'));
-  } catch (_) {
-    if (!mounted) {
-      return;
-    }
-    _showInfoSnackBar(t('chat_action_failed'));
-  }
-}
-
 void _handleSearchChanged(ChatController chat, String value) {
   _searchDebounce?.cancel();
 
@@ -191,6 +174,7 @@ Future<void> _toggleMute(InboxItem item) async {
 }
 
 Future<void> _removeChatPreferences(String username) async {
+  if (!mounted) return;
   setState(() {
     _archivedChats.remove(username);
     _pinnedChats.remove(username);

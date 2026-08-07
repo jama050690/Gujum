@@ -33,15 +33,9 @@ class SocketService {
     if (_socket != null &&
         _connectionKey == nextConnectionKey &&
         (_socket!.connected || _socket!.active)) {
-      debugPrint(
-        'SOCKET_DEBUG connect() skipped existing connection key=$nextConnectionKey connected=${_socket!.connected} active=${_socket!.active}',
-      );
       return;
     }
 
-    debugPrint(
-      'SOCKET_DEBUG connect() username=$username baseUrl=$baseUrl path=$path hasCookie=${cookie?.isNotEmpty == true}',
-    );
     disconnect();
 
     final optionBuilder = io.OptionBuilder()
@@ -65,7 +59,6 @@ class SocketService {
     _socket = io.io(baseUrl, options);
     _connectionKey = nextConnectionKey;
     _username = username;
-    debugPrint('SOCKET_DEBUG socket instance created');
     _registerDefaultListeners(username);
     _startKeepalive();
   }
@@ -78,7 +71,6 @@ class SocketService {
     if (!_socket!.connected) {
       debugPrint('Socket emit warning: socket not connected for event: $event');
     }
-    debugPrint('SOCKET_DEBUG emit event=$event payload=$payload');
     _socket!.emit(event, payload);
   }
 
@@ -88,13 +80,11 @@ class SocketService {
       final user = _username;
       if (user != null && (_socket?.connected ?? false)) {
         _socket!.emit('USER_ONLINE', user);
-        debugPrint('SOCKET_DEBUG keepalive USER_ONLINE username=$user');
       }
     });
   }
 
   void disconnect() {
-    debugPrint('SOCKET_DEBUG disconnect() called');
     _keepaliveTimer?.cancel();
     _keepaliveTimer = null;
     _username = null;
@@ -116,13 +106,10 @@ class SocketService {
     }
 
     socket.onConnect((_) {
-      debugPrint('SOCKET_DEBUG onConnect id=${socket.id}');
       socket.emit('USER_ONLINE', username);
-      debugPrint('SOCKET_DEBUG USER_ONLINE emitted username=$username');
       _controller.add(SocketPacket('connect', null));
     });
     socket.onDisconnect((reason) {
-      debugPrint('SOCKET_DEBUG onDisconnect reason=$reason');
       _controller.add(SocketPacket('disconnect', reason));
     });
     socket.onConnectError((error) {
@@ -162,7 +149,6 @@ class SocketService {
       'CALL_RENEGOTIATE_ANSWER',
     ]) {
       socket.on(event, (data) {
-        debugPrint('SOCKET_DEBUG onEvent event=$event data=$data');
         _controller.add(SocketPacket(event, data));
       });
     }

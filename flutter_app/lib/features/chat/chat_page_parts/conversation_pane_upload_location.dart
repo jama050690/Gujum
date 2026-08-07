@@ -32,7 +32,7 @@ Future<void> _uploadAndSendAttachment(
             return;
           }
           if (platformFile.size > _maxVideoBytes) {
-            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
+            _showInfoSnackBar(t('video_too_large'));
             return;
           }
           uploadedPath = await chat.uploadPickedVideo(platformFile);
@@ -48,7 +48,7 @@ Future<void> _uploadAndSendAttachment(
           }
           final fileSize = await file.length();
           if (fileSize > _maxVideoBytes) {
-            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
+            _showInfoSnackBar(t('video_too_large'));
             return;
           }
           uploadedPath = await chat.uploadXFileVideo(file);
@@ -185,45 +185,35 @@ Future<List<XFile>> _pickMultipleImages() async {
   );
 }
 
-Future<XFile?> _pickVideoAttachment() {
-  return _imagePicker.pickVideo(source: ImageSource.gallery);
+/// image_picker faqat bitta video tanlashga ruxsat beradi — shu sababli
+/// videolar ham file_picker orqali tanlanadi va bir nechtasini birdan
+/// yuborish mumkin.
+Future<List<PlatformFile>> _pickVideoAttachments() {
+  return _pickPlatformFiles(FileType.video);
 }
 
-Future<PlatformFile?> _pickGenericAttachment() async {
+Future<List<PlatformFile>> _pickGenericAttachments() {
+  return _pickPlatformFiles(FileType.any);
+}
+
+Future<List<PlatformFile>> _pickAudioAttachments() {
+  return _pickPlatformFiles(FileType.audio);
+}
+
+Future<List<PlatformFile>> _pickPlatformFiles(FileType type) async {
   final result = await FilePicker.pickFiles(
-    type: FileType.any,
-    allowMultiple: false,
+    type: type,
+    allowMultiple: true,
     withData: kIsWeb,
     withReadStream: !kIsWeb,
   );
 
-  final file = result?.files.single;
-  final filePath = file?.path;
-  if (file == null ||
-      ((filePath == null || filePath.isEmpty) &&
-          file.readStream == null &&
-          file.bytes == null)) {
-    return null;
-  }
-  return file;
-}
-
-Future<PlatformFile?> _pickAudioAttachment() async {
-  final result = await FilePicker.pickFiles(
-    type: FileType.audio,
-    allowMultiple: false,
-    withData: kIsWeb,
-    withReadStream: !kIsWeb,
-  );
-
-  final file = result?.files.single;
-  final filePath = file?.path;
-  if (file == null ||
-      ((filePath == null || filePath.isEmpty) &&
-          file.readStream == null &&
-          file.bytes == null)) {
-    return null;
-  }
-  return file;
+  final files = result?.files ?? const <PlatformFile>[];
+  return files.where((file) {
+    final filePath = file.path;
+    return (filePath != null && filePath.isNotEmpty) ||
+        file.readStream != null ||
+        file.bytes != null;
+  }).toList();
 }
 }

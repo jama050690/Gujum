@@ -226,7 +226,11 @@ function registerSocketHandlers(io) {
       pool.query(`UPDATE ${USERS_TABLE} SET is_online = TRUE WHERE username = $1`, [username])
         .catch(e => console.error('is_online true xato:', e.message));
 
-      sendAllUsers();
+      // To'liq ro'yxat faqat shu yangi ulangan soketga yuboriladi (boshlang'ich
+      // holat uchun). Qolganlarga bitta o'zgarish hodisasi yetarli — ilgari har
+      // ulanish/uzilishda butun ro'yxat hammaga qayta yuborilardi, ya'ni N
+      // foydalanuvchi uchun N² emit.
+      sendOnlineListTo(browser);
       browser.broadcast.emit("USER_STATUS_CHANGED", { username, online: true });
 
       // Pending offer bor bo'lsa — faqat CALL_OFFER yuboramiz, CALL_SESSION_SYNC emas.
@@ -275,6 +279,17 @@ function registerSocketHandlers(io) {
 
       const callId = data.callId || `call_${Date.now()}_${callerUsername}`;
 
+      // Suhbatdosh allaqachon boshqa qo'ng'iroqda bo'lsa, uni bezovta
+      // qilmaymiz. Ilgari bunday holatda callee ning klienti CALL_REJECT
+      // yuborardi va chaqiruvchiga "rad etildi" deb ko'rsatilardi — ya'ni
+      // band bo'lgan odam ataylab rad etgandek ko'rinardi.
+      const targetCallId = activeCallByUser.get(target);
+      const targetCall = targetCallId ? activeCalls.get(targetCallId) : null;
+      if (targetCall && targetCallId !== callId) {
+        emitToUser(callerUsername, "CALL_BUSY", { target, callId });
+        return;
+      }
+
       // The client supplies its own display card — pin the username inside it
       // to the authenticated one so a caller can't ring as someone else.
       const callerInfo =
@@ -296,6 +311,7 @@ function registerSocketHandlers(io) {
         callee: target,
         isVideo: !!isVideo,
         status: "ringing",
+        createdAt: Date.now(),
         offer,
         participants: { [callerUsername]: callerInfo }
       };
@@ -308,9 +324,14 @@ function registerSocketHandlers(io) {
 
       // FCM faqat socket yetkazolmagan holatda yuboriladi.
       // App foregroundda bo'lsa socket yetkazadi — FCM yuborilsa ikki xil notification chiqadi.
+      const callerDisplayName =
+        (callerInfo && typeof callerInfo === "object"
+          ? callerInfo.fullName || callerInfo.full_name || callerInfo.displayName
+          : null) || callerUsername;
+
       if (!delivered) {
         console.log(`[CALL] ${target} offline — FCM yuboriladi`);
-        const fcmData = { callerName: callerUsername, isVideo: !!isVideo, callId };
+        const fcmData = { callerName: callerDisplayName, isVideo: !!isVideo, callId };
         sendFcmCallToUser(target, fcmData);
         // 3 sek keyin hali ham ringing bo'lsa notification fallback
         setTimeout(() => {
@@ -329,7 +350,7 @@ function registerSocketHandlers(io) {
             finalizeCallSession(callId);
             emitToUser(callerUsername, "CALL_NOT_DELIVERED", { target });
             sendPushToUser(target, {
-              title: callerUsername,
+              title: callerDisplayName,
               body: isVideo ? "Video qo'ng'iroq..." : "Ovozli qo'ng'iroq...",
               tag: "call_" + callerUsername,
             });
@@ -341,14 +362,24 @@ function registerSocketHandlers(io) {
     });
 
     browser.on("CALL_ANSWER", (data) => {
-      const { target, answer, callId } = data;
+      const { target, answer, callId, user } = data;
       const session = activeCalls.get(callId);
+      // The callee's display card only reaches the caller here — without it the
+      // caller (and any later CALL_SESSION_SYNC) falls back to the raw username.
+      const calleeInfo =
+        user && typeof user === "object"
+          ? { ...user, username: browser.username }
+          : { username: browser.username };
       if (session) {
         session.status = "connected";
         session.connectedAt = Date.now();
         session.answer = answer;
+        if (browser.username) {
+          session.participants = session.participants || {};
+          session.participants[browser.username] = calleeInfo;
+        }
       }
-      const delivered = emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now() });
+      const delivered = emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now(), user: calleeInfo });
       if (!delivered) {
         console.log(`[CALL] CALL_ANSWER: caller offline, answer buffered for callId=${callId}`);
       }
@@ -581,7 +612,6 @@ function registerSocketHandlers(io) {
             } catch (e) {
               console.error("last_seen yangilashda xato:", e);
             }
-            sendAllUsers();
             io.emit("USER_STATUS_CHANGED", { username, online: false, lastActive });
           }, PRESENCE_OFFLINE_GRACE_MS);
           pendingOfflineTimeouts.set(username, timeout);
@@ -642,15 +672,55 @@ async function saveCallMessage(caller, target, isVideo, duration) {
   } catch (e) { console.error("Call log error", e); }
 }
 
-async function sendAllUsers() {
-  const list = Array.from(onlineUsers.keys())
-    .filter(u => hasLiveSockets(u) || pendingOfflineTimeouts.has(u))
-    .map(u => ({ username: u, online: true }));
-  for (const [, sockets] of onlineUsers) {
-    for (const s of sockets) {
-      if (s.connected) s.emit("ONLINE_USERS_LIST", list);
+// Osilib qolgan sessiyalarni tozalash.
+//
+// activeCalls faqat CALL_END/CALL_REJECT kelganda tozalanardi. Ilova
+// majburan yopilsa (yoki tarmoq uzilsa) yozuv abadiy qolib ketardi va
+// foydalanuvchi qayta ulanganda CALL_SESSION_SYNC unga allaqachon tugagan
+// qo'ng'iroq ekranini ko'rsatardi. Endi har daqiqada tekshiriladi.
+const CALL_RINGING_TTL_MS = 90 * 1000;
+const CALL_ORPHAN_TTL_MS = 2 * 60 * 1000;
+
+function sweepStaleCalls() {
+  const now = Date.now();
+  for (const [callId, session] of activeCalls) {
+    const bothGone =
+      !hasLiveSockets(session.caller) && !hasLiveSockets(session.callee);
+    const ringingTooLong =
+      session.status === "ringing" &&
+      now - (session.createdAt || now) > CALL_RINGING_TTL_MS;
+    const orphaned =
+      bothGone &&
+      now - (session.connectedAt || session.createdAt || now) >
+        CALL_ORPHAN_TTL_MS;
+
+    if (!ringingTooLong && !orphaned) continue;
+
+    finalizeCallSession(callId);
+    for (const username of [session.caller, session.callee]) {
+      emitToUser(username, "CALL_END", {
+        callId,
+        reason: ringingTooLong ? "no_answer" : "connection_lost",
+        isVideo: !!session.isVideo,
+        duration: 0,
+      });
     }
+    console.log(
+      `[CALL] eskirgan sessiya tozalandi callId=${callId} ringing=${ringingTooLong}`
+    );
   }
+}
+
+setInterval(sweepStaleCalls, 60 * 1000).unref?.();
+
+function onlineUsersList() {
+  return Array.from(onlineUsers.keys())
+    .filter((u) => hasLiveSockets(u) || pendingOfflineTimeouts.has(u))
+    .map((u) => ({ username: u, online: true }));
+}
+
+function sendOnlineListTo(socket) {
+  if (socket.connected) socket.emit("ONLINE_USERS_LIST", onlineUsersList());
 }
 
 export { registerSocketHandlers, emitToUser };

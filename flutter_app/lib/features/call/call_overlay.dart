@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -7,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../settings/settings_controller.dart';
 import 'call_controller.dart';
+import '../../core/widgets/avatar_image.dart';
 
 class CallOverlayHost extends StatefulWidget {
   const CallOverlayHost({super.key, required this.child});
@@ -20,6 +22,14 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   CallController? _controller;
   int _lastErrorVersion = 0;
   OverlayEntry? _callOverlayEntry;
+
+  /// Qo'ng'iroq ekrani kichraytirilganmi.
+  ///
+  /// Telefonning "orqaga" tugmasi qo'ng'iroqni hech qachon tugatmaydi —
+  /// ekran kichrayadi va foydalanuvchi ilovadan bemalol foydalanaveradi,
+  /// qo'ng'iroq esa davom etadi. Yuqoridagi tasmani bosib to'liq ekranga
+  /// qaytiladi.
+  bool _minimized = false;
 
   @override
   void initState() {
@@ -57,10 +67,19 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     _updateOverlay();
   }
 
+  void _setMinimized(bool value) {
+    if (_minimized == value) return;
+    setState(() => _minimized = value);
+    _callOverlayEntry?.markNeedsBuild();
+  }
+
   void _updateOverlay() {
     if (!mounted) return;
     final ctrl = _controller;
     final shouldShow = ctrl != null && (ctrl.hasIncomingCall || ctrl.hasSession);
+    if (!shouldShow && _minimized) {
+      _minimized = false;
+    }
     if (shouldShow && _callOverlayEntry == null) {
       _showCallOverlay();
     } else if (!shouldShow && _callOverlayEntry != null) {
@@ -80,7 +99,14 @@ class _CallOverlayHostState extends State<CallOverlayHost>
           return _IncomingCallSheet(callController: ctrl);
         }
         if (ctrl.hasSession) {
-          return _ActiveCallSheet(callController: ctrl);
+          // Kichraytirilgan holatda qo'ng'iroq tasmasi overlay emas, ilova
+          // ustunining bir qismi bo'ladi (pastdagi build) — shunda u
+          // sarlavhani to'smaydi, balki butun kontentni pastga suradi.
+          if (_minimized) return const SizedBox.shrink();
+          return _ActiveCallSheet(
+            callController: ctrl,
+            onMinimize: () => _setMinimized(true),
+          );
         }
         return const SizedBox.shrink();
       },
@@ -116,10 +142,43 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CallController?>();
+    // Faol qo'ng'iroqda "orqaga" ekranni kichraytiradi (qo'ng'iroq davom
+    // etadi). Kiruvchi qo'ng'iroqda esa hech narsa qilmaydi — javob berish
+    // yoki rad etish kerak.
+    final blocksPop = controller != null &&
+        (controller.hasIncomingCall || (controller.hasSession && !_minimized));
+    final showBar =
+        controller != null && controller.hasSession && _minimized;
+    Widget content = widget.child;
+    if (showBar) {
+      content = Column(
+        children: [
+          _MinimizedCallBar(
+            callController: controller!,
+            onExpand: () => _setMinimized(false),
+          ),
+          // Tasma tepadagi xavfsiz zonani o'zi egallaydi — bola vidjet uni
+          // ikkinchi marta qo'shmasligi kerak.
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: content,
+            ),
+          ),
+        ],
+      );
+    }
+
     return PopScope(
-      canPop: controller == null ||
-          (!controller.hasSession && !controller.hasIncomingCall),
-      child: widget.child,
+      canPop: !blocksPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (controller != null && controller.hasSession && !_minimized) {
+          _setMinimized(true);
+        }
+      },
+      child: content,
     );
   }
 }
@@ -162,7 +221,8 @@ class _IncomingCallSheetState extends State<_IncomingCallSheet>
     final settings = context.watch<SettingsController>();
     final avatar = AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
     final initials = _initials(incoming.caller.displayName);
-    final typeLabel = incoming.isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq";
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final typeLabel = t(incoming.isVideo ? 'call_video' : 'call_voice');
 
     return Material(
       color: Colors.transparent,
@@ -210,13 +270,13 @@ class _IncomingCallSheetState extends State<_IncomingCallSheet>
                   _CallActionButton(
                     icon: Icons.call_end_rounded,
                     color: const Color(0xFFE53935),
-                    label: 'Rad etish',
+                    label: t('call_decline'),
                     onPressed: () => widget.callController.rejectIncomingCall(),
                   ),
                   _CallActionButton(
                     icon: incoming.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
                     color: const Color(0xFF43A047),
-                    label: 'Qabul qilish',
+                    label: t('call_accept'),
                     onPressed: () => unawaited(widget.callController.acceptIncomingCall()),
                   ),
                 ],
@@ -277,7 +337,7 @@ class _PulsingAvatar extends StatelessWidget {
               CircleAvatar(
                 radius: 72,
                 backgroundColor: const Color(0xFF2D5FCC).withAlpha(120),
-                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                backgroundImage: avatarUrl.isNotEmpty ? avatarImage(avatarUrl) : null,
                 child: avatarUrl.isEmpty
                     ? Text(
                         initials,
@@ -330,9 +390,128 @@ class _CallActionButton extends StatelessWidget {
   }
 }
 
-class _ActiveCallSheet extends StatefulWidget {
-  const _ActiveCallSheet({required this.callController});
+/// Kichraytirilgan qo'ng'iroq tasmasi.
+///
+/// Ekran tepasida turadi, qolgan joyni to'smaydi — ilova bilan odatdagidek
+/// ishlash mumkin. Bosilsa qo'ng'iroq ekrani qaytadi.
+class _MinimizedCallBar extends StatefulWidget {
+  const _MinimizedCallBar({
+    required this.callController,
+    required this.onExpand,
+  });
+
   final CallController callController;
+  final VoidCallback onExpand;
+
+  @override
+  State<_MinimizedCallBar> createState() => _MinimizedCallBarState();
+}
+
+class _MinimizedCallBarState extends State<_MinimizedCallBar> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _label(String Function(String key) t) {
+    final ctrl = widget.callController;
+    final connectedAt = ctrl.connectedAt;
+    if (ctrl.state != CallSessionState.connected || connectedAt == null) {
+      return t(ctrl.isVideo ? 'call_video' : 'call_voice');
+    }
+    final elapsed = DateTime.now().difference(connectedAt);
+    final minutes = elapsed.inMinutes.toString().padLeft(2, '0');
+    final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = widget.callController;
+    final peer = ctrl.remotePeer;
+    final peerName = peer?.displayName.trim() ?? '';
+    final title = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
+    final settings = context.watch<SettingsController>();
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final returnLabel = t('call_return');
+
+    return Material(
+      color: const Color(0xFF2A9D5C),
+      child: SafeArea(
+        bottom: false,
+        child: InkWell(
+          onTap: widget.onExpand,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Row(
+              children: [
+                Icon(
+                  ctrl.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title.isEmpty ? returnLabel : '$returnLabel · $title',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _label(t),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => unawaited(ctrl.hangUp()),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.call_end_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveCallSheet extends StatefulWidget {
+  const _ActiveCallSheet({
+    required this.callController,
+    required this.onMinimize,
+  });
+  final CallController callController;
+  final VoidCallback onMinimize;
   @override
   State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
 }
@@ -506,7 +685,8 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final showRemoteVideo = ctrl.isVideo && ctrl.hasRemoteVideo && _ready;
     final statusText = _buildStatusText(context, ctrl);
     final timerText = _buildTimerText(ctrl.connectedAt);
-    final titleText = peer?.displayName ?? peer?.username ?? '';
+    final peerName = peer?.displayName.trim() ?? '';
+    final titleText = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
     final subtitleText = timerText ?? statusText;
     final screen = MediaQuery.sizeOf(context);
     final pipPos = _clampPip(_pipOffset ?? _defaultPipOffset(screen), screen);
@@ -603,6 +783,29 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
               child: _LocalPreviewCard(renderer: _local, ctrl: ctrl),
             ),
           ),
+        Positioned(
+          top: 8,
+          left: 8,
+          child: SafeArea(
+            bottom: false,
+            child: AnimatedOpacity(
+              opacity: _controlsVisible ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: !_controlsVisible,
+                child: IconButton(
+                  onPressed: widget.onMinimize,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  color: Colors.white,
+                  iconSize: 32,
+                  tooltip: AppStrings.text(
+                      context.read<SettingsController>().localeCode,
+                      'call_minimize'),
+                ),
+              ),
+            ),
+          ),
+        ),
         Positioned(
           bottom: 36,
           left: 20,
@@ -760,12 +963,8 @@ class _RoundActionButton extends StatelessWidget {
       this.enabled = true,
       this.iconColor = Colors.white,
       this.size = 52,
-      this.iconSize = 26,
-      this.label});
+      this.iconSize = 26});
   final IconData icon;
-  /// Telegram har tugma ostida nima qilishini yozib qo'yadi — belgilarni
-  /// taxmin qilishga hojat qolmaydi.
-  final String? label;
   final Color backgroundColor;
   final Color iconColor;
   final VoidCallback onPressed;
@@ -785,26 +984,7 @@ class _RoundActionButton extends StatelessWidget {
       ),
     );
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: label == null
-          ? button
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                button,
-                const SizedBox(height: 6),
-                Text(
-                  label!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-    );
+    return Opacity(opacity: enabled ? 1 : 0.45, child: button);
   }
 }
 
@@ -862,7 +1042,7 @@ class _AvatarGlow extends StatelessWidget {
             ),
             child: CircleAvatar(
               backgroundColor: Colors.transparent,
-              backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+              backgroundImage: avatarUrl.isNotEmpty ? avatarImage(avatarUrl) : null,
               child: avatarUrl.isEmpty
                   ? Text(
                       initials,
@@ -974,8 +1154,6 @@ class _ControlsDock extends StatelessWidget {
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
         backgroundColor: Colors.transparent,
         size: 52,
-        label: AppStrings.text(
-            context.read<SettingsController>().localeCode, 'call_mute'),
         onPressed: () => ctrl.toggleMute(),
       ),
       _RoundActionButton(
@@ -987,10 +1165,6 @@ class _ControlsDock extends StatelessWidget {
         backgroundColor: ctrl.isVideo && ctrl.isCameraOff
             ? Colors.white
             : Colors.transparent,
-        label: AppStrings.text(
-          context.read<SettingsController>().localeCode,
-          ctrl.isVideo && !ctrl.isCameraOff ? 'call_stop_video' : 'call_start_video',
-        ),
         iconColor:
             ctrl.isVideo && ctrl.isCameraOff ? Colors.black : Colors.white,
         enabled: canToggleCamera,
@@ -999,8 +1173,6 @@ class _ControlsDock extends StatelessWidget {
         onPressed: () => ctrl.toggleCamera(),
       ),
       _RoundActionButton(
-        label: AppStrings.text(
-            context.read<SettingsController>().localeCode, 'call_end'),
         icon: Icons.call_end_rounded,
         backgroundColor: const Color(0xFFD84D68),
         size: 62,
@@ -1043,52 +1215,33 @@ class _SpeakerButton extends StatefulWidget {
 }
 
 class _SpeakerButtonState extends State<_SpeakerButton> {
-  int _tapCount = 0;
-  Timer? _tapTimer;
   OverlayEntry? _optionsEntry;
   final _btnKey = GlobalKey();
-  static const _doubleTapWindow = Duration(milliseconds: 300);
 
   @override
   void dispose() {
-    _tapTimer?.cancel();
     _dismissOptions();
     super.dispose();
   }
 
+  /// Bosish — dinamikni yoqadi/o'chiradi (kechikishsiz). Ilgari bu yerda
+  /// ikki marta bosishni kutish uchun 300 ms taymer bor edi va har bosish
+  /// marshrutni aylantirib chiqardi — natijada tugma "ishlamayapti" degan
+  /// taassurot qolardi. Boshqa qurilmani tanlash uzoq bosish orqali.
   void _onTap() {
     if (_optionsEntry != null) {
       _dismissOptions();
       return;
     }
-    _tapCount++;
-    if (_tapCount == 1) {
-      _tapTimer = Timer(_doubleTapWindow, () {
-        if (mounted) {
-          _cycleRoute();
-          _tapCount = 0;
-        }
-      });
-    } else {
-      _tapTimer?.cancel();
-      _tapCount = 0;
-      _showOptions();
-    }
+    widget.ctrl.toggleSpeaker();
   }
 
-  void _cycleRoute() {
-    final ctrl = widget.ctrl;
-    switch (ctrl.audioRoute) {
-      case CallAudioRoute.earpiece:
-        ctrl.setAudioRoute(CallAudioRoute.speaker);
-      case CallAudioRoute.speaker:
-        ctrl.setAudioRoute(
-          ctrl.hasBluetoothAudio ? CallAudioRoute.bluetooth : CallAudioRoute.earpiece,
-        );
-      case CallAudioRoute.bluetooth:
-      case CallAudioRoute.headset:
-        ctrl.setAudioRoute(CallAudioRoute.earpiece);
+  void _onLongPress() {
+    if (_optionsEntry != null) {
+      _dismissOptions();
+      return;
     }
+    _showOptions();
   }
 
   void _showOptions() {
@@ -1148,6 +1301,17 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
                         ctrl.setAudioRoute(CallAudioRoute.speaker);
                       },
                     ),
+                    if (ctrl.hasHeadsetAudio) ...[
+                      const SizedBox(width: 8),
+                      _AudioRouteOption(
+                        icon: Icons.headset_rounded,
+                        selected: ctrl.audioRoute == CallAudioRoute.headset,
+                        onTap: () {
+                          _dismissOptions();
+                          ctrl.setAudioRoute(CallAudioRoute.headset);
+                        },
+                      ),
+                    ],
                     if (ctrl.hasBluetoothAudio) ...[
                       const SizedBox(width: 8),
                       _AudioRouteOption(
@@ -1187,6 +1351,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
     final ctrl = widget.ctrl;
     return GestureDetector(
       onTap: _onTap,
+      onLongPress: _onLongPress,
       child: Container(
         key: _btnKey,
         width: 58,

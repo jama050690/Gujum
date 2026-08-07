@@ -48,7 +48,24 @@ class ChatController extends ChangeNotifier {
   List<InboxItem> _inbox = const [];
   List<ChatMessage> _messages = const [];
   InboxItem? _activeChat;
+  /// Ochilgan suhbatlarning xotiradagi nusxasi.
+  ///
+  /// LinkedHashMap tartibi ishlatiladi: eng oxirgi tegilgan suhbat oxirida
+  /// turadi, chegaradan oshganda esa eng eskisi chiqarib tashlanadi. Ilgari
+  /// bu jadval faqat o'sardi — 50 ta suhbat ochilsa, 50 tasining to'liq
+  /// xabarlari ilova yopilguncha xotirada qolardi. Diskdagi nusxa
+  /// saqlanadi, shuning uchun chiqarib tashlangan suhbat qayta ochilganda
+  /// darhol yuklanadi.
+  static const _maxCachedChats = 8;
   final Map<String, List<ChatMessage>> _messageCache = {};
+
+  void _cacheMessages(String peer, List<ChatMessage> messages) {
+    _messageCache.remove(peer);
+    _messageCache[peer] = List.from(messages);
+    while (_messageCache.length > _maxCachedChats) {
+      _messageCache.remove(_messageCache.keys.first);
+    }
+  }
   // Qurilmadagi doimiy nusxa. Server xabarlarni 24 soatdan keyin o'chiradi,
   // shuning uchun bu yerdagi nusxa hech qachon tozalanmaydi.
   MessageStore? _store;
@@ -111,7 +128,6 @@ class ChatController extends ChangeNotifier {
         _inbox = [..._inbox, ...more.where((e) => !seen.contains(e.username))];
       }
     } catch (e) {
-      debugPrint('CHAT_DEBUG loadMoreChats xatosi: $e');
     } finally {
       _loadingMoreChats = false;
       notifyListeners();
@@ -146,7 +162,6 @@ class ChatController extends ChangeNotifier {
         _persist(peer, _messages);
       }
     } catch (e) {
-      debugPrint('CHAT_DEBUG loadOlderMessages xatosi: $e');
     } finally {
       _loadingOlder = false;
       notifyListeners();
@@ -173,7 +188,6 @@ class ChatController extends ChangeNotifier {
     try {
       _store = await MessageStore.create(owner);
     } catch (e) {
-      debugPrint('CHAT_DEBUG MessageStore ochilmadi: $e');
       _store = null;
     }
     return _store;
@@ -181,7 +195,7 @@ class ChatController extends ChangeNotifier {
 
   /// Suhbatni xotirada ham, diskda ham yangilaydi.
   void _persist(String peer, List<ChatMessage> messages) {
-    _messageCache[peer] = List.from(messages);
+    _cacheMessages(peer, messages);
     unawaited(_ensureStore().then((store) => store?.save(peer, messages)));
     unawaited(_cacheAttachments(messages));
   }
@@ -244,7 +258,7 @@ class ChatController extends ChangeNotifier {
   void closeChat() {
     if (_activeChat != null) {
       if (_messages.isNotEmpty) {
-        _messageCache[_activeChat!.username] = List.from(_messages);
+        _cacheMessages(_activeChat!.username, _messages);
       } else {
         _messageCache.remove(_activeChat!.username);
       }
@@ -338,7 +352,7 @@ class ChatController extends ChangeNotifier {
       final stored = await store?.load(item.username) ?? const <ChatMessage>[];
       if (stored.isNotEmpty) {
         cached = stored;
-        _messageCache[item.username] = List.from(stored);
+        _cacheMessages(item.username, stored);
       }
       // Fetch davomida boshqa chat ochilgan bo'lishi mumkin.
       if (_activeChat?.username != item.username) return;
@@ -365,7 +379,6 @@ class ChatController extends ChangeNotifier {
         _updateInboxPreview(peer: item.username, unreadCount: 0);
       }
     } catch (e) {
-      debugPrint('CHAT_DEBUG openChat() fetchMessages xatosi: $e');
       if (_activeChat?.username == item.username && _messages.isEmpty) {
         _messagesLoadFailed = true;
         _messagesErrorDetail = e.toString();
@@ -394,9 +407,7 @@ class ChatController extends ChangeNotifier {
         }
         _updateInboxPreview(peer: item.username, unreadCount: 0);
         notifyListeners();
-        debugPrint('CHAT_DEBUG openChat() retry muvaffaqiyatli');
       } catch (e) {
-        debugPrint('CHAT_DEBUG openChat() retry xatosi: $e');
       }
     }
   }
@@ -418,9 +429,6 @@ class ChatController extends ChangeNotifier {
     final currentUser = _authController.user;
     final target = receiver ?? _activeChat?.username;
     if (currentUser == null || target == null) return false;
-    debugPrint(
-      'CHAT_DEBUG sendMessage() from=${currentUser.username} to=$target socketConnected=${_socketService.isConnected} hasText=${message.trim().isNotEmpty} hasImage=${image != null} hasAudio=${audio != null} hasVideo=${video != null}',
-    );
 
     // Idempotentlik kaliti: qayta yuborilsa (socket uzilib qayta ulandi,
     // foydalanuvchi ikki marta bosdi) server yangi qator yaratmaydi.
@@ -440,7 +448,6 @@ class ChatController extends ChangeNotifier {
       return true;
     }
 
-    debugPrint('CHAT_DEBUG sendMessage() falling back to REST API');
     final sent = await _chatRepository.sendDirectMessage(
       receiver: target,
       message: message.trim(),
@@ -628,7 +635,7 @@ class ChatController extends ChangeNotifier {
     if (store == null) return;
     final existing = _messageCache[peer] ?? await store.load(peer);
     final updated = MessageStore.merge(existing, [message]);
-    _messageCache[peer] = List.from(updated);
+    _cacheMessages(peer, updated);
     await store.save(peer, updated);
   }
 
@@ -645,7 +652,6 @@ class ChatController extends ChangeNotifier {
       _chatRepository
           .markRead(username: currentUser.username, chatWith: peer)
           .catchError((e) {
-        debugPrint('CHAT_DEBUG markRead xatosi: $e');
       }),
     );
   }
@@ -692,22 +698,16 @@ class ChatController extends ChangeNotifier {
   Future<void> _syncSession({bool force = false}) async {
     final user = _authController.user;
     if (user == null) {
-      debugPrint('CHAT_DEBUG _syncSession() skipped: no authenticated user');
       return;
     }
     final sessionKey = '${user.username}|${_settingsController.baseUrl}';
     if (_syncingSession) {
-      debugPrint('CHAT_DEBUG _syncSession() skipped: already syncing');
       return;
     }
     if (!force && _lastSessionKey == sessionKey && _inbox.isNotEmpty) {
-      debugPrint('CHAT_DEBUG _syncSession() skipped: session already ready');
       return;
     }
 
-    debugPrint(
-      'CHAT_DEBUG _syncSession() start force=$force username=${user.username} baseUrl=${_settingsController.baseUrl} socketBase=${AppConfig.socketBaseUrl(_settingsController.baseUrl)} socketPath=${AppConfig.socketPath(_settingsController.baseUrl)} hasCookie=${_sessionStore.cookie?.isNotEmpty == true}',
-    );
     _syncingSession = true;
     _socketService.connect(
       baseUrl: AppConfig.socketBaseUrl(_settingsController.baseUrl),
@@ -718,7 +718,6 @@ class ChatController extends ChangeNotifier {
     try {
       await loadInbox();
       _lastSessionKey = sessionKey;
-      debugPrint('CHAT_DEBUG _syncSession() completed');
     } finally {
       _syncingSession = false;
     }

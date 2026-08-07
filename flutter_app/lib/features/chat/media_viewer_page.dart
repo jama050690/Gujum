@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
+import '../../l10n/app_strings.dart';
 
 class ImageViewerPage extends StatelessWidget {
   const ImageViewerPage({
@@ -123,7 +124,7 @@ class _VideoViewerPageState extends State<VideoViewerPage> {
             ? const Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Video could not be loaded',
+                  AppStrings.t('video_load_failed'),
                   style: TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
