@@ -491,8 +491,6 @@ class _FriendsPageState extends State<FriendsPage> {
         loadingContacts: _loadingContacts,
         contactsErrorKey: _contactsErrorKey,
         showPhoneContactsSection: _showPhoneContactsSection,
-        onSearch: _runSearch,
-        onSearchChanged: _onSearchChanged,
         onRefreshContacts: _loadPhoneContactMatches,
         onOpenChat: _openChat,
         onInvite: _invite,
@@ -511,8 +509,6 @@ class _SearchTab extends StatelessWidget {
     required this.loadingContacts,
     required this.contactsErrorKey,
     required this.showPhoneContactsSection,
-    required this.onSearch,
-    required this.onSearchChanged,
     required this.onRefreshContacts,
     required this.onOpenChat,
     required this.onInvite,
@@ -527,8 +523,6 @@ class _SearchTab extends StatelessWidget {
   final bool loadingContacts;
   final String? contactsErrorKey;
   final bool showPhoneContactsSection;
-  final Future<void> Function() onSearch;
-  final ValueChanged<String> onSearchChanged;
   final Future<void> Function() onRefreshContacts;
   final ValueChanged<SimpleUser> onOpenChat;
   final ValueChanged<_InviteCandidate> onInvite;
@@ -580,7 +574,20 @@ class _SearchTab extends StatelessWidget {
                     ),
                   ),
                   const Divider(height: 24),
-                  if (results.isNotEmpty)
+                  // Qidiruv natijalari shu yerda — maydonning o'zi sarlavha
+                  // panelida (bitta global qidiruv komponenti).
+                  if (searching)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (results.isEmpty && controller.text.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Text(t('friend_search_hint')),
+                    )
+                  else
                     ...results.map((user) {
                       final imageUrl =
                           AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
@@ -654,47 +661,6 @@ class _SearchTab extends StatelessWidget {
                         onTap: () => onOpenChat(user),
                       );
                     }),
-                  const Divider(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text(
-                      t('search_users'),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: AppSearchField(
-                      controller: controller,
-                      hintText: t('search_hint'),
-                      autofocus: false,
-                      onChanged: onSearchChanged,
-                      onSubmitted: (_) => onSearch(),
-                    ),
-                  ),
-                  if (searching)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (results.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(t('friend_search_hint')),
-                    )
-                  else
-                    ...results.map((user) {
-                      final imageUrl = AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                          child: imageUrl.isEmpty ? Text(user.fullName.substring(0, 1).toUpperCase()) : null,
-                        ),
-                        title: Text(user.fullName),
-                        subtitle: Text('@${user.username}'),
-                        onTap: () => onOpenChat(user),
-                      );
-                    }),
                   const SizedBox(height: 24),
                 ];
                 return ListView.builder(
@@ -708,16 +674,6 @@ class _SearchTab extends StatelessWidget {
             ),
           )
         else ...[
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: AppSearchField(
-            controller: controller,
-            hintText: t('search_hint'),
-            autofocus: false,
-            onChanged: onSearchChanged,
-            onSubmitted: (_) => onSearch(),
-          ),
-        ),
         Expanded(
           child: searching
               ? const Center(child: CircularProgressIndicator())
