@@ -1,0 +1,96 @@
+name: 🔎 Flutter check
+
+run-name: 🔎 Flutter · ${{ inputs.action || 'analyze' }} · ${{ github.ref_name }} · @${{ github.actor }}
+
+# Manual only, like the other workflows here. Checks run when someone asks for
+# them, not on every push — a branch normally sees many commits before it is
+# worth spending a runner on.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to run'
+        required: true
+        default: 'analyze'
+        type: choice
+        options:
+          # Static analysis + widget tests. ~2-3 min, no Android toolchain.
+          - analyze
+          # Same checks, then a debug APK to prove the branch actually
+          # compiles end to end, and report its size.
+          - analyze-and-build
+
+concurrency:
+  # Two checks on the same branch tell you the same thing; keep the newest.
+  group: flutter-check-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: 🔎 analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Dependencies
+        run: flutter pub get
+
+      # Errors fail the run; warnings and lints are printed but tolerated, so
+      # the check stays useful instead of red for style opinions.
+      - name: 🔎 Analyze
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: 🧪 Tests
+        run: flutter test
+
+      - name: ☕ Set up Java 17
+        if: ${{ inputs.action == 'analyze-and-build' }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐘 Cache Gradle
+        if: ${{ inputs.action == 'analyze-and-build' }}
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_app/android/**/*.gradle*', 'flutter_app/android/gradle/wrapper/gradle-wrapper.properties', 'flutter_app/pubspec.lock') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      # Debug, not release: no signing keys needed, and the question here is
+      # "does it compile", not "is it shippable". Release builds stay in the
+      # APK workflow.
+      - name: 🔨 Debug APK
+        if: ${{ inputs.action == 'analyze-and-build' }}
+        run: flutter build apk --debug --target-platform android-arm64
+
+      - name: 📏 APK size
+        if: ${{ inputs.action == 'analyze-and-build' }}
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-debug.apk
+          SIZE=$(du -h "$APK" | cut -f1)
+          echo "### 🔎 Flutter check passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Debug APK: **$SIZE** (\`$APK\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Debug builds carry the VM in JIT mode, so this number is much" >> "$GITHUB_STEP_SUMMARY"
+          echo "larger than the release APK — compare it against previous" >> "$GITHUB_STEP_SUMMARY"
+          echo "*debug* runs, never against a release build." >> "$GITHUB_STEP_SUMMARY"
