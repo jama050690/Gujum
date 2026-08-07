@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../models/chat_models.dart';
-import '../../models/social_models.dart';
 import '../../l10n/app_strings.dart';
 
 class ChatRepository {

@@ -109,44 +109,6 @@ String _formatInboxTime(DateTime? value, String localeCode) {
   return '$day.$month.${value.year}';
 }
 
-// Inbox uchun: doim aniq vaqt — bugun HH:mm da, kecha, yoki DD.MM.YYYY
-String _formatLastSeenClock(DateTime? value, String localeCode) {
-  if (value == null) return AppStrings.text(localeCode, 'offline');
-
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final target = DateTime(value.year, value.month, value.day);
-
-  // Bugun: aniq soat "21:37 da"
-  if (target == today) {
-    final clock = _formatClock(value);
-    return AppStrings.text(localeCode, 'time_at').replaceAll('{time}', clock);
-  }
-
-  // Kecha
-  if (target == today.subtract(const Duration(days: 1))) {
-    return AppStrings.text(localeCode, 'time_yesterday');
-  }
-
-  // 30 kundan kam
-  final diff = now.difference(value);
-  if (diff.inDays < 30) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-    return '$day.$month.${value.year}';
-  }
-
-  // 30 kundan ortiq
-  final months = (diff.inDays / 30).floor();
-  if (months < 12) {
-    return AppStrings.text(localeCode, 'time_months_ago')
-        .replaceAll('{n}', '$months');
-  }
-  final years = (diff.inDays / 365).floor();
-  return AppStrings.text(localeCode, 'time_years_ago')
-      .replaceAll('{n}', '$years');
-}
-
 // Chat header uchun: X daqiqa/soat oldin, kecha, yoki DD.MM.YYYY
 String _formatLastSeenStatus(DateTime? value, String localeCode) {
   if (value == null) {

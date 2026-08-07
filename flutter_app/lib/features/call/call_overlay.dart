@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -154,7 +153,7 @@ class _CallOverlayHostState extends State<CallOverlayHost>
       content = Column(
         children: [
           _MinimizedCallBar(
-            callController: controller!,
+            callController: controller,
             onExpand: () => _setMinimized(false),
           ),
           // Tasma tepadagi xavfsiz zonani o'zi egallaydi — bola vidjet uni

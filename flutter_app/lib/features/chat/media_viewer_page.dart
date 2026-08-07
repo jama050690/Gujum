@@ -121,11 +121,11 @@ class _VideoViewerPageState extends State<VideoViewerPage> {
       ),
       body: Center(
         child: _failed
-            ? const Padding(
-                padding: EdgeInsets.all(24),
+            ? Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text(
                   AppStrings.t('video_load_failed'),
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
               )
