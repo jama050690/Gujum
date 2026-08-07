@@ -26,14 +26,14 @@
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true">
+        <!-- launchMode: singleInstance edi va shu sababli boshqa ilova natija
+             qaytarib bera olmasdi (galereya, kamera, hujjat tanlash, SIM raqami
+             tanlagichi) — Android darhol RESULT_CANCELED qaytarardi va tanlangan
+             fayl hech qachon yetib kelmasdi. singleTop Flutter uchun standart va
+             startActivityForResult bilan ishlaydi. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            <!-- singleInstance edi: bu holatda boshqa ilova natija qaytarib
-                 bera olmaydi (galereya, kamera, hujjat tanlash, SIM raqami
-                 tanlagichi) — Android darhol RESULT_CANCELED qaytaradi va
-                 tanlangan fayl hech qachon yetib kelmaydi. singleTop Flutter
-                 uchun standart va startActivityForResult bilan ishlaydi. -->
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
