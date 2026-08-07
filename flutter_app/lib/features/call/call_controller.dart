@@ -69,6 +69,18 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         _authController = authController {
     _subscription = _socketService.packets.listen(_handlePacket);
     _callKitSub = CallKitService.instance.events.listen(_handleCallKitEvent);
+    // Qo'ng'iroq davomida quloqchin ulansa/uzilsa native tomon xabar beradi.
+    _audioChannel.setMethodCallHandler((call) async {
+      if (call.method != 'audioRouteChanged') return null;
+      final info = (call.arguments as Map?)?.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      if (info == null) return null;
+      debugPrint('CALL_DEBUG audioRouteChanged $info');
+      _syncAudioRouteInfo(info);
+      notifyListeners();
+      return null;
+    });
     _audioPlayer = AudioPlayer();
     WidgetsBinding.instance.addObserver(this);
   }
