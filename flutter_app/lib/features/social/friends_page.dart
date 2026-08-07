@@ -50,11 +50,6 @@ class _FriendsPageState extends State<FriendsPage> {
   List<SimpleUser> _searchResults = const [];
   List<_PhoneContactMatch> _phoneMatches = const [];
   List<_InviteCandidate> _inviteCandidates = const [];
-  /// Taklif ro'yxati bir necha ming kontakt bo'lishi mumkin. ListView
-  /// bolalarini birdan quradi, shuning uchun hammasini chizish sahifani
-  /// ochilmas qilib qo'yardi — bo'lib-bo'lib ko'rsatamiz.
-  static const _invitePageSize = 50;
-  int _inviteLimit = _invitePageSize;
   bool _searchOpen = false;
   Timer? _searchDebounce;
   bool _searching = false;
@@ -202,7 +197,6 @@ class _FriendsPageState extends State<FriendsPage> {
       setState(() {
         _phoneMatches = matches;
         _inviteCandidates = inviteList;
-        _inviteLimit = _invitePageSize;
       });
     } catch (error) {
       _showError(error);
@@ -328,10 +322,6 @@ class _FriendsPageState extends State<FriendsPage> {
         settings: settings,
         phoneMatches: _phoneMatches,
         inviteCandidates: _inviteCandidates,
-        inviteLimit: _inviteLimit,
-        onShowMoreInvites: () => setState(
-          () => _inviteLimit += _invitePageSize,
-        ),
         loadingContacts: _loadingContacts,
         contactsErrorKey: _contactsErrorKey,
         showPhoneContactsSection: _showPhoneContactsSection,
@@ -361,8 +351,6 @@ class _SearchTab extends StatelessWidget {
     required this.onOpenChat,
     required this.onInvite,
     required this.inviteCandidates,
-    required this.inviteLimit,
-    required this.onShowMoreInvites,
   });
 
   final TextEditingController controller;
@@ -379,8 +367,6 @@ class _SearchTab extends StatelessWidget {
   final ValueChanged<SimpleUser> onOpenChat;
   final ValueChanged<_InviteCandidate> onInvite;
   final List<_InviteCandidate> inviteCandidates;
-  final int inviteLimit;
-  final VoidCallback onShowMoreInvites;
 
   @override
   Widget build(BuildContext context) {
@@ -391,8 +377,13 @@ class _SearchTab extends StatelessWidget {
           Expanded(
             child: RefreshIndicator(
               onRefresh: onRefreshContacts,
-              child: ListView(
-                children: [
+              child: Builder(builder: (context) {
+                // Ro'yxat dangasa bo'lishi shart: ListView(children: [...])
+                // barcha qatorlarni birdan quradi va bir necha ming
+                // kontaktda sahifa ochilmay qolardi. ListView.builder
+                // faqat ekranga tushganini quradi — 'ko'proq ko'rsatish'
+                // tugmasi ham keraksiz bo'ladi, Telegram'da ham yo'q.
+                final items = <Widget>[
                   if (results.isNotEmpty)
                     ...results.map((user) {
                       final imageUrl =
@@ -485,7 +476,7 @@ class _SearchTab extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    ...inviteCandidates.take(inviteLimit).map(
+                    ...inviteCandidates.map(
                       (candidate) => ListTile(
                         leading: CircleAvatar(
                           child: Text(
@@ -502,17 +493,6 @@ class _SearchTab extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (inviteCandidates.length > inviteLimit)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                        child: OutlinedButton(
-                          onPressed: onShowMoreInvites,
-                          child: Text(
-                            '${t('show_more')} '
-                            '(${inviteCandidates.length - inviteLimit})',
-                          ),
-                        ),
-                      ),
                   ],
                   const Divider(height: 24),
                   Padding(
@@ -557,8 +537,12 @@ class _SearchTab extends StatelessWidget {
                       );
                     }),
                   const SizedBox(height: 24),
-                ],
-              ),
+                ];
+                return ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => items[index],
+                );
+              }),
             ),
           )
         else ...[

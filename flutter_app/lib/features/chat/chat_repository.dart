@@ -29,16 +29,22 @@ class ChatRepository {
   Future<List<ChatMessage>> fetchMessages({
     required String user1,
     required String user2,
+    DateTime? before,
+    int? limit,
   }) async {
     final response = await _apiClient.getJson(
       '/api/messages',
       query: {
         'user1': user1,
         'user2': user2,
+        // Kursor: shu vaqtdan oldingi xabarlar. OFFSET emas — chuqurlashgan
+        // sari sekinlashmaydi va yangi xabar kelganda qatorlar siljib
+        // takrorlanmaydi.
+        if (before != null) 'before': before.toIso8601String(),
+        if (limit != null) 'limit': '$limit',
       },
       authenticated: true,
     );
-
     return (response as List<dynamic>)
         .map((item) => ChatMessage.fromApi(item as Map<String, dynamic>))
         .toList();

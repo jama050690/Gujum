@@ -185,7 +185,20 @@ extension _ConversationPaneView on _ConversationPaneState {
             .toList();
     return Stack(
       children: [
-        ListView.builder(
+        // Ro'yxat teskari, shuning uchun "tepaga yetish" = oxiriga yetish.
+        // Foydalanuvchi eski xabarlarga qarab borganda keyingi bo'lak
+        // oldindan so'raladi — ro'yxat tugab, to'xtab qolishini kutmaymiz.
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (query.isEmpty &&
+                notification.metrics.extentAfter < 600 &&
+                chat.hasMoreOlder &&
+                !chat.loadingOlder) {
+              unawaited(chat.loadOlderMessages());
+            }
+            return false;
+          },
+          child: ListView.builder(
       reverse: true,
       controller: _messagesScrollController,
       padding: messagePadding,
@@ -235,6 +248,7 @@ extension _ConversationPaneView on _ConversationPaneState {
           ],
         );
       },
+        ),
         ),
         if (_showScrollToBottom)
           Positioned(

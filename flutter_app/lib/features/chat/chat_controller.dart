@@ -57,6 +57,10 @@ class ChatController extends ChangeNotifier {
   bool _loadingInbox = false;
   bool _loadingMessages = false;
   bool _messagesLoadFailed = false;
+  bool _loadingOlder = false;
+  /// Serverda yana eski xabarlar bormi. Bir marta bo'sh sahifa kelsa
+  /// so'ramaymiz — pastga har tekkanda so'rov yuborilmasin.
+  bool _hasMoreOlder = true;
   String? _messagesErrorDetail;
   bool _searching = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.connected;
@@ -81,6 +85,43 @@ class ChatController extends ChangeNotifier {
         ConnectionStatus.offline => 'connection_offline',
       };
   bool get isConnected => _socketService.isConnected;
+  bool get loadingOlder => _loadingOlder;
+  bool get hasMoreOlder => _hasMoreOlder;
+
+  /// Ro'yxat tepasiga yetganda chaqiriladi: eng eski yuklangan xabardan
+  /// oldingilarini oladi. Sahifa ochilishida hammasi emas, faqat oxirgi
+  /// bo'lak yuklanadi — qolgani kerak bo'lganda kelaveradi.
+  Future<void> loadOlderMessages() async {
+    if (_loadingOlder || !_hasMoreOlder) return;
+    final user = _authController.user;
+    final peer = _activeChat?.username;
+    if (user == null || peer == null || _messages.isEmpty) return;
+
+    final oldest = _messages.first.createdAt;
+    if (oldest == null) return;
+
+    _loadingOlder = true;
+    notifyListeners();
+    try {
+      final older = await _chatRepository.fetchMessages(
+        user1: user.username,
+        user2: peer,
+        before: oldest,
+      );
+      if (_activeChat?.username != peer) return;
+      if (older.isEmpty) {
+        _hasMoreOlder = false;
+      } else {
+        _messages = MessageStore.merge(older, _messages);
+        _persist(peer, _messages);
+      }
+    } catch (e) {
+      debugPrint('CHAT_DEBUG loadOlderMessages xatosi: $e');
+    } finally {
+      _loadingOlder = false;
+      notifyListeners();
+    }
+  }
 
   // --- KOMPILYATSIYA XATOLARINI TUZATUVCHI METODLAR ---
   Future<void> bootstrap() async {
@@ -277,6 +318,7 @@ class ChatController extends ChangeNotifier {
     _loadingMessages = !hasCache;
     _messagesLoadFailed = false;
     _messagesErrorDetail = null;
+    _hasMoreOlder = true;
     notifyListeners();
     try {
       final fetched = await _chatRepository.fetchMessages(

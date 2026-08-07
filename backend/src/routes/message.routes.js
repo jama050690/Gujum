@@ -60,7 +60,12 @@ router.get("/calls/history", async (req, res) => {
 
 // GET /api/messages
 router.get("/messages", async (req, res) => {
-  const { user1, user2 } = req.query;
+  const { user1, user2, before } = req.query;
+  // Kursorli sahifalash: OFFSET emas. OFFSET 5000 da Postgres avval 5000
+  // qatorni sanab chiqadi, kursor esa indeks bo'yicha to'g'ridan-to'g'ri
+  // kerakli joyga tushadi. Bundan tashqari suhbat davomida yangi xabar
+  // kelsa OFFSET qatorlarni takrorlab yoki tashlab yuboradi.
+  const limit = Math.min(Number(req.query.limit) || 40, 100);
 
   // Agar user1 va user2 berilgan bo'lsa - private chat
   if (user1 && user2) {
@@ -107,6 +112,13 @@ router.get("/messages", async (req, res) => {
         emitToUser(user2, "MESSAGES_READ", { by: user1 });
       }
 
+      const params = [chatId, user1Id, limit];
+      let cursorClause = "";
+      if (before) {
+        params.push(before);
+        cursorClause = `AND m.created_at < $${params.length}`;
+      }
+
       const { rows } = await pool.query(
         `SELECT * FROM (
            SELECT m.id, m.content, m.image, m.audio, m.video, m.is_read, m.created_at,
@@ -119,11 +131,12 @@ router.get("/messages", async (req, res) => {
                SELECT 1 FROM message_deletions d
                WHERE d.message_id = m.id AND d.user_id = $2
              )
+             ${cursorClause}
            ORDER BY m.created_at DESC
-           LIMIT 80
+           LIMIT $3
          ) recent
          ORDER BY recent.created_at ASC`,
-        [chatId, user1Id],
+        params,
       );
 
       return res.json(rows);
