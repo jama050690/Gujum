@@ -18,6 +18,11 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> _values = {
     'uz': {
+      'call_mute': "Ovozsiz",
+      'call_start_video': "Videoni yoqish",
+      'call_stop_video': "Videoni to'xtatish",
+      'call_speaker': "Dinamik",
+      'call_flip': "Kamera",
       'you': "Siz",
       'show_more': "Ko'proq",
       'chat_more_actions': "Boshqa amallar",
@@ -248,6 +253,11 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'en': {
+      'call_mute': "Mute",
+      'call_start_video': "Start Video",
+      'call_stop_video': "Stop Video",
+      'call_speaker': "Speaker",
+      'call_flip': "Flip",
       'you': "You",
       'show_more': "Show more",
       'chat_more_actions': "More actions",
@@ -479,6 +489,11 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'call_mute': "Без звука",
+      'call_start_video': "Включить видео",
+      'call_stop_video': "Выключить видео",
+      'call_speaker': "Динамик",
+      'call_flip': "Камера",
       'you': "Вы",
       'show_more': "Показать ещё",
       'chat_more_actions': "Другие действия",
@@ -623,6 +638,11 @@ class AppStrings {
       'chat_location_failed': 'Не удалось получить местоположение',
     },
     'ar': {
+      'call_mute': "كتم",
+      'call_start_video': "تشغيل الفيديو",
+      'call_stop_video': "إيقاف الفيديو",
+      'call_speaker': "مكبر الصوت",
+      'call_flip': "تبديل",
       'you': "أنت",
       'show_more': "عرض المزيد",
       'chat_more_actions': "إجراءات أخرى",
@@ -843,6 +863,11 @@ class AppStrings {
       'version_label': "الإصدار",
     },
     'ko': {
+      'call_mute': "음소거",
+      'call_start_video': "비디오 시작",
+      'call_stop_video': "비디오 중지",
+      'call_speaker': "스피커",
+      'call_flip': "전환",
       'you': "나",
       'show_more': "더 보기",
       'chat_more_actions': "추가 작업",

@@ -273,8 +273,10 @@ router.post("/messages", authMiddleware, async (req, res) => {
 
 // GET /api/inbox
 router.get("/inbox", async (req, res) => {
-  const { username } = req.query;
+  const { username, before } = req.query;
   if (!username) return res.status(400).json({ message: "username kerak" });
+  // Xabarlar bilan bir xil yondashuv: kursor oxirgi xabar vaqti bo'yicha.
+  const limit = Math.min(Number(req.query.limit) || 40, 100);
 
   try {
     const userResult = await pool.query(
@@ -287,6 +289,13 @@ router.get("/inbox", async (req, res) => {
     }
 
     const userId = userResult.rows[0].id;
+
+    const params = [userId, limit];
+    let cursorClause = "";
+    if (before) {
+      params.push(before);
+      cursorClause = `AND lm.created_at < $${params.length}`;
+    }
 
     // Get chats with last message info using LATERAL join
     const { rows } = await pool.query(`
@@ -325,10 +334,12 @@ router.get("/inbox", async (req, res) => {
           AND um.sender_id <> $1
           AND COALESCE(um.is_read, FALSE) = FALSE
       ) uc ON true
-      WHERE c.user1_id = $1 OR c.user2_id = $1
+      WHERE (c.user1_id = $1 OR c.user2_id = $1)
+        ${cursorClause}
       ORDER BY lm.created_at DESC NULLS LAST
+      LIMIT $2
     `,
-      [userId],
+      params,
     );
 
     res.json(rows);

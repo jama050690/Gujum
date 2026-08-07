@@ -14,13 +14,20 @@ class ChatRepository {
 
   final ApiClient _apiClient;
 
-  Future<List<InboxItem>> fetchInbox(String username) async {
+  Future<List<InboxItem>> fetchInbox(
+    String username, {
+    DateTime? before,
+    int? limit,
+  }) async {
     final response = await _apiClient.getJson(
       '/api/inbox',
-      query: {'username': username},
+      query: {
+        'username': username,
+        if (before != null) 'before': before.toIso8601String(),
+        if (limit != null) 'limit': '$limit',
+      },
       authenticated: true,
     );
-
     return (response as List<dynamic>)
         .map((item) => InboxItem.fromJson(item as Map<String, dynamic>))
         .toList();

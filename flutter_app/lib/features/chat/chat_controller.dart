@@ -61,6 +61,8 @@ class ChatController extends ChangeNotifier {
   /// Serverda yana eski xabarlar bormi. Bir marta bo'sh sahifa kelsa
   /// so'ramaymiz — pastga har tekkanda so'rov yuborilmasin.
   bool _hasMoreOlder = true;
+  bool _loadingMoreChats = false;
+  bool _hasMoreChats = true;
   String? _messagesErrorDetail;
   bool _searching = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.connected;
@@ -87,6 +89,34 @@ class ChatController extends ChangeNotifier {
   bool get isConnected => _socketService.isConnected;
   bool get loadingOlder => _loadingOlder;
   bool get hasMoreOlder => _hasMoreOlder;
+  bool get hasMoreChats => _hasMoreChats;
+
+  /// Suhbatlar ro'yxatining keyingi bo'lagi. Xabarlar bilan bir xil kursor
+  /// yondashuvi — oxirgi xabar vaqtidan oldingilari.
+  Future<void> loadMoreChats() async {
+    if (_loadingMoreChats || !_hasMoreChats || _inbox.isEmpty) return;
+    final user = _authController.user;
+    if (user == null) return;
+    final oldest = _inbox.last.lastMessageAt;
+    if (oldest == null) return;
+
+    _loadingMoreChats = true;
+    try {
+      final more =
+          await _chatRepository.fetchInbox(user.username, before: oldest);
+      if (more.isEmpty) {
+        _hasMoreChats = false;
+      } else {
+        final seen = _inbox.map((e) => e.username).toSet();
+        _inbox = [..._inbox, ...more.where((e) => !seen.contains(e.username))];
+      }
+    } catch (e) {
+      debugPrint('CHAT_DEBUG loadMoreChats xatosi: $e');
+    } finally {
+      _loadingMoreChats = false;
+      notifyListeners();
+    }
+  }
 
   /// Ro'yxat tepasiga yetganda chaqiriladi: eng eski yuklangan xabardan
   /// oldingilarini oladi. Sahifa ochilishida hammasi emas, faqat oxirgi
@@ -552,6 +582,7 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
     try {
       _inbox = await _chatRepository.fetchInbox(user.username);
+      _hasMoreChats = _inbox.isNotEmpty;
       // Populate _lastActiveUsers from inbox data (only for offline users)
       final updated = Map<String, DateTime?>.from(_lastActiveUsers);
       for (final item in _inbox) {

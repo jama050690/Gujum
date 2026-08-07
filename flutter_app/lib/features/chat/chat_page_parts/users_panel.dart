@@ -132,10 +132,19 @@ class _UsersPanel extends StatelessWidget {
             Positioned.fill(
               child: RefreshIndicator(
                 onRefresh: chat.loadInbox,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.only(bottom: safeBottom + 118),
-                  children: [
+                child: NotificationListener<ScrollNotification>(
+                  // Ro'yxat oxiriga yaqinlashganda keyingi bo'lak
+                  // so'raladi — tugab qolishini kutmaymiz.
+                  onNotification: (n) {
+                    if (n.metrics.extentAfter < 600 && chat.hasMoreChats) {
+                      unawaited(chat.loadMoreChats());
+                    }
+                    return false;
+                  },
+                  child: Builder(builder: (context) {
+                    // Dangasa ro'yxat: ListView(children: [...]) barcha
+                    // suhbatlarni birdan quradi.
+                    final items = <Widget>[
                     _UsersHeader(
                       settings: settings,
                       currentUser: currentUser,
@@ -250,7 +259,12 @@ class _UsersPanel extends StatelessWidget {
                           ),
                       ],
                     ],
-                  ],
+                  ];
+                    return ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) => items[index],
+                    );
+                  }),
                 ),
               ),
             ),

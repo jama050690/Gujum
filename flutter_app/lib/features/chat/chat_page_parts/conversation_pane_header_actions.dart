@@ -11,50 +11,71 @@ Widget _buildHeaderActions(String Function(String) t) {
         icon: Icons.call_outlined,
         onPressed: () => _startCall(video: false),
       ),
-      _HeaderActionButton(
-        icon: Icons.more_vert_rounded,
-        onPressed: () => _showHeaderMenu(t),
+      // Telegram uch nuqta menyusini tugmaning yoniga ochadi — pastdan
+      // ko'tariladigan varaq emas. Shu sababli PopupMenuButton.
+      PopupMenuButton<String>(
+        icon: const Icon(Icons.more_vert_rounded),
+        position: PopupMenuPosition.under,
+        onSelected: (value) => _onHeaderMenuSelected(value, t),
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: 'video',
+            child: Row(children: [
+              const Icon(Icons.videocam_outlined),
+              const SizedBox(width: 14),
+              Text(t('call_video')),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'audio',
+            child: Row(children: [
+              const Icon(Icons.call_outlined),
+              const SizedBox(width: 14),
+              Text(t('call_audio')),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'search',
+            child: Row(children: [
+              const Icon(Icons.search_rounded),
+              const SizedBox(width: 14),
+              Text(t('search')),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'clear',
+            child: Row(children: [
+              const Icon(Icons.cleaning_services_outlined),
+              const SizedBox(width: 14),
+              Text(t('chat_clear_history')),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(children: [
+              const Icon(Icons.delete_outline_rounded),
+              const SizedBox(width: 14),
+              Text(t('chat_delete')),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'more',
+            child: Row(children: [
+              const Icon(Icons.more_horiz_rounded),
+              const SizedBox(width: 14),
+              Text(t('chat_more_actions')),
+            ]),
+          ),
+        ],
       ),
     ],
   );
 }
 
-/// Uch nuqta menyusi: video qo'ng'iroq, ovozli qo'ng'iroq (sarlavhadagining
-/// takrori) va qidiruv. Oxirida chat amallari — arxiv, tozalash va boshqalar.
-Future<void> _showHeaderMenu(String Function(String) t) async {
-  final action = await showModalBottomSheet<String>(
-    context: context,
-    backgroundColor: Theme.of(context).cardColor,
-    builder: (sheetContext) => SafeArea(
-      child: Wrap(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.videocam_outlined),
-            title: Text(t('call_video')),
-            onTap: () => Navigator.of(sheetContext).pop('video'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.call_outlined),
-            title: Text(t('call_audio')),
-            onTap: () => Navigator.of(sheetContext).pop('audio'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.search_rounded),
-            title: Text(t('search')),
-            onTap: () => Navigator.of(sheetContext).pop('search'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.more_horiz_rounded),
-            title: Text(t('chat_more_actions')),
-            onTap: () => Navigator.of(sheetContext).pop('more'),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  if (!mounted || action == null) return;
+/// Uch nuqta menyusidagi tanlov.
+Future<void> _onHeaderMenuSelected(String action, String Function(String) t) async {
+  final chat = widget.chat;
+  final peer = chat.activeChat?.username;
   switch (action) {
     case 'video':
       _startCall(video: true);
@@ -64,6 +85,30 @@ Future<void> _showHeaderMenu(String Function(String) t) async {
       break;
     case 'search':
       setState(() => _chatSearchActive = true);
+      break;
+    case 'clear':
+      if (peer == null) return;
+      if (!await _confirmChatAction(
+        title: t('chat_clear_history'),
+        message: t('chat_clear_history_confirm'),
+        confirmLabel: t('chat_clear_history'),
+        destructive: true,
+      )) {
+        return;
+      }
+      await chat.clearChatHistory(peer);
+      break;
+    case 'delete':
+      if (peer == null) return;
+      if (!await _confirmChatAction(
+        title: t('chat_delete'),
+        message: t('chat_delete_confirm'),
+        confirmLabel: t('chat_delete'),
+        destructive: true,
+      )) {
+        return;
+      }
+      await chat.deleteChat(peer);
       break;
     case 'more':
       widget.onMoreActions?.call();
