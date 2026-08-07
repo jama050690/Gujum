@@ -275,6 +275,17 @@ function registerSocketHandlers(io) {
 
       const callId = data.callId || `call_${Date.now()}_${callerUsername}`;
 
+      // Suhbatdosh allaqachon boshqa qo'ng'iroqda bo'lsa, uni bezovta
+      // qilmaymiz. Ilgari bunday holatda callee ning klienti CALL_REJECT
+      // yuborardi va chaqiruvchiga "rad etildi" deb ko'rsatilardi — ya'ni
+      // band bo'lgan odam ataylab rad etgandek ko'rinardi.
+      const targetCallId = activeCallByUser.get(target);
+      const targetCall = targetCallId ? activeCalls.get(targetCallId) : null;
+      if (targetCall && targetCallId !== callId) {
+        emitToUser(callerUsername, "CALL_BUSY", { target, callId });
+        return;
+      }
+
       // The client supplies its own display card — pin the username inside it
       // to the authenticated one so a caller can't ring as someone else.
       const callerInfo =
@@ -296,6 +307,7 @@ function registerSocketHandlers(io) {
         callee: target,
         isVideo: !!isVideo,
         status: "ringing",
+        createdAt: Date.now(),
         offer,
         participants: { [callerUsername]: callerInfo }
       };
@@ -656,6 +668,47 @@ async function saveCallMessage(caller, target, isVideo, duration) {
     emitToUser(target, "NEW_MESSAGE", callMsg);
   } catch (e) { console.error("Call log error", e); }
 }
+
+// Osilib qolgan sessiyalarni tozalash.
+//
+// activeCalls faqat CALL_END/CALL_REJECT kelganda tozalanardi. Ilova
+// majburan yopilsa (yoki tarmoq uzilsa) yozuv abadiy qolib ketardi va
+// foydalanuvchi qayta ulanganda CALL_SESSION_SYNC unga allaqachon tugagan
+// qo'ng'iroq ekranini ko'rsatardi. Endi har daqiqada tekshiriladi.
+const CALL_RINGING_TTL_MS = 90 * 1000;
+const CALL_ORPHAN_TTL_MS = 2 * 60 * 1000;
+
+function sweepStaleCalls() {
+  const now = Date.now();
+  for (const [callId, session] of activeCalls) {
+    const bothGone =
+      !hasLiveSockets(session.caller) && !hasLiveSockets(session.callee);
+    const ringingTooLong =
+      session.status === "ringing" &&
+      now - (session.createdAt || now) > CALL_RINGING_TTL_MS;
+    const orphaned =
+      bothGone &&
+      now - (session.connectedAt || session.createdAt || now) >
+        CALL_ORPHAN_TTL_MS;
+
+    if (!ringingTooLong && !orphaned) continue;
+
+    finalizeCallSession(callId);
+    for (const username of [session.caller, session.callee]) {
+      emitToUser(username, "CALL_END", {
+        callId,
+        reason: ringingTooLong ? "no_answer" : "connection_lost",
+        isVideo: !!session.isVideo,
+        duration: 0,
+      });
+    }
+    console.log(
+      `[CALL] eskirgan sessiya tozalandi callId=${callId} ringing=${ringingTooLong}`
+    );
+  }
+}
+
+setInterval(sweepStaleCalls, 60 * 1000).unref?.();
 
 async function sendAllUsers() {
   const list = Array.from(onlineUsers.keys())

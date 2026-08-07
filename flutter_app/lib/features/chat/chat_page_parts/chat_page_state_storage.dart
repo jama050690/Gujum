@@ -174,6 +174,7 @@ Future<void> _toggleMute(InboxItem item) async {
 }
 
 Future<void> _removeChatPreferences(String username) async {
+  if (!mounted) return;
   setState(() {
     _archivedChats.remove(username);
     _pinnedChats.remove(username);

@@ -48,7 +48,24 @@ class ChatController extends ChangeNotifier {
   List<InboxItem> _inbox = const [];
   List<ChatMessage> _messages = const [];
   InboxItem? _activeChat;
+  /// Ochilgan suhbatlarning xotiradagi nusxasi.
+  ///
+  /// LinkedHashMap tartibi ishlatiladi: eng oxirgi tegilgan suhbat oxirida
+  /// turadi, chegaradan oshganda esa eng eskisi chiqarib tashlanadi. Ilgari
+  /// bu jadval faqat o'sardi — 50 ta suhbat ochilsa, 50 tasining to'liq
+  /// xabarlari ilova yopilguncha xotirada qolardi. Diskdagi nusxa
+  /// saqlanadi, shuning uchun chiqarib tashlangan suhbat qayta ochilganda
+  /// darhol yuklanadi.
+  static const _maxCachedChats = 8;
   final Map<String, List<ChatMessage>> _messageCache = {};
+
+  void _cacheMessages(String peer, List<ChatMessage> messages) {
+    _messageCache.remove(peer);
+    _messageCache[peer] = List.from(messages);
+    while (_messageCache.length > _maxCachedChats) {
+      _messageCache.remove(_messageCache.keys.first);
+    }
+  }
   // Qurilmadagi doimiy nusxa. Server xabarlarni 24 soatdan keyin o'chiradi,
   // shuning uchun bu yerdagi nusxa hech qachon tozalanmaydi.
   MessageStore? _store;
@@ -178,7 +195,7 @@ class ChatController extends ChangeNotifier {
 
   /// Suhbatni xotirada ham, diskda ham yangilaydi.
   void _persist(String peer, List<ChatMessage> messages) {
-    _messageCache[peer] = List.from(messages);
+    _cacheMessages(peer, messages);
     unawaited(_ensureStore().then((store) => store?.save(peer, messages)));
     unawaited(_cacheAttachments(messages));
   }
@@ -241,7 +258,7 @@ class ChatController extends ChangeNotifier {
   void closeChat() {
     if (_activeChat != null) {
       if (_messages.isNotEmpty) {
-        _messageCache[_activeChat!.username] = List.from(_messages);
+        _cacheMessages(_activeChat!.username, _messages);
       } else {
         _messageCache.remove(_activeChat!.username);
       }
@@ -335,7 +352,7 @@ class ChatController extends ChangeNotifier {
       final stored = await store?.load(item.username) ?? const <ChatMessage>[];
       if (stored.isNotEmpty) {
         cached = stored;
-        _messageCache[item.username] = List.from(stored);
+        _cacheMessages(item.username, stored);
       }
       // Fetch davomida boshqa chat ochilgan bo'lishi mumkin.
       if (_activeChat?.username != item.username) return;
@@ -618,7 +635,7 @@ class ChatController extends ChangeNotifier {
     if (store == null) return;
     final existing = _messageCache[peer] ?? await store.load(peer);
     final updated = MessageStore.merge(existing, [message]);
-    _messageCache[peer] = List.from(updated);
+    _cacheMessages(peer, updated);
     await store.save(peer, updated);
   }
 

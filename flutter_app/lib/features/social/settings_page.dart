@@ -123,6 +123,8 @@ class SettingsPage extends StatelessWidget {
     final commentController = TextEditingController();
     var deleting = false;
 
+    // Dialog yopilgach controller bo'shatiladi — aks holda har ochilishda
+    // bittadan TextEditingController xotirada qolib ketardi.
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -185,6 +187,9 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
+    final comment = commentController.text;
+    commentController.dispose();
+
     if (confirmed != true || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -194,7 +199,7 @@ class SettingsPage extends StatelessWidget {
     try {
       await repository.deleteAccount(
         reason: selected,
-        comment: commentController.text,
+        comment: comment,
       );
     } catch (_) {
       messenger.showSnackBar(

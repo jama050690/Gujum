@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../settings/settings_controller.dart';
 import 'call_controller.dart';
+import '../../core/widgets/avatar_image.dart';
 
 class CallOverlayHost extends StatefulWidget {
   const CallOverlayHost({super.key, required this.child});
@@ -336,7 +337,7 @@ class _PulsingAvatar extends StatelessWidget {
               CircleAvatar(
                 radius: 72,
                 backgroundColor: const Color(0xFF2D5FCC).withAlpha(120),
-                backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                backgroundImage: avatarUrl.isNotEmpty ? avatarImage(avatarUrl) : null,
                 child: avatarUrl.isEmpty
                     ? Text(
                         initials,
@@ -1041,7 +1042,7 @@ class _AvatarGlow extends StatelessWidget {
             ),
             child: CircleAvatar(
               backgroundColor: Colors.transparent,
-              backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+              backgroundImage: avatarUrl.isNotEmpty ? avatarImage(avatarUrl) : null,
               child: avatarUrl.isEmpty
                   ? Text(
                       initials,

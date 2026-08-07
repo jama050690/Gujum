@@ -723,6 +723,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           _pendingCandidates.add(candidate);
         }
         break;
+      case 'CALL_BUSY':
+        // Suhbatdosh boshqa qo'ng'iroqda — bu rad etish emas.
+        _reportError('call_busy');
+        unawaited(_resetSession());
+        break;
       case 'CALL_REJECT':
         final rejectData =
             Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -1300,7 +1305,12 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _closePeerResources() async {
+  /// [disposeNative] faqat qo'ng'iroq tugaganda `true` bo'ladi.
+  ///
+  /// Qayta ulanish/renegotiatsiya yo'llarida ekran hali ochiq va video
+  /// renderer eski oqimga ishora qilib turadi — uni o'sha payt dispose
+  /// qilish native tomonda ishdan chiqishga olib keladi.
+  Future<void> _closePeerResources({bool disposeNative = false}) async {
     _iceConnectTimeout?.cancel();
     _iceConnectTimeout = null;
 
@@ -1309,26 +1319,42 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     // qo'ng'iroq toza holatdan boshlansin.
     final pc = _peerConnection;
     final local = _localStream;
+    final remote = _remoteStream;
     final upgrade = _upgradeVideoStream;
     _peerConnection = null;
     _localStream = null;
     _remoteStream = null;
     _upgradeVideoStream = null;
 
-    for (final track in local?.getTracks() ?? <MediaStreamTrack>[]) {
-      try {
-        track.stop();
-      } catch (_) {}
-    }
-    for (final track in upgrade?.getTracks() ?? <MediaStreamTrack>[]) {
-      try {
-        track.stop();
-      } catch (_) {}
+    for (final stream in [local, upgrade]) {
+      for (final track in stream?.getTracks() ?? <MediaStreamTrack>[]) {
+        try {
+          track.stop();
+        } catch (_) {}
+      }
     }
     // Kamera/mikrofon treklari to'xtaganidan keyin yopamiz — yarim qurilgan
     // ulanishda close() javob bermay qolishi mumkin.
     try {
       await pc?.close();
+    } catch (_) {}
+
+    if (!disposeNative) return;
+
+    // Ekran yopilib, renderer srcObject ni bo'shatib ulgurishi uchun qisqa
+    // kechikish.
+    await Future.delayed(const Duration(milliseconds: 120));
+
+    // close() faqat ulanishni uzadi; native obyektlar dispose() chaqirilmasa
+    // xotirada qolib ketadi. Ilgari shu sababli har qo'ng'iroqdan keyin
+    // ilova og'irlashib borardi.
+    for (final stream in [local, remote, upgrade]) {
+      try {
+        await stream?.dispose();
+      } catch (_) {}
+    }
+    try {
+      await pc?.dispose();
     } catch (_) {}
   }
 
@@ -1385,7 +1411,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     // Tozalash — endi UI ga bog'liq emas. Har biri alohida himoyalangan:
     // bittasi yiqilsa qolganlari baribir bajariladi.
     await _safeCleanup('stopAlertTone', _stopAlertTone);
-    await _safeCleanup('closePeerResources', _closePeerResources);
+    await _safeCleanup(
+      'closePeerResources',
+      () => _closePeerResources(disposeNative: true),
+    );
     await _safeCleanup('restoreAudioRoute', _restoreAudioRoute);
   }
 

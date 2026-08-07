@@ -6,6 +6,7 @@ import '../../l10n/app_strings.dart';
 import '../../models/social_models.dart';
 import '../settings/settings_controller.dart';
 import 'social_repository.dart';
+import '../../core/widgets/avatar_image.dart';
 
 /// Bloklangan foydalanuvchilar ro'yxati.
 ///
@@ -94,7 +95,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundImage:
-                              imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                              imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
                           child: imageUrl.isEmpty
                               ? Text(user.username.isNotEmpty
                                   ? user.username.substring(0, 1).toUpperCase()

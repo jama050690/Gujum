@@ -9,6 +9,7 @@ import '../settings/settings_controller.dart';
 import '../chat/media_viewer_page.dart';
 import 'social_repository.dart';
 import '../../l10n/app_strings.dart';
+import '../../core/widgets/avatar_image.dart';
 
 class ContactProfilePage extends StatefulWidget {
   const ContactProfilePage({
@@ -101,7 +102,7 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
                           radius: 52,
                           backgroundColor: accent.withAlpha(180),
                           backgroundImage: avatarUrl.isNotEmpty
-                              ? NetworkImage(avatarUrl) : null,
+                              ? avatarImage(avatarUrl) : null,
                           child: avatarUrl.isEmpty
                               ? Text(initials, style: const TextStyle(
                                   fontSize: 34, color: Colors.white,

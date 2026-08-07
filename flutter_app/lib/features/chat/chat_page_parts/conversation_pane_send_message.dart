@@ -19,6 +19,7 @@ Future<void> _sendCurrentMessage(
       );
       if (updated != null) {
         _messageController.clear();
+        if (!mounted) return;
         setState(() => _editingMessage = null);
         _requestScrollToNewest();
         return;

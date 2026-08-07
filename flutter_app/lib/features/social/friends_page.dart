@@ -15,6 +15,7 @@ import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
 import 'calls_page.dart';
 import 'social_repository.dart';
+import '../../core/widgets/avatar_image.dart';
 
 /// Telefon kitobidagi, lekin Gujumda yo'q kontakt — taklif qilish uchun.
 class _InviteCandidate {
@@ -594,7 +595,7 @@ class _SearchTab extends StatelessWidget {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundImage:
-                              imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                              imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
                           child: imageUrl.isEmpty
                               ? Text(user.fullName.isNotEmpty
                                   ? user.fullName.substring(0, 1).toUpperCase()
@@ -651,7 +652,7 @@ class _SearchTab extends StatelessWidget {
                           .toUpperCase();
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                          backgroundImage: imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
                           child: imageUrl.isEmpty ? Text(fallbackLetter) : null,
                         ),
                         title: Text(match.contactName),
@@ -687,7 +688,7 @@ class _SearchTab extends StatelessWidget {
                         final imageUrl = AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                            backgroundImage: imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
                             child: imageUrl.isEmpty ? Text(user.fullName.substring(0, 1).toUpperCase()) : null,
                           ),
                           title: Text(user.fullName),

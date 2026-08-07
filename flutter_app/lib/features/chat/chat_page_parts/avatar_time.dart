@@ -45,7 +45,7 @@ class _Avatar extends StatelessWidget {
         CircleAvatar(
           radius: radius,
           backgroundColor: background,
-          foregroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+          foregroundImage: imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
           child: Text(initials.isEmpty ? '?' : initials, style: textStyle),
         ),
         if (online)

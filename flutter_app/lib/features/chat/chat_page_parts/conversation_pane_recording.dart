@@ -126,7 +126,7 @@ Future<void> _stopAndSendVoiceRecording(
       replyTo: _replyPayloadForMessage(_replyingTo, t),
     );
     if (sent) {
-      if (_replyingTo != null) {
+      if (_replyingTo != null && mounted) {
         setState(() => _replyingTo = null);
       }
       _requestScrollToNewest();

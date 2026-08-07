@@ -149,7 +149,7 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
                           backgroundImage: item.avatar == null ||
                                   item.avatar!.trim().isEmpty
                               ? null
-                              : NetworkImage(avatarUrl),
+                              : avatarImage(avatarUrl),
                           child: item.avatar == null ||
                                   item.avatar!.trim().isEmpty
                               ? Text(item.fullName.trim().isEmpty

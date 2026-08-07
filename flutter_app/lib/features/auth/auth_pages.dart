@@ -401,6 +401,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text,
       );
     } on ApiException catch (error) {
+      if (!mounted) return;
       setState(() => _error = error.message);
     }
   }
@@ -781,6 +782,7 @@ class _SignupPageState extends State<SignupPage> {
       );
       widget.onBackToLogin();
     } on ApiException catch (error) {
+      if (!mounted) return;
       setState(() => _error = error.message);
     } finally {
       if (mounted) {
@@ -799,6 +801,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await auth.resendSignupOtp(_emailController.text.trim());
+      if (!mounted) return;
       setState(() {
         _info = response.devOtp == null
             ? response.message
@@ -1002,6 +1005,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       final response =
           await auth.requestPasswordReset(_emailController.text.trim());
+      if (!mounted) return;
       setState(() {
         _otpStep = true;
         _info = response.devOtp == null
@@ -1033,6 +1037,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         code: _otpController.text.trim(),
         newPassword: _passwordController.text,
       );
+      if (!mounted) return;
       setState(() {
         _done = true;
         _otpStep = false;
