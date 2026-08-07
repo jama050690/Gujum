@@ -60,8 +60,19 @@ extension _ConversationPaneView on _ConversationPaneState {
                 activeChat.avatar,
                 widget.settings.baseUrl,
               ),
-              showBack: widget.showBack,
-              onBack: widget.onBack,
+              showBack: _chatSearchActive ? true : widget.showBack,
+              onBack: _chatSearchActive ? _closeChatSearch : widget.onBack,
+              // Qidiruv panelning o'zida ochiladi: ism, qo'ng'iroq va menyu
+              // tugmalari o'rnini egallaydi (Telegramdagidek).
+              searchField: _chatSearchActive
+                  ? AppSearchField(
+                      controller: _chatSearchController,
+                      hintText: t('search_hint'),
+                      onChanged: (value) =>
+                          setState(() => _chatSearchQuery = value),
+                      onClose: _closeChatSearch,
+                    )
+                  : null,
               compact: compactHeight,
               onAvatarTap: selectionMode ? null : () {
                 final url = AppConfig.resolveMediaUrl(
@@ -88,7 +99,6 @@ extension _ConversationPaneView on _ConversationPaneState {
                       ? _buildSelectionHeaderActions(t, chat, selectedMessages)
                       : _buildHeaderActions(t),
             ),
-            if (_chatSearchActive) _buildChatSearchBar(t),
             Expanded(
               child: _buildConversationBody(
                 context,

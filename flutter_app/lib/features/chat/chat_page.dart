@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/widgets/app_search_field.dart';
 import '../../core/network/api_client.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';

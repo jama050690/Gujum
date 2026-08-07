@@ -56,6 +56,7 @@ class _ConversationHeader extends StatelessWidget {
     this.compact = false,
     this.onAvatarTap,
     this.onTitleTap,
+    this.searchField,
   });
 
   final SettingsController settings;
@@ -70,6 +71,10 @@ class _ConversationHeader extends StatelessWidget {
   final bool compact;
   final VoidCallback? onAvatarTap;
   final VoidCallback? onTitleTap;
+
+  /// Qidiruv ochilganda sarlavha (ism/holat) va o'ng tugmalar o'rniga shu
+  /// maydon ko'rsatiladi — Telegramdagidek, panelning o'zida.
+  final Widget? searchField;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +99,7 @@ class _ConversationHeader extends StatelessWidget {
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),
               if (!showBack) SizedBox(width: compact ? 4 : 8),
-              if (isSaved)
+              if (searchField == null && isSaved)
                 Container(
                   width: compact ? 34 : 42,
                   height: compact ? 34 : 42,
@@ -105,7 +110,7 @@ class _ConversationHeader extends StatelessWidget {
                   child:
                       const Icon(Icons.bookmark_rounded, color: Colors.white),
                 )
-              else
+              else if (searchField == null)
                 GestureDetector(
                   onTap: onAvatarTap,
                   child: _Avatar(
@@ -115,6 +120,9 @@ class _ConversationHeader extends StatelessWidget {
                   ),
                 ),
               SizedBox(width: compact ? 8 : 12),
+              if (searchField != null)
+                Expanded(child: searchField!)
+              else
               Expanded(
                 child: GestureDetector(
                   onTap: onTitleTap,
@@ -151,7 +159,7 @@ class _ConversationHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) ...[
+              if (searchField == null && trailing != null) ...[
                 const SizedBox(width: 4),
                 trailing!,
               ],

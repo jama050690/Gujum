@@ -4,20 +4,20 @@ class _UsersHeader extends StatefulWidget {
   const _UsersHeader({
     required this.settings,
     required this.currentUser,
-    required this.widget.searchController,
-    required this.widget.showArchived,
-    required this.widget.onOpenSidebar,
-    required this.widget.onBack,
+    required this.searchController,
+    required this.showArchived,
+    required this.onOpenSidebar,
+    required this.onBack,
     required this.onChanged,
     this.title,
   });
 
   final SettingsController settings;
   final SessionUser? currentUser;
-  final TextEditingController widget.searchController;
-  final bool widget.showArchived;
-  final VoidCallback widget.onOpenSidebar;
-  final VoidCallback widget.onBack;
+  final TextEditingController searchController;
+  final bool showArchived;
+  final VoidCallback onOpenSidebar;
+  final VoidCallback onBack;
   final ValueChanged<String> onChanged;
   final String? title;
 
@@ -40,10 +40,6 @@ class _UsersHeaderState extends State<_UsersHeader> {
     final titleColor = widget.settings.isDarkMode
         ? Colors.white
         : const Color(0xFF2492E8);
-    final searchChipColor = widget.settings.isDarkMode
-        ? const Color(0xFF223140)
-        : const Color(0xFFEAF0F6);
-    final searchTextColor = widget.settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 12),
@@ -84,43 +80,17 @@ class _UsersHeaderState extends State<_UsersHeader> {
               const SizedBox(width: 12),
               Expanded(
                 child: _searchOpen && !widget.showArchived
-                    // Telegram uslubi: maydon sarlavha o'rnida, keng va
-                    // yumaloq, ichida tozalash tugmasi bilan.
-                    ? Container(
-                        height: 42,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: searchChipColor,
-                          borderRadius: BorderRadius.circular(21),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search_rounded, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: widget.searchController,
-                                autofocus: true,
-                                onChanged: widget.onChanged,
-                                style: TextStyle(color: searchTextColor),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  border: InputBorder.none,
-                                  hintText: AppStrings.text(
-                                      widget.settings.localeCode, 'search'),
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                widget.searchController.clear();
-                                widget.onChanged('');
-                                setState(() => _searchOpen = false);
-                              },
-                              child: const Icon(Icons.close_rounded, size: 20),
-                            ),
-                          ],
-                        ),
+                    // Telegram uslubi: maydon sarlavha o'rnida.
+                    ? AppSearchField(
+                        controller: widget.searchController,
+                        hintText: AppStrings.text(
+                            widget.settings.localeCode, 'search'),
+                        onChanged: widget.onChanged,
+                        onClose: () {
+                          widget.searchController.clear();
+                          widget.onChanged('');
+                          setState(() => _searchOpen = false);
+                        },
                       )
                     : Text(
                         widget.showArchived ? (widget.title ?? '') : 'Gujum',

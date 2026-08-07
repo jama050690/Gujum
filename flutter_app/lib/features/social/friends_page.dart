@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/widgets/app_search_field.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
@@ -239,6 +240,182 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
+  void _closeSearch() {
+    setState(() {
+      _searchOpen = false;
+      _searchController.clear();
+      _searchResults = const [];
+    });
+  }
+
+  /// Telegram/WhatsApp dagi "Yangi kontakt": ism va raqam kiritiladi, kontakt
+  /// telefon kitobiga yoziladi va darhol Gujum bo'yicha tekshiriladi. Raqam
+  /// ro'yxatdan o'tgan bo'lsa chat ochiladi, aks holda SMS taklif taklif
+  /// qilinadi. Ilgari bu tugma faqat qidiruv maydonini ochardi.
+  Future<void> _openNewContactSheet() async {
+    final t = (String key) => AppStrings.text(
+        context.read<SettingsController>().localeCode, key);
+    final firstName = TextEditingController();
+    final lastName = TextEditingController();
+    final phone = TextEditingController();
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              t('new_contact'),
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: firstName,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: t('contact_first_name'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lastName,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: t('contact_last_name'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phone,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: t('contact_phone'),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(false),
+                    child: Text(t('cancel')),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(true),
+                    child: Text(t('contact_save')),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final number = phone.text.trim();
+    final name = [firstName.text.trim(), lastName.text.trim()]
+        .where((part) => part.isNotEmpty)
+        .join(' ');
+    firstName.dispose();
+    lastName.dispose();
+    phone.dispose();
+
+    if (saved != true || !mounted) return;
+    if (_normalizePhone(number).length < 7) {
+      _showMessage(t('contact_invalid_phone'));
+      return;
+    }
+    await _saveNewContact(name: name, phone: number, t: t);
+  }
+
+  Future<void> _saveNewContact({
+    required String name,
+    required String phone,
+    required String Function(String key) t,
+  }) async {
+    // Kontaktni qurilma kitobiga yozamiz — WhatsApp/Telegram ham shunday
+    // qiladi, shunda raqam boshqa ilovalarda ham ism bilan ko'rinadi.
+    var writtenToDevice = false;
+    try {
+      if (await FlutterContacts.requestPermission(readonly: false)) {
+        final parts = name.split(' ');
+        final contact = Contact()
+          ..name.first = parts.isNotEmpty && parts.first.isNotEmpty
+              ? parts.first
+              : phone
+          ..name.last = parts.length > 1 ? parts.sublist(1).join(' ') : ''
+          ..phones = [Phone(phone)];
+        await FlutterContacts.insertContact(contact);
+        writtenToDevice = true;
+      }
+    } catch (error) {
+      debugPrint('Kontakt saqlanmadi: $error');
+    }
+    if (!mounted) return;
+    if (!writtenToDevice) {
+      _showMessage(t('contact_write_denied'));
+    }
+
+    // Raqam Gujumda bormi?
+    try {
+      final repository = context.read<SocialRepository>();
+      final currentUser = context.read<AuthController>().user;
+      final matched = (await repository.fetchPhoneContacts([phone]))
+          .where((item) => item.username != currentUser?.username)
+          .toList();
+      if (!mounted) return;
+      if (matched.isNotEmpty) {
+        _showMessage(t('contact_found'));
+        unawaited(_loadPhoneContactMatches());
+        await _openChat(matched.first);
+        return;
+      }
+    } catch (error) {
+      _showError(error);
+      return;
+    }
+
+    if (!mounted) return;
+    // Ro'yxatdan o'tmagan — taklif taklif qilamiz.
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(t('contact_not_registered')),
+        action: SnackBarAction(
+          label: t('invite'),
+          onPressed: () => unawaited(
+            _invite(_InviteCandidate(
+              name: name.isNotEmpty ? name : phone,
+              phone: phone,
+            )),
+          ),
+        ),
+      ),
+    );
+    unawaited(_loadPhoneContactMatches());
+  }
+
+  void _showMessage(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   Future<void> _openChat(SimpleUser user) async {
     await context.read<ChatController>().startChatWith(
           SearchUser(
@@ -273,33 +450,24 @@ class _FriendsPageState extends State<FriendsPage> {
         // bosilganda esa butun sarlavha maydonini egallaydi. Alohida
         // qidiruv bloki ekranning tepasini keraksiz band qilardi.
         title: _searchOpen
-            ? TextField(
+            ? AppSearchField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: t('search_hint'),
-                  border: InputBorder.none,
-                ),
+                hintText: t('search_hint'),
                 onChanged: _onSearchChanged,
+                onSubmitted: (_) => _runSearch(),
+                onClose: _closeSearch,
               )
             : Text(t(widget.titleKey ?? 'search_users')),
         actions: [
-          IconButton(
-            icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded),
-            onPressed: () {
-              setState(() {
-                _searchOpen = !_searchOpen;
-                if (!_searchOpen) {
-                  _searchController.clear();
-                  _searchResults = const [];
-                } else {
-                  _searchFocusNode.requestFocus();
-                }
-              });
-            },
-          ),
+          if (!_searchOpen)
+            IconButton(
+              icon: const Icon(Icons.search_rounded),
+              onPressed: () => setState(() {
+                _searchOpen = true;
+                _searchFocusNode.requestFocus();
+              }),
+            ),
         ],
       ),
       // Qo'lda qidirib qo'shish: raqami telefon kitobida yo'q odamni
@@ -307,11 +475,8 @@ class _FriendsPageState extends State<FriendsPage> {
       // tugma bor — joyi boshqacha, vazifasi bir xil.
       floatingActionButton: _showPhoneContactsSection
           ? FloatingActionButton(
-              onPressed: () => setState(() {
-                _searchOpen = true;
-                _searchFocusNode.requestFocus();
-              }),
-              tooltip: t('add_friend'),
+              onPressed: _openNewContactSheet,
+              tooltip: t('new_contact'),
               child: const Icon(Icons.person_add_alt_1_rounded),
             )
           : null,
@@ -403,21 +568,14 @@ class _SearchTab extends StatelessWidget {
                         onTap: () => onOpenChat(user),
                       );
                     }),
+                  // Yangilash tugmasi olib tashlandi: ro'yxat sahifa
+                  // ochilganda o'zi yuklanadi, qo'lda yangilash esa
+                  // yuqoridan pastga tortish bilan (RefreshIndicator).
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            t('contacts_on_gujum'),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: onRefreshContacts,
-                          icon: const Icon(Icons.refresh),
-                        ),
-                      ],
+                    child: Text(
+                      t('contacts_on_gujum'),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                   if (loadingContacts)
@@ -539,6 +697,9 @@ class _SearchTab extends StatelessWidget {
                   const SizedBox(height: 24),
                 ];
                 return ListView.builder(
+                  // Ro'yxat kalta bo'lsa ham yuqoridan tortib yangilash
+                  // ishlashi uchun har doim skroll qilinadigan fizika.
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: items.length,
                   itemBuilder: (context, index) => items[index],
                 );
