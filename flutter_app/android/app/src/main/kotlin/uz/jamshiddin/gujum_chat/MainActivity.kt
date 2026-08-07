@@ -116,6 +116,28 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
+            "gujum/call_service"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    CallForegroundService.start(
+                        applicationContext,
+                        call.argument<String>("title") ?: "Gujum",
+                        call.argument<String>("text") ?: "Qo'ng'iroq davom etmoqda",
+                        call.argument<Boolean>("isVideo") ?: false
+                    )
+                    result.success(null)
+                }
+                "stop" -> {
+                    CallForegroundService.stop(applicationContext)
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
             "gujum/phone_hint"
         ).setMethodCallHandler { call, result ->
             when (call.method) {

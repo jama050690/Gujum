@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -87,6 +88,45 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   static const MethodChannel _audioChannel =
       MethodChannel('gujum/call_audio');
+
+  /// Fonda mikrofon/kamera oqimini tirik saqlaydigan Android foreground
+  /// service. Usiz ilova minimallashtirilishi bilan tizim oqimlarni
+  /// to'xtatadi va qo'ng'iroq jim bo'lib qoladi.
+  static const MethodChannel _callServiceChannel =
+      MethodChannel('gujum/call_service');
+  bool _callServiceRunning = false;
+  bool _callServiceVideo = false;
+
+  Future<void> _startCallService() async {
+    if (!Platform.isAndroid) return;
+    // Video yoqilganda servisni qayta ishga tushiramiz: kamera turi ham
+    // qo'shilishi kerak, aks holda fonda kamera oqimi to'xtatiladi.
+    if (_callServiceRunning && _callServiceVideo == _isVideo) return;
+    _callServiceRunning = true;
+    _callServiceVideo = _isVideo;
+    try {
+      await _callServiceChannel.invokeMethod('start', {
+        'title': _remotePeer?.displayName.trim().isNotEmpty == true
+            ? _remotePeer!.displayName
+            : (_remotePeer?.username ?? 'Gujum'),
+        'text': _isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+        'isVideo': _isVideo,
+      });
+    } catch (e) {
+      _callServiceRunning = false;
+      debugPrint('CALL_DEBUG call service start failed: $e');
+    }
+  }
+
+  Future<void> _stopCallService() async {
+    if (!Platform.isAndroid || !_callServiceRunning) return;
+    _callServiceRunning = false;
+    try {
+      await _callServiceChannel.invokeMethod('stop');
+    } catch (e) {
+      debugPrint('CALL_DEBUG call service stop failed: $e');
+    }
+  }
 
   final Map<String, dynamic> _rtcConfiguration = {
     'sdpSemantics': 'unified-plan',
@@ -215,6 +255,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
+      unawaited(_startCallService());
       // Kamera ochilishi bilan o'z tasvirimizni ko'rsatamiz. Ilgari bu yerda
       // hech qanday xabar berilmasdi va oldindan ko'rish faqat keyinroq —
       // boshqa biror hodisa ekranni qayta chizganda paydo bo'lardi, ya'ni
@@ -302,6 +343,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
+      unawaited(_startCallService());
       // Javob berish yo'lida ham o'z tasvirimizni darhol ko'rsatamiz.
       _localStreamVersion++;
       notifyListeners();
@@ -608,6 +650,25 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           notifyListeners();
           break;
         }
+        // Javob bergan tomon o'z ismini shu paketda yuboradi — mahalliy
+        // kontaktda ism bo'lmasa ekranda username qolib ketmasin.
+        final answeredBy = data['user'];
+        if (answeredBy is Map) {
+          final peer =
+              CallPeer.fromMap(Map<String, dynamic>.from(answeredBy));
+          final localName = _remotePeer?.displayName.trim() ?? '';
+          final haveLocalName =
+              localName.isNotEmpty && localName != _remotePeer?.username;
+          if (peer.username.isNotEmpty &&
+              peer.displayName != peer.username &&
+              !haveLocalName) {
+            _remotePeer = CallPeer(
+              username: peer.username,
+              displayName: peer.displayName,
+              avatar: peer.avatar ?? _remotePeer?.avatar,
+            );
+          }
+        }
         _ringingTimeout?.cancel();
         _ringingTimeout = null;
         _startIceTimeout();
@@ -837,6 +898,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               await _rebuildRemoteStream();
               _isVideo = true;
               _isCameraOff = false;
+              unawaited(_startCallService());
               notifyListeners();
             }
           } catch (e) {
@@ -862,6 +924,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             _isVideo = true;
             _isCameraOff = false;
             _isUpgradingToVideo = false;
+            unawaited(_startCallService());
             debugPrint('CALL_DEBUG video upgrade complete');
             notifyListeners();
           } catch (e) {
@@ -1293,6 +1356,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         _state == null) {
       return;
     }
+    unawaited(_stopCallService());
     final target = _targetUsername;
     final callId = _callId;
     final effectiveCallId = callId ?? _incomingCall?.callId;

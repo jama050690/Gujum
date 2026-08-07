@@ -506,7 +506,8 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
     final showRemoteVideo = ctrl.isVideo && ctrl.hasRemoteVideo && _ready;
     final statusText = _buildStatusText(context, ctrl);
     final timerText = _buildTimerText(ctrl.connectedAt);
-    final titleText = peer?.displayName ?? peer?.username ?? '';
+    final peerName = peer?.displayName.trim() ?? '';
+    final titleText = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
     final subtitleText = timerText ?? statusText;
     final screen = MediaQuery.sizeOf(context);
     final pipPos = _clampPip(_pipOffset ?? _defaultPipOffset(screen), screen);
@@ -760,12 +761,8 @@ class _RoundActionButton extends StatelessWidget {
       this.enabled = true,
       this.iconColor = Colors.white,
       this.size = 52,
-      this.iconSize = 26,
-      this.label});
+      this.iconSize = 26});
   final IconData icon;
-  /// Telegram har tugma ostida nima qilishini yozib qo'yadi — belgilarni
-  /// taxmin qilishga hojat qolmaydi.
-  final String? label;
   final Color backgroundColor;
   final Color iconColor;
   final VoidCallback onPressed;
@@ -785,26 +782,7 @@ class _RoundActionButton extends StatelessWidget {
       ),
     );
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.45,
-      child: label == null
-          ? button
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                button,
-                const SizedBox(height: 6),
-                Text(
-                  label!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-    );
+    return Opacity(opacity: enabled ? 1 : 0.45, child: button);
   }
 }
 
@@ -974,8 +952,6 @@ class _ControlsDock extends StatelessWidget {
         icon: ctrl.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
         backgroundColor: Colors.transparent,
         size: 52,
-        label: AppStrings.text(
-            context.read<SettingsController>().localeCode, 'call_mute'),
         onPressed: () => ctrl.toggleMute(),
       ),
       _RoundActionButton(
@@ -987,10 +963,6 @@ class _ControlsDock extends StatelessWidget {
         backgroundColor: ctrl.isVideo && ctrl.isCameraOff
             ? Colors.white
             : Colors.transparent,
-        label: AppStrings.text(
-          context.read<SettingsController>().localeCode,
-          ctrl.isVideo && !ctrl.isCameraOff ? 'call_stop_video' : 'call_start_video',
-        ),
         iconColor:
             ctrl.isVideo && ctrl.isCameraOff ? Colors.black : Colors.white,
         enabled: canToggleCamera,
@@ -999,8 +971,6 @@ class _ControlsDock extends StatelessWidget {
         onPressed: () => ctrl.toggleCamera(),
       ),
       _RoundActionButton(
-        label: AppStrings.text(
-            context.read<SettingsController>().localeCode, 'call_end'),
         icon: Icons.call_end_rounded,
         backgroundColor: const Color(0xFFD84D68),
         size: 62,

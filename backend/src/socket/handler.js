@@ -308,9 +308,14 @@ function registerSocketHandlers(io) {
 
       // FCM faqat socket yetkazolmagan holatda yuboriladi.
       // App foregroundda bo'lsa socket yetkazadi — FCM yuborilsa ikki xil notification chiqadi.
+      const callerDisplayName =
+        (callerInfo && typeof callerInfo === "object"
+          ? callerInfo.fullName || callerInfo.full_name || callerInfo.displayName
+          : null) || callerUsername;
+
       if (!delivered) {
         console.log(`[CALL] ${target} offline — FCM yuboriladi`);
-        const fcmData = { callerName: callerUsername, isVideo: !!isVideo, callId };
+        const fcmData = { callerName: callerDisplayName, isVideo: !!isVideo, callId };
         sendFcmCallToUser(target, fcmData);
         // 3 sek keyin hali ham ringing bo'lsa notification fallback
         setTimeout(() => {
@@ -329,7 +334,7 @@ function registerSocketHandlers(io) {
             finalizeCallSession(callId);
             emitToUser(callerUsername, "CALL_NOT_DELIVERED", { target });
             sendPushToUser(target, {
-              title: callerUsername,
+              title: callerDisplayName,
               body: isVideo ? "Video qo'ng'iroq..." : "Ovozli qo'ng'iroq...",
               tag: "call_" + callerUsername,
             });
@@ -341,14 +346,24 @@ function registerSocketHandlers(io) {
     });
 
     browser.on("CALL_ANSWER", (data) => {
-      const { target, answer, callId } = data;
+      const { target, answer, callId, user } = data;
       const session = activeCalls.get(callId);
+      // The callee's display card only reaches the caller here — without it the
+      // caller (and any later CALL_SESSION_SYNC) falls back to the raw username.
+      const calleeInfo =
+        user && typeof user === "object"
+          ? { ...user, username: browser.username }
+          : { username: browser.username };
       if (session) {
         session.status = "connected";
         session.connectedAt = Date.now();
         session.answer = answer;
+        if (browser.username) {
+          session.participants = session.participants || {};
+          session.participants[browser.username] = calleeInfo;
+        }
       }
-      const delivered = emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now() });
+      const delivered = emitToUser(target, "CALL_ANSWER", { answer, callId, answeredAt: Date.now(), user: calleeInfo });
       if (!delivered) {
         console.log(`[CALL] CALL_ANSWER: caller offline, answer buffered for callId=${callId}`);
       }
