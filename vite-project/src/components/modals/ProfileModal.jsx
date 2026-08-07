@@ -4,7 +4,7 @@ import { getProfileData } from "@/utils/storage";
 import Avatar from "@/components/common/Avatar";
 import Modal from "./Modal";
 
-export default function PortfolioModal({ isOpen, onClose, onEdit }) {
+export default function ProfileModal({ isOpen, onClose, onEdit }) {
   const { user, avatar } = useAuth();
   const { t } = useLanguage();
   const profile = getProfileData();

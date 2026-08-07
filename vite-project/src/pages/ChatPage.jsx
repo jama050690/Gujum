@@ -13,7 +13,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import CallScreen from "@/components/call/CallScreen";
 import IncomingCall from "@/components/call/IncomingCall";
 
-import PortfolioModal from "@/components/modals/PortfolioModal";
+import ProfileModal from "@/components/modals/ProfileModal";
 import EditProfileModal from "@/components/modals/EditProfileModal";
 import ContactsModal from "@/components/modals/ContactsModal";
 import SettingsModal from "@/components/modals/SettingsModal";
@@ -31,7 +31,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Modals
-  const [showPortfolio, setShowPortfolio] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -149,7 +149,7 @@ export default function ChatPage() {
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onProfile={() => setShowPortfolio(true)}
+        onProfile={() => setShowProfileModal(true)}
         onContacts={() => setShowContacts(true)}
         onCalls={() => setShowCalls(true)}
         onSettings={() => setShowSettings(true)}
@@ -158,10 +158,10 @@ export default function ChatPage() {
       />
 
       {/* Modals */}
-      <PortfolioModal
-        isOpen={showPortfolio}
-        onClose={() => setShowPortfolio(false)}
-        onEdit={() => { setShowPortfolio(false); setShowEditProfile(true); }}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onEdit={() => { setShowProfileModal(false); setShowEditProfile(true); }}
       />
       <EditProfileModal isOpen={showEditProfile} onClose={() => setShowEditProfile(false)} />
       <ContactsModal isOpen={showContacts} onClose={() => setShowContacts(false)} onSelectUser={handleContactSelect} />
