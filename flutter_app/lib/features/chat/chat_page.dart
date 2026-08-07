@@ -152,6 +152,13 @@ class _ConversationPaneState extends State<_ConversationPane>
   late final FocusNode _composerFocusNode;
   final ImagePicker _imagePicker = ImagePicker();
 
+  // Suhbat ichidagi qidiruv. Xabarlar endi qurilmada saqlangani uchun
+  // qidirish uchun serverga murojaat kerak emas — ochiq suhbatning o'zi
+  // filtrlanadi.
+  final TextEditingController _chatSearchController = TextEditingController();
+  bool _chatSearchActive = false;
+  String _chatSearchQuery = '';
+
   static const Set<String> _imageExtensions = <String>{
     'jpg',
     'jpeg',

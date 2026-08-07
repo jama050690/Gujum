@@ -63,7 +63,7 @@ Future<void> _showHeaderMenu(String Function(String) t) async {
       _startCall(video: false);
       break;
     case 'search':
-      _showInfoSnackBar(t('chat_action_unavailable'));
+      setState(() => _chatSearchActive = true);
       break;
     case 'more':
       widget.onMoreActions?.call();
@@ -116,5 +116,47 @@ void _startCall({required bool video}) {
     avatar: activeChat.avatar,
   );
   unawaited(controller.startCall(peer, video: video));
+}
+
+/// Suhbat ichidagi qidiruv paneli.
+///
+/// Xabarlar qurilmada saqlanadi, shuning uchun qidiruv butunlay mahalliy:
+/// tarmoqqa chiqilmaydi, kutish yo'q — har bosilgan harfda ro'yxat darhol
+/// filtrlanadi.
+Widget _buildChatSearchBar(String Function(String) t) {
+  return Material(
+    color: Theme.of(context).cardColor,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _chatSearchController,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: t('search_hint'),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                isDense: true,
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (value) => setState(() => _chatSearchQuery = value),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            onPressed: () {
+              _chatSearchController.clear();
+              setState(() {
+                _chatSearchQuery = '';
+                _chatSearchActive = false;
+              });
+            },
+          ),
+        ],
+      ),
+    ),
+  );
 }
 }

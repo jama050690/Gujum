@@ -88,6 +88,7 @@ extension _ConversationPaneView on _ConversationPaneState {
                       ? _buildSelectionHeaderActions(t, chat, selectedMessages)
                       : _buildHeaderActions(t),
             ),
+            if (_chatSearchActive) _buildChatSearchBar(t),
             Expanded(
               child: _buildConversationBody(
                 context,
@@ -175,7 +176,13 @@ extension _ConversationPaneView on _ConversationPaneState {
     bool selectionMode,
     EdgeInsets messagePadding,
   ) {
-    final messages = chat.messages;
+    // Qidiruv yoqilgan bo'lsa faqat mos xabarlar ko'rsatiladi.
+    final query = _chatSearchQuery.trim().toLowerCase();
+    final messages = query.isEmpty
+        ? chat.messages
+        : chat.messages
+            .where((m) => m.content.toLowerCase().contains(query))
+            .toList();
     return Stack(
       children: [
         ListView.builder(
