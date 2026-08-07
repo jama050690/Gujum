@@ -80,7 +80,6 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
-  final ImagePicker _quickCameraPicker = ImagePicker();
 
   Timer? _searchDebounce;
   Set<String> _archivedChats = <String>{};

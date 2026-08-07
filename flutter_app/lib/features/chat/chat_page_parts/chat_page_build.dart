@@ -94,7 +94,6 @@ extension _ChatPageStateBuild on _ChatPageState {
                 ),
               );
             },
-            onOpenCamera: () => _openQuickCamera(settings),
             onOpenContacts: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
