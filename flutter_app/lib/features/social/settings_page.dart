@@ -6,6 +6,7 @@ import '../auth/auth_controller.dart';
 import '../chat/media_store.dart';
 import '../chat/message_store.dart';
 import '../settings/settings_controller.dart';
+import 'blocked_users_page.dart';
 import 'social_repository.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -71,6 +72,19 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Bloklanganlar profil sahifasidan shu yerga ko'chirildi: profilni
+          // tahrirlash bilan aloqasi yo'q edi.
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.block_rounded),
+              title: Text(t('blocked_users')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BlockedUsersPage()),
+              ),
             ),
           ),
           const SizedBox(height: 16),

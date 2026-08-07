@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
-import '../../models/social_models.dart';
 import '../auth/auth_controller.dart';
 import '../settings/settings_controller.dart';
 import 'social_repository.dart';
@@ -26,7 +25,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = true;
   bool _saving = false;
   bool _uploadingAvatar = false;
-  List<SimpleUser> _blockedUsers = const [];
 
   @override
   void initState() {
@@ -65,12 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       // Ikkala so'rov birga ketadi. Avval ketma-ket edi va sahifa ikkala
       // javobni kutib turardi — ya'ni ochilish vaqti ikki barobar.
-      final results = await Future.wait([
-        repository.fetchProfile(user.username),
-        repository.fetchBlockedUsers(),
-      ]);
-      final profile = results[0] as ProfileDetails;
-      final blocked = results[1] as List<SimpleUser>;
+      final profile = await repository.fetchProfile(user.username);
       if (!mounted) {
         return;
       }
@@ -79,7 +72,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _phoneController.text = profile.phone;
       _birthdayController.text = profile.birthday;
       _bioController.text = profile.bio;
-      setState(() => _blockedUsers = blocked);
     } catch (error) {
       _showError(error);
     } finally {
@@ -87,6 +79,33 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  /// Tug'ilgan kunni taqvimdan tanlash.
+  ///
+  /// Saqlanadigan format o'zgarmaydi (YYYY-MM-DD) — server va boshqa
+  /// ekranlar aynan shuni kutadi.
+  Future<void> _pickBirthday() async {
+    final now = DateTime.now();
+    final current = DateTime.tryParse(_birthdayController.text.trim());
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime(now.year - 20, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      locale: Locale(context.read<SettingsController>().localeCode),
+      // Tug'ilgan kun uchun kun to'ri emas, avval yil ro'yxati ochiladi —
+      // 20-40 yil orqaga oyma-oy varaqlash shart emas. Taqvim ustidagi
+      // tugma orqali qo'lda kiritishga ham o'tish mumkin.
+      initialDatePickerMode: DatePickerMode.year,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+    );
+    if (selected == null) return;
+    final month = selected.month.toString().padLeft(2, '0');
+    final day = selected.day.toString().padLeft(2, '0');
+    setState(() {
+      _birthdayController.text = '${selected.year}-$month-$day';
+    });
   }
 
   Future<void> _save() async {
@@ -122,21 +141,6 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-
-  Future<void> _unblock(SimpleUser user) async {
-    try {
-      await context.read<SocialRepository>().unblockUser(user.username);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _blockedUsers = _blockedUsers.where((item) => item.username != user.username).toList();
-      });
-    } catch (error) {
-      _showError(error);
-    }
-  }
-
 
   /// Ekran kengligidagi kvadrat profil rasmi.
   ///
@@ -333,10 +337,16 @@ class _ProfilePageState extends State<ProfilePage> {
                           decoration: InputDecoration(labelText: t('phone')),
                         ),
                         const SizedBox(height: 12),
+                        // Tug'ilgan kun qo'lda emas, taqvimdan tanlanadi:
+                        // format xatosi ham, uzun raqam terish ham qolmaydi.
                         TextField(
                           controller: _birthdayController,
+                          readOnly: true,
+                          onTap: _pickBirthday,
                           decoration: InputDecoration(
-                              labelText: t('profile_birthday_hint')),
+                            labelText: t('profile_birthday'),
+                            suffixIcon: const Icon(Icons.calendar_today_rounded),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -344,48 +354,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           maxLines: 3,
                           decoration: InputDecoration(labelText: t('settings_bio')),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t('blocked_users'),
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        if (_blockedUsers.isEmpty)
-                          Text(t('no_blocked_users'))
-                        else
-                          ..._blockedUsers.map(
-                            (user) {
-                              final blockedImage = AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  backgroundImage:
-                                      blockedImage.isNotEmpty ? NetworkImage(blockedImage) : null,
-                                  child: blockedImage.isEmpty
-                                      ? Text(user.username.substring(0, 1).toUpperCase())
-                                      : null,
-                                ),
-                                title: Text(user.fullName),
-                                subtitle: Text('@${user.username}'),
-                                trailing: OutlinedButton(
-                                  onPressed: () => _unblock(user),
-                                  child: Text(t('unblock')),
-                                ),
-                              );
-                            },
-                          ),
                       ],
                     ),
                   ),
