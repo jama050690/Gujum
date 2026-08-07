@@ -264,6 +264,13 @@ async function initIndexes() {
     `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_created
        ON ${MESSAGES_TABLE} (created_at)`,
 
+    // Kontaktlarni moslashtirish raqamning oxirgi 9 raqami bo'yicha qidiradi.
+    // Ifoda ustun emas, shuning uchun oddiy indeks yaramaydi — usiz har bir
+    // so'rovda butun users jadvali skanerlanib, har qatorga regexp qo'llanardi.
+    `CREATE INDEX IF NOT EXISTS idx_${USERS_TABLE}_phone_tail
+       ON ${USERS_TABLE} (RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9))
+       WHERE phone IS NOT NULL`,
+
     // O'chirilgan akkauntlar arxivi 2 yildan keyin shu ustun bo'yicha
     // tozalanadi.
     `CREATE INDEX IF NOT EXISTS idx_deleted_accounts_deleted_at

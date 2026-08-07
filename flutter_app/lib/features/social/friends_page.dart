@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -47,6 +48,8 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
+  static const _contactsChannel = MethodChannel('gujum/contacts');
+
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
 
@@ -61,10 +64,19 @@ class _FriendsPageState extends State<FriendsPage> {
 
   bool get _showPhoneContactsSection => widget.titleKey == 'contacts';
 
+  // Oxirgi muvaffaqiyatli sinxronizatsiya natijasi. Sahifa har ochilganda
+  // qurilma kitobini o'qish + serverga so'rov bir necha soniya ketardi va
+  // shu vaqt davomida ekran bo'sh spinner bo'lib turardi. Endi eski ro'yxat
+  // darhol ko'rsatiladi, yangilanish esa fonda ketadi.
+  static List<_PhoneContactMatch>? _cachedMatches;
+  static List<_InviteCandidate>? _cachedInvites;
+
   @override
   void initState() {
     super.initState();
     if (_showPhoneContactsSection) {
+      _phoneMatches = _cachedMatches ?? const [];
+      _inviteCandidates = _cachedInvites ?? const [];
       _loadPhoneContactMatches();
     }
   }
@@ -115,9 +127,39 @@ class _FriendsPageState extends State<FriendsPage> {
     return digits.substring(digits.length - 9);
   }
 
+  /// Manzillar kitobini o'qish qimmat native amal: minglab kontaktda u yuzlab
+  /// megabaytgacha xotira oladi. Ikki sinxronizatsiya bir vaqtda ketsa,
+  /// Android jarayonni jimgina o'ldiradi — ilova hech qanday xato ko'rsatmay
+  /// yo'qoladi. Shu sababli bir vaqtda faqat bittasi ishlaydi; ustma-ust
+  /// so'ralgani esa navbatda bitta qayta yurishga aylanadi.
+  bool _syncInFlight = false;
+  bool _syncQueued = false;
+
   Future<void> _loadPhoneContactMatches() async {
+    if (_syncInFlight) {
+      _syncQueued = true;
+      return;
+    }
+    _syncInFlight = true;
+    try {
+      await _syncPhoneContacts();
+    } finally {
+      _syncInFlight = false;
+      if (_syncQueued && mounted) {
+        _syncQueued = false;
+        await _loadPhoneContactMatches();
+      } else {
+        _syncQueued = false;
+      }
+    }
+  }
+
+  Future<void> _syncPhoneContacts() async {
+    if (!mounted) return;
     setState(() {
-      _loadingContacts = true;
+      // Keshdan ro'yxat bor bo'lsa spinner ko'rsatmaymiz — ro'yxat joyida
+      // qoladi va jimgina yangilanadi.
+      _loadingContacts = _phoneMatches.isEmpty;
       _contactsErrorKey = null;
     });
 
@@ -141,13 +183,11 @@ class _FriendsPageState extends State<FriendsPage> {
       // Taklif SMS i uchun raqamning asl ko'rinishi kerak — normallashtirilgan
       // oxirgi 9 raqamga SMS yuborib bo'lmaydi.
       final phoneToOriginal = <String, String>{};
-      final phones = <String>[];
       for (final contact in deviceContacts) {
         final displayName = contact.displayName.trim();
         for (final phone in contact.phones) {
           final normalized = _normalizePhone(phone.number);
           if (normalized.length < 7) continue;
-          phones.add(phone.number);
           phoneToName.putIfAbsent(
             normalized,
             () => displayName.isNotEmpty ? displayName : phone.number,
@@ -156,6 +196,11 @@ class _FriendsPageState extends State<FriendsPage> {
         }
       }
 
+      // Faqat takrorlanmas normallashgan raqamlar yuboriladi. Ilgari har bir
+      // yozuvning asl ko'rinishi yuborilardi — bitta odam uch xil formatda
+      // saqlangan bo'lsa uch marta, va katta kitobda so'rov tanasi bir necha
+      // yuz kilobaytga chiqib sekin uzatilardi.
+      final phones = phoneToOriginal.keys.toList(growable: false);
       if (phones.isEmpty) {
         if (!mounted) return;
         setState(() {
@@ -197,6 +242,8 @@ class _FriendsPageState extends State<FriendsPage> {
       final inviteList = invites.values.toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
+      _cachedMatches = matches;
+      _cachedInvites = inviteList;
       if (!mounted) return;
       setState(() {
         _phoneMatches = matches;
@@ -352,30 +399,9 @@ class _FriendsPageState extends State<FriendsPage> {
     required String phone,
     required String Function(String key) t,
   }) async {
-    // Kontaktni qurilma kitobiga yozamiz — WhatsApp/Telegram ham shunday
-    // qiladi, shunda raqam boshqa ilovalarda ham ism bilan ko'rinadi.
-    var writtenToDevice = false;
-    try {
-      if (await FlutterContacts.requestPermission(readonly: false)) {
-        final parts = name.split(' ');
-        final contact = Contact()
-          ..name.first = parts.isNotEmpty && parts.first.isNotEmpty
-              ? parts.first
-              : phone
-          ..name.last = parts.length > 1 ? parts.sublist(1).join(' ') : ''
-          ..phones = [Phone(phone)];
-        await FlutterContacts.insertContact(contact);
-        writtenToDevice = true;
-      }
-    } catch (error) {
-      debugPrint('Kontakt saqlanmadi: $error');
-    }
-    if (!mounted) return;
-    if (!writtenToDevice) {
-      _showMessage(t('contact_write_denied'));
-    }
-
-    // Raqam Gujumda bormi?
+    // Avval raqam Gujumda bormi — bu tez va hech qanday ruxsat talab
+    // qilmaydi. Qurilma kitobiga yozish esa oxirida, tizim oynasi orqali:
+    // undan qaytilganda ilova allaqachon kerakli holatda turadi.
     try {
       final repository = context.read<SocialRepository>();
       final currentUser = context.read<AuthController>().user;
@@ -385,7 +411,14 @@ class _FriendsPageState extends State<FriendsPage> {
       if (!mounted) return;
       if (matched.isNotEmpty) {
         _showMessage(t('contact_found'));
-        unawaited(_loadPhoneContactMatches());
+        // Bitta kontakt qo'shilgani uchun butun manzillar kitobini qayta
+        // o'qish shart emas — yangi qatorni ro'yxatga qo'shib qo'yamiz.
+        _addMatchLocally(_PhoneContactMatch(
+          user: matched.first,
+          contactName: name.isNotEmpty ? name : matched.first.fullName,
+        ));
+        await _openDeviceContactInsert(name: name, phone: phone, t: t);
+        if (!mounted) return;
         await _openChat(matched.first);
         return;
       }
@@ -411,7 +444,59 @@ class _FriendsPageState extends State<FriendsPage> {
         ),
       ),
     );
-    unawaited(_loadPhoneContactMatches());
+    _addInviteLocally(_InviteCandidate(
+      name: name.isNotEmpty ? name : phone,
+      phone: phone,
+    ));
+    await _openDeviceContactInsert(name: name, phone: phone, t: t);
+  }
+
+  /// Raqamni qurilma kitobiga yozish uchun tizimning "yangi kontakt" oynasini
+  /// ochadi. Ilgari bu yerda FlutterContacts.insertContact chaqirilardi: u
+  /// qurilmaning asosiy hisobi bulutli bo'lganda fon oqimida ushlab
+  /// bo'lmaydigan xato berardi va ilova butunlay yopilib ketardi.
+  Future<void> _openDeviceContactInsert({
+    required String name,
+    required String phone,
+    required String Function(String key) t,
+  }) async {
+    var opened = false;
+    try {
+      opened = await _contactsChannel.invokeMethod<bool>(
+            'openInsert',
+            {'name': name, 'phone': phone},
+          ) ??
+          false;
+    } catch (error) {
+      debugPrint('Kontakt oynasi ochilmadi: $error');
+    }
+    if (!opened) {
+      _showMessage(t('contact_write_denied'));
+    }
+  }
+
+  /// Yangi saqlangan kontaktni ro'yxatga qo'shadi. Kitobni qayta o'qimaydi —
+  /// bitta qator uchun minglab kontaktni o'qish ilovani sekinlashtiradi.
+  void _addMatchLocally(_PhoneContactMatch match) {
+    if (_phoneMatches.any((item) => item.user.username == match.user.username)) {
+      return;
+    }
+    final updated = [..._phoneMatches, match];
+    _cachedMatches = updated;
+    if (!mounted) return;
+    setState(() => _phoneMatches = updated);
+  }
+
+  void _addInviteLocally(_InviteCandidate candidate) {
+    final key = _normalizePhone(candidate.phone);
+    if (_inviteCandidates.any((item) => _normalizePhone(item.phone) == key)) {
+      return;
+    }
+    final updated = [..._inviteCandidates, candidate]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    _cachedInvites = updated;
+    if (!mounted) return;
+    setState(() => _inviteCandidates = updated);
   }
 
   void _showMessage(String text) {
@@ -540,12 +625,12 @@ class _SearchTab extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: onRefreshContacts,
               child: Builder(builder: (context) {
-                // Ro'yxat dangasa bo'lishi shart: ListView(children: [...])
-                // barcha qatorlarni birdan quradi va bir necha ming
-                // kontaktda sahifa ochilmay qolardi. ListView.builder
-                // faqat ekranga tushganini quradi — 'ko'proq ko'rsatish'
-                // tugmasi ham keraksiz bo'ladi, Telegram'da ham yo'q.
-                final items = <Widget>[
+                // Faqat sarlavha qismi oldindan quriladi — kontaktlar
+                // qatorlari indeks bo'yicha, ekranga tushganda quriladi.
+                // Ilgari butun ro'yxat shu yerda ro'yxatga yig'ilardi, ya'ni
+                // ListView.builder dangasaligi bekor bo'lib, har build da
+                // minglab ListTile qurilardi.
+                final header = <Widget>[
                   // Telegramdagidek qisqa yorliqlar: taklif ro'yxati va
                   // qo'ng'iroqlar tarixi asosiy ro'yxatni to'ldirmasin.
                   ListTile(
@@ -611,13 +696,8 @@ class _SearchTab extends StatelessWidget {
                   // Yangilash tugmasi olib tashlandi: ro'yxat sahifa
                   // ochilganda o'zi yuklanadi, qo'lda yangilash esa
                   // yuqoridan pastga tortish bilan (RefreshIndicator).
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Text(
-                      t('contacts_on_gujum'),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
+                  // "Gujumdagi kontaktlarim" sarlavhasi ham olib tashlandi —
+                  // ro'yxat nimaligi shundoq ham ko'rinib turibdi.
                   if (loadingContacts)
                     Padding(
                       padding: const EdgeInsets.all(24),
@@ -641,36 +721,40 @@ class _SearchTab extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Text(t('contacts_empty_gujum')),
-                    )
-                  else
-                    ...phoneMatches.map((match) {
-                      final user = match.user;
-                      final imageUrl = AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
-                      final fallbackLetter = (match.contactName.isNotEmpty
-                              ? match.contactName
-                              : user.fullName)
-                          .substring(0, 1)
-                          .toUpperCase();
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
-                          child: imageUrl.isEmpty ? Text(fallbackLetter) : null,
-                        ),
-                        title: Text(match.contactName),
-                        subtitle: Text('@${user.username}'),
-                        // Alohida "Chatni ochish" tugmasi yo'q — Telegramdagidek
-                        // qatorning istalgan joyi bosilsa chat ochiladi.
-                        onTap: () => onOpenChat(user),
-                      );
-                    }),
-                  const SizedBox(height: 24),
+                    ),
                 ];
                 return ListView.builder(
                   // Ro'yxat kalta bo'lsa ham yuqoridan tortib yangilash
                   // ishlashi uchun har doim skroll qilinadigan fizika.
                   physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) => items[index],
+                  itemCount: header.length + phoneMatches.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index < header.length) return header[index];
+                    if (index == header.length + phoneMatches.length) {
+                      return const SizedBox(height: 24);
+                    }
+                    final match = phoneMatches[index - header.length];
+                    final user = match.user;
+                    final imageUrl =
+                        AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
+                    final fallbackLetter = (match.contactName.isNotEmpty
+                            ? match.contactName
+                            : user.fullName)
+                        .substring(0, 1)
+                        .toUpperCase();
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage:
+                            imageUrl.isNotEmpty ? avatarImage(imageUrl) : null,
+                        child: imageUrl.isEmpty ? Text(fallbackLetter) : null,
+                      ),
+                      title: Text(match.contactName),
+                      subtitle: Text('@${user.username}'),
+                      // Alohida "Chatni ochish" tugmasi yo'q — Telegramdagidek
+                      // qatorning istalgan joyi bosilsa chat ochiladi.
+                      onTap: () => onOpenChat(user),
+                    );
+                  },
                 );
               }),
             ),
