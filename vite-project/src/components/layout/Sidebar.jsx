@@ -9,8 +9,6 @@ export default function Sidebar({
   isOpen,
   onClose,
   onProfile,
-  onNewGroup,
-  onNewChannel,
   onContacts,
   onCalls,
   onSettings,
@@ -118,26 +116,6 @@ export default function Sidebar({
             }}
           />
 
-          <SidebarItem
-            icon="fa-users"
-            label={tr("sidebar_new_group", "New Group")}
-            iconClass={iconClass}
-            rowClass={rowClass}
-            onClick={() => {
-              onNewGroup?.();
-              onClose?.();
-            }}
-          />
-          <SidebarItem
-            icon="fa-bullhorn"
-            label={tr("sidebar_new_channel", "New Channel")}
-            iconClass={iconClass}
-            rowClass={rowClass}
-            onClick={() => {
-              onNewChannel?.();
-              onClose?.();
-            }}
-          />
           <SidebarItem
             icon="fa-address-book"
             label={tr("sidebar_contacts", "Contacts")}

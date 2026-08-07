@@ -69,8 +69,6 @@ export default function UsersPanel({ onOpenSidebar }) {
   const { socket } = useSocket();
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [groups, setGroups] = useState([]);
-  const [channels, setChannels] = useState([]);
   const [inboxUsers, setInboxUsers] = useState([]);
   const [chattedUsers, setChattedUsers] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
@@ -96,10 +94,9 @@ export default function UsersPanel({ onOpenSidebar }) {
     }
   }, []);
 
-  // Load groups, channels, and inbox on mount
+  // Load inbox on mount
   useEffect(() => {
     if (!user) return;
-    loadGroupsAndChannels();
     loadInbox();
     loadBlockedUsers();
     setShowArchived(false);
@@ -229,19 +226,6 @@ export default function UsersPanel({ onOpenSidebar }) {
       socket.off("TYPING", handleTyping);
     };
   }, [socket, user, activeChat, users, dispatch]);
-
-  const loadGroupsAndChannels = async () => {
-    try {
-      const [g, c] = await Promise.all([
-        fetchJSON(`/api/groups?username=${user}`),
-        fetchJSON(`/api/channels?username=${user}`),
-      ]);
-      setGroups(g);
-      setChannels(c);
-    } catch (err) {
-      console.error("Groups/Channels yuklashda xato:", err);
-    }
-  };
 
   const loadInbox = async () => {
     try {
@@ -562,7 +546,7 @@ export default function UsersPanel({ onOpenSidebar }) {
           online: Boolean(liveUser?.online ?? entry.online),
         };
       });
-    const allItems = [...directUsers, ...groups, ...channels];
+    const allItems = directUsers;
     const base = allItems.filter((item) => {
       const key = getItemKey(item);
       if (deletedChats.has(key)) return false;
@@ -586,7 +570,7 @@ export default function UsersPanel({ onOpenSidebar }) {
 
     if (!showArchived) return [SAVED_MESSAGES_USER, ...base];
     return base;
-  }, [users, inboxUsers, groups, channels, lastMessages, user, deletedChats, showArchived, archivedChats, pinnedChats]);
+  }, [users, inboxUsers, lastMessages, user, deletedChats, showArchived, archivedChats, pinnedChats]);
 
   const filteredItems = search
     ? visibleItems.filter((item) => {

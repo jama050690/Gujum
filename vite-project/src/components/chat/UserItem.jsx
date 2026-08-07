@@ -5,8 +5,6 @@ import { parseLocationMessage } from "@/utils/location";
 
 export default function UserItem({ item, isActive, onClick, unread, typing, lastMessage, onContextMenu, pinned, muted }) {
   const { t } = useLanguage();
-  const isGroup = item.type === "group";
-  const isChannel = item.type === "channel";
   const isSaved = item.username === "__SAVED_MESSAGES__";
   const locationPreview = parseLocationMessage(lastMessage?.content);
 
@@ -16,11 +14,7 @@ export default function UserItem({ item, isActive, onClick, unread, typing, last
       onContextMenu={(e) => onContextMenu?.(e, item)}
       className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
         isActive
-          ? isGroup
-            ? "bg-[#4fae4e] dark:bg-[#2e6b3a]"
-            : isChannel
-              ? "bg-[#7b72c7] dark:bg-[#4a4580]"
-              : "bg-[#419fd9] dark:bg-[#2b5278]"
+          ? "bg-[#419fd9] dark:bg-[#2b5278]"
           : "hover:bg-gray-100 dark:hover:bg-[#2b2b2b]"
       }`}
     >
@@ -28,22 +22,6 @@ export default function UserItem({ item, isActive, onClick, unread, typing, last
       {isSaved ? (
         <div className="w-[54px] h-[54px] rounded-full bg-[#6c9fd2] flex items-center justify-center shrink-0">
           <i className="fas fa-bookmark text-white text-xl" />
-        </div>
-      ) : isGroup ? (
-        <div className="w-[54px] h-[54px] rounded-full bg-[#63b16e] flex items-center justify-center shrink-0">
-          {item.avatar ? (
-            <img src={item.avatar} alt={item.name} className="w-[54px] h-[54px] rounded-full object-cover" />
-          ) : (
-            <i className="fas fa-users text-white text-xl" />
-          )}
-        </div>
-      ) : isChannel ? (
-        <div className="w-[54px] h-[54px] rounded-full bg-[#7b72c7] flex items-center justify-center shrink-0">
-          {item.avatar ? (
-            <img src={item.avatar} alt={item.name} className="w-[54px] h-[54px] rounded-full object-cover" />
-          ) : (
-            <i className="fas fa-bullhorn text-white text-xl" />
-          )}
         </div>
       ) : (
         <Avatar src={item.avatar} name={item.username} size={54} online={item.online} />
@@ -53,9 +31,7 @@ export default function UserItem({ item, isActive, onClick, unread, typing, last
       <div className="flex-1 min-w-0 py-1 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <span className={`font-semibold text-[15px] truncate ${isActive ? "text-white" : "text-gray-900 dark:text-white"}`}>
-            {isGroup && <i className="fas fa-users text-xs mr-1.5 opacity-60" />}
-            {isChannel && <i className="fas fa-bullhorn text-xs mr-1.5 opacity-60" />}
-            {isSaved ? t("chat_saved_messages") : isGroup || isChannel ? item.name : (item.full_name || item.username)}
+            {isSaved ? t("chat_saved_messages") : (item.full_name || item.username)}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {muted && <i className={`fas fa-volume-xmark text-xs ${isActive ? "text-white/70" : "text-gray-400"}`} />}
@@ -96,10 +72,6 @@ export default function UserItem({ item, isActive, onClick, unread, typing, last
               <span><i className="fas fa-microphone mr-1" />{t("chat_voice_message")}</span>
             ) : lastMessage?.video ? (
               <span><i className="fas fa-video mr-1" />{t("call_video")}</span>
-            ) : isGroup ? (
-              `${item.memberCount || 0} ${t("chat_members")}`
-            ) : isChannel ? (
-              `${item.subscriberCount || 0} ${t("chat_subscribers")}`
             ) : (
               ""
             )}

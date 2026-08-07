@@ -1,13 +1,9 @@
 import UserInfo from "./UserInfo";
-import GroupInfo from "./GroupInfo";
-import ChannelInfo from "./ChannelInfo";
 import SavedMessagesInfo from "./SavedMessagesInfo";
 
-export default function InfoPanel({ chat, isOnline, onClose, onOpenSidebar, onAddMember, onDelete }) {
+export default function InfoPanel({ chat, isOnline, onClose, onOpenSidebar }) {
   if (!chat) return null;
 
-  const isGroup = chat.type === "group";
-  const isChannel = chat.type === "channel";
   const isSaved = chat.username === "__SAVED_MESSAGES__";
 
   return (
@@ -26,10 +22,6 @@ export default function InfoPanel({ chat, isOnline, onClose, onOpenSidebar, onAd
       <div className="flex-1 overflow-y-auto">
         {isSaved ? (
           <SavedMessagesInfo />
-        ) : isGroup ? (
-          <GroupInfo group={chat} onAddMember={onAddMember} onDelete={onDelete} />
-        ) : isChannel ? (
-          <ChannelInfo channel={chat} onAddMember={onAddMember} onDelete={onDelete} />
         ) : (
           <UserInfo user={chat} isOnline={isOnline} />
         )}

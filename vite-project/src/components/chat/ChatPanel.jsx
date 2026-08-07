@@ -84,18 +84,6 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
       }
     };
 
-    const handleGroupMessage = (data) => {
-      if (activeChat.type === "group" && data.groupId === activeChat.id) {
-        dispatch({ type: "ADD_MESSAGE", payload: data });
-      }
-    };
-
-    const handleChannelMessage = (data) => {
-      if (activeChat.type === "channel" && data.channelId === activeChat.id) {
-        dispatch({ type: "ADD_MESSAGE", payload: data });
-      }
-    };
-
     const handleMessageBlocked = (data) => {
       if (activeChat?.username === data.receiver) {
         setBlockedByThem(true);
@@ -116,15 +104,11 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
     };
 
     socket.on("NEW_MESSAGE", handleNewMessage);
-    socket.on("GROUP_MESSAGE", handleGroupMessage);
-    socket.on("CHANNEL_MESSAGE", handleChannelMessage);
     socket.on("MESSAGE_BLOCKED", handleMessageBlocked);
     socket.on("MESSAGE_DELETED", handleMessageDeleted);
     socket.on("MESSAGES_READ", handleMessagesRead);
     return () => {
       socket.off("NEW_MESSAGE", handleNewMessage);
-      socket.off("GROUP_MESSAGE", handleGroupMessage);
-      socket.off("CHANNEL_MESSAGE", handleChannelMessage);
       socket.off("MESSAGE_BLOCKED", handleMessageBlocked);
       socket.off("MESSAGE_DELETED", handleMessageDeleted);
       socket.off("MESSAGES_READ", handleMessagesRead);
@@ -141,20 +125,15 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
     }
 
     try {
-      let msgs;
-      if (activeChat.type === "group") {
-        msgs = await fetchJSON(`/api/groups/${activeChat.id}/messages`);
-      } else if (activeChat.type === "channel") {
-        msgs = await fetchJSON(`/api/channels/${activeChat.id}/messages`);
-      } else {
-        msgs = await fetchJSON(`/api/messages?user1=${user}&user2=${activeChat.username}`);
-        // is_read ni read ga map qilish
-        msgs = msgs.map(m => ({ ...m, read: m.is_read ?? false }));
+      let msgs = await fetchJSON(
+        `/api/messages?user1=${user}&user2=${activeChat.username}`
+      );
+      // is_read ni read ga map qilish
+      msgs = msgs.map((m) => ({ ...m, read: m.is_read ?? false }));
 
-        // Xabarlar ochilganda senderga xabar berish
-        if (socket && activeChat.username) {
-          socket.emit("MESSAGES_READ", { reader: user, sender: activeChat.username });
-        }
+      // Xabarlar ochilganda senderga xabar berish
+      if (socket && activeChat.username) {
+        socket.emit("MESSAGES_READ", { reader: user, sender: activeChat.username });
       }
       dispatch({ type: "SET_MESSAGES", payload: msgs });
     } catch (err) {
@@ -181,27 +160,7 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
         return;
       }
 
-      if (activeChat.type === "group") {
-        if (!socket) return;
-        socket.emit("GROUP_MESSAGE", {
-          groupId: activeChat.id,
-          user,
-          message: data.message || "",
-          image: data.image || null,
-          audio: data.audio || null,
-          avatar,
-        });
-      } else if (activeChat.type === "channel") {
-        if (!socket) return;
-        socket.emit("CHANNEL_MESSAGE", {
-          channelId: activeChat.id,
-          user,
-          message: data.message || "",
-          image: data.image || null,
-          audio: data.audio || null,
-          avatar,
-        });
-      } else {
+      {
         const payload = {
           receiver: activeChat.username || activeChat.name,
           message: data.message || "",
@@ -298,25 +257,7 @@ export default function ChatPanel({ onBack, onOpenSidebar, onInfo, onCall, onVid
 
   const handleForwardToChat = useCallback(async (msg, chat) => {
     if (!socket) return;
-    if (chat.type === "group") {
-      socket.emit("GROUP_MESSAGE", {
-        groupId: chat.id,
-        user,
-        message: msg.content || "",
-        image: msg.image || null,
-        audio: msg.audio || null,
-        avatar,
-      });
-    } else if (chat.type === "channel") {
-      socket.emit("CHANNEL_MESSAGE", {
-        channelId: chat.id,
-        user,
-        message: msg.content || "",
-        image: msg.image || null,
-        audio: msg.audio || null,
-        avatar,
-      });
-    } else {
+    {
       socket.emit("NEW_MESSAGE", {
         user,
         receiver: chat.username,

@@ -10,22 +10,16 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  const isGroup = chat.type === "group";
-  const isChannel = chat.type === "channel";
   const isSaved = chat.username === "__SAVED_MESSAGES__";
-  const name = isSaved ? t("chat_saved_messages") : isGroup || isChannel ? chat.name : (chat.full_name || chat.username);
+  const name = isSaved ? t("chat_saved_messages") : (chat.full_name || chat.username);
 
   const statusText = isSaved
     ? ""
-    : isGroup
-      ? `${chat.memberCount || 0} ${t("chat_members")}`
-      : isChannel
-        ? `${chat.subscriberCount || 0} ${t("chat_subscribers")}`
-        : isOnline
-          ? t("online")
-          : lastActive
-            ? formatLastActive(lastActive)
-            : t("offline");
+    : isOnline
+      ? t("online")
+      : lastActive
+        ? formatLastActive(lastActive)
+        : t("offline");
 
   // Close menu on outside click
   useEffect(() => {
@@ -70,28 +64,6 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
 
   // Build menu items based on chat type
   const getMenuItems = () => {
-    if (isGroup) {
-      return [
-        { id: "mute", label: isMuted ? t("chat_unmute") : t("chat_mute"), icon: isMuted ? "fa-volume-up" : "fa-volume-mute", onClick: () => onMute?.() },
-        { id: "info", label: t("group_info"), icon: "fa-info-circle", onClick: () => onInfo?.() },
-        { id: "export", label: t("chat_export_history"), icon: "fa-file-export", onClick: () => {} },
-        { id: "report", label: t("chat_report"), icon: "fa-flag", onClick: () => {} },
-        { id: "leave", label: t("group_leave"), icon: "fa-sign-out-alt", danger: true, dividerTop: true, onClick: () => onDeleteChat?.() },
-      ];
-    }
-
-    if (isChannel) {
-      return [
-        { id: "mute", label: isMuted ? t("chat_unmute") : t("chat_mute"), icon: isMuted ? "fa-volume-up" : "fa-volume-mute", onClick: () => onMute?.() },
-        { id: "info", label: t("channel_info"), icon: "fa-info-circle", onClick: () => onInfo?.() },
-        { id: "manage", label: t("channel_manage"), icon: "fa-sliders-h", onClick: () => onInfo?.() },
-        { id: "poll", label: t("channel_poll"), icon: "fa-poll", onClick: () => {} },
-        { id: "export", label: t("chat_export_history"), icon: "fa-file-export", onClick: () => {} },
-        { id: "clear", label: t("chat_clear_history"), icon: "fa-broom", onClick: () => onClearHistory?.() },
-        { id: "leave", label: t("channel_leave"), icon: "fa-sign-out-alt", danger: true, dividerTop: true, onClick: () => onDeleteChat?.() },
-      ];
-    }
-
     if (isSaved) {
       return [
         { id: "export", label: t("chat_export_history"), icon: "fa-file-export", onClick: () => {} },
@@ -170,22 +142,6 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
         <div className="w-10 h-10 rounded-full bg-[#6c9fd2] flex items-center justify-center shrink-0">
           <i className="fas fa-bookmark text-white" />
         </div>
-      ) : isGroup ? (
-        <div className="w-10 h-10 rounded-full bg-[#63b16e] flex items-center justify-center shrink-0">
-          {chat.avatar ? (
-            <img src={chat.avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <i className="fas fa-users text-white" />
-          )}
-        </div>
-      ) : isChannel ? (
-        <div className="w-10 h-10 rounded-full bg-[#7b72c7] flex items-center justify-center shrink-0">
-          {chat.avatar ? (
-            <img src={chat.avatar} alt={name} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <i className="fas fa-bullhorn text-white" />
-          )}
-        </div>
       ) : (
         <Avatar src={chat.avatar} name={chat.username} size={40} online={isOnline} />
       )}
@@ -194,7 +150,7 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-gray-900 dark:text-white text-[15px] truncate">{name}</h3>
         {statusText && (
-          <p className={`text-xs truncate ${isOnline && !isGroup && !isChannel ? "text-[#3390ec]" : "text-gray-500 dark:text-gray-400"}`}>
+          <p className={`text-xs truncate ${isOnline ? "text-[#3390ec]" : "text-gray-500 dark:text-gray-400"}`}>
             {statusText}
           </p>
         )}
@@ -212,7 +168,7 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
         </button>
 
         {/* Audio call — only for user DMs */}
-        {!isSaved && !isChannel && !isGroup && onCall && (
+        {!isSaved && onCall && (
           <button
             onClick={onCall}
             className="w-10 h-10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 rounded-full transition-all cursor-pointer"
@@ -223,7 +179,7 @@ export default function ChatHeader({ chat, isOnline, lastActive, onBack, onInfo,
         )}
 
         {/* Video call — only for user DMs */}
-        {!isSaved && !isChannel && !isGroup && onVideoCall && (
+        {!isSaved && onVideoCall && (
           <button
             onClick={onVideoCall}
             className="w-10 h-10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 rounded-full transition-all cursor-pointer"

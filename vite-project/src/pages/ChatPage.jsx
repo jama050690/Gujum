@@ -13,15 +13,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import CallScreen from "@/components/call/CallScreen";
 import IncomingCall from "@/components/call/IncomingCall";
 
-import NewGroupModal from "@/components/modals/NewGroupModal";
-import NewChannelModal from "@/components/modals/NewChannelModal";
-import AddMemberModal from "@/components/modals/AddMemberModal";
 import PortfolioModal from "@/components/modals/PortfolioModal";
 import EditProfileModal from "@/components/modals/EditProfileModal";
 import ContactsModal from "@/components/modals/ContactsModal";
 import SettingsModal from "@/components/modals/SettingsModal";
 import CallsModal from "@/components/modals/CallsModal";
-import CommunitiesModal from "@/components/modals/CommunitiesModal";
 import Avatar from "@/components/common/Avatar";
 
 export default function ChatPage() {
@@ -35,15 +31,9 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Modals
-  const [showNewGroup, setShowNewGroup] = useState(false);
-  const [showNewChannel, setShowNewChannel] = useState(false);
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [addMemberType, setAddMemberType] = useState(null);
-  const [addMemberTargetId, setAddMemberTargetId] = useState(null);
   const [showPortfolio, setShowPortfolio] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
-  const [showCommunities, setShowCommunities] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCalls, setShowCalls] = useState(false);
   const [isCallMinimized, setIsCallMinimized] = useState(false);
@@ -56,18 +46,6 @@ export default function ChatPage() {
   };
 
   const handleInfo = () => {
-    dispatch({ type: "TOGGLE_INFO_PANEL" });
-  };
-
-  const handleAddMember = (type, targetId) => {
-    setAddMemberType(type);
-    setAddMemberTargetId(targetId);
-    setShowAddMember(true);
-  };
-
-  const handleDeleteChat = async () => {
-    if (!activeChat) return;
-    dispatch({ type: "CLOSE_CHAT" });
     dispatch({ type: "TOGGLE_INFO_PANEL" });
   };
 
@@ -154,8 +132,6 @@ export default function ChatPage() {
               isOnline={false}
               onClose={handleInfo}
               onOpenSidebar={() => setSidebarOpen(true)}
-              onAddMember={handleAddMember}
-              onDelete={handleDeleteChat}
             />
           </div>
           <div className="hidden lg:flex lg:w-[360px] shrink-0 h-full">
@@ -164,8 +140,6 @@ export default function ChatPage() {
               isOnline={false}
               onClose={handleInfo}
               onOpenSidebar={() => setSidebarOpen(true)}
-              onAddMember={handleAddMember}
-              onDelete={handleDeleteChat}
             />
           </div>
         </>
@@ -176,8 +150,6 @@ export default function ChatPage() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onProfile={() => setShowPortfolio(true)}
-        onNewGroup={() => setShowNewGroup(true)}
-        onNewChannel={() => setShowNewChannel(true)}
         onContacts={() => setShowContacts(true)}
         onCalls={() => setShowCalls(true)}
         onSettings={() => setShowSettings(true)}
@@ -186,14 +158,6 @@ export default function ChatPage() {
       />
 
       {/* Modals */}
-      <NewGroupModal isOpen={showNewGroup} onClose={() => setShowNewGroup(false)} />
-      <NewChannelModal isOpen={showNewChannel} onClose={() => setShowNewChannel(false)} />
-      <AddMemberModal
-        isOpen={showAddMember}
-        onClose={() => setShowAddMember(false)}
-        type={addMemberType}
-        targetId={addMemberTargetId}
-      />
       <PortfolioModal
         isOpen={showPortfolio}
         onClose={() => setShowPortfolio(false)}
@@ -201,13 +165,6 @@ export default function ChatPage() {
       />
       <EditProfileModal isOpen={showEditProfile} onClose={() => setShowEditProfile(false)} />
       <ContactsModal isOpen={showContacts} onClose={() => setShowContacts(false)} onSelectUser={handleContactSelect} />
-      <CommunitiesModal
-        isOpen={showCommunities}
-        onClose={() => setShowCommunities(false)}
-        onSelectChat={handleContactSelect}
-        onCreateGroup={() => setShowNewGroup(true)}
-        onCreateChannel={() => setShowNewChannel(true)}
-      />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
       <CallsModal
         isOpen={showCalls}
