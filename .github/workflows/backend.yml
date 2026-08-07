@@ -1,0 +1,206 @@
+name: 🖥️ Backend CI/CD
+
+run-name: 🖥️ Backend · ${{ inputs.action || 'check' }} · ${{ github.ref_name }} · @${{ github.actor }}
+
+# Manual only, by design. No push or pull_request trigger: the backend ships
+# when someone decides it ships, not because a commit landed.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to run'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          # Install + syntax check + boot the server against a scratch
+          # Postgres. Touches nothing on the VPS.
+          - check
+          # Same checks first, then deploy to the VPS if they pass.
+          - check-and-deploy
+
+concurrency:
+  # A second push while a deploy is mid-flight would race two rsync/restart
+  # cycles on the same box. Queue instead of cancel: a half-applied deploy is
+  # worse than a slow one.
+  group: backend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: ✅ Install & syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+
+      - name: 📦 Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - name: 🟢 Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      # --frozen-lockfile fails when package.json and the lockfile disagree,
+      # so a dependency added without committing the lockfile breaks here
+      # instead of silently resolving to a different tree on the server.
+      - name: ⬇️ Install
+        run: pnpm install --frozen-lockfile
+
+      # The repo's own "build" script: node --check over every .js file. Not a
+      # test suite, but it catches syntax errors before they reach the VPS —
+      # where the only symptom is a process that will not start.
+      - name: 🔍 Syntax check
+        run: pnpm run build
+
+      # Boots the real app against a throwaway Postgres and hits /health. This
+      # is what separates "the files parse" from "the server actually starts" —
+      # a bad import or a missing table surfaces here, not in production.
+      - name: 🚑 Smoke test
+        env:
+          PORT: 3003
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: bootchat_ci
+          JWT_SECRET: ci-not-a-real-secret
+          SESSION_SECRET: ci-not-a-real-secret
+        run: |
+          set -euo pipefail
+          node server.js & SERVER_PID=$!
+          # Poll rather than sleep: the app connects to Postgres and seeds the
+          # admin user on boot, and that takes a variable amount of time.
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3003/health >/dev/null 2>&1; then
+              echo "✅ /health responded after ${i}s"
+              kill "$SERVER_PID"
+              exit 0
+            fi
+            kill -0 "$SERVER_PID" 2>/dev/null || { echo "::error::server exited during boot"; wait "$SERVER_PID"; }
+            sleep 1
+          done
+          echo "::error::/health never responded within 30s"
+          kill "$SERVER_PID" || true
+          exit 1
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bootchat_ci
+        ports:
+          - 5432:5432
+        # Without a health check the job races the container and the app's
+        # first connection attempt fails on a cold Postgres.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+  deploy:
+    name: 🚀 Deploy to VPS
+    needs: check
+    if: inputs.action == 'check-and-deploy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Point this at a GitHub Environment holding the SSH secrets so a required
+    # reviewer can gate production deploys (Settings → Environments).
+    environment: production
+    steps:
+      - name: 🔑 Load SSH key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [ -n "$SSH_KEY" ] || { echo "::error::VPS_SSH_KEY secret is missing"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinning the host key: ssh-keyscan-on-the-fly would happily trust a
+          # man-in-the-middle. Generate the value once with
+          #   ssh-keyscan -H your.host
+          # and store it as the VPS_KNOWN_HOSTS secret.
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS not set — falling back to ssh-keyscan (unverified)"
+            ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: 🚀 Pull, install, restart
+        env:
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          SSH_PORT: ${{ vars.VPS_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          RESTART_CMD: ${{ vars.RESTART_CMD || 'sudo systemctl restart bootchat' }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_PATH" ] || { echo "::error::DEPLOY_PATH variable is missing"; exit 1; }
+
+          ssh -p "$SSH_PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" bash -euo pipefail <<EOF
+            cd "$DEPLOY_PATH"
+            # Deploy the exact commit CI verified, not whatever main points at
+            # by the time this runs.
+            git fetch --prune origin
+            git checkout --detach "$SHA"
+
+            cd backend
+            corepack enable
+            # --prod: devDependencies have no business on the server.
+            pnpm install --frozen-lockfile --prod
+
+            $RESTART_CMD
+          EOF
+
+      # Restarting is not the same as coming back up. Without this, a crash
+      # loop reports as a green deploy.
+      - name: 🩺 Verify /health
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$HEALTH_URL" ]; then
+            echo "::warning::HEALTH_URL not set — skipping post-deploy verification"
+            exit 0
+          fi
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null; then
+              echo "✅ backend healthy after ${i}s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::backend did not become healthy within 60s — check the service on the VPS"
+          exit 1
+
+      - name: 📊 Deploy summary
+        if: always()
+        run: |
+          {
+            echo "## 🖥️ Backend deploy"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| 🔢 Commit | \`${GITHUB_SHA::7}\` |"
+            echo "| 🎯 Host | \`${{ secrets.VPS_HOST != '' && 'configured' || 'MISSING' }}\` |"
+            echo "| 📁 Path | \`${{ vars.DEPLOY_PATH }}\` |"
+            echo "| ${{ job.status == 'success' && '✅' || '❌' }} Status | \`${{ job.status }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
