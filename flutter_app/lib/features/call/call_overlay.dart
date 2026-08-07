@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -20,6 +21,14 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   CallController? _controller;
   int _lastErrorVersion = 0;
   OverlayEntry? _callOverlayEntry;
+
+  /// Qo'ng'iroq ekrani kichraytirilganmi.
+  ///
+  /// Telefonning "orqaga" tugmasi qo'ng'iroqni hech qachon tugatmaydi —
+  /// ekran kichrayadi va foydalanuvchi ilovadan bemalol foydalanaveradi,
+  /// qo'ng'iroq esa davom etadi. Yuqoridagi tasmani bosib to'liq ekranga
+  /// qaytiladi.
+  bool _minimized = false;
 
   @override
   void initState() {
@@ -57,10 +66,19 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     _updateOverlay();
   }
 
+  void _setMinimized(bool value) {
+    if (_minimized == value) return;
+    setState(() => _minimized = value);
+    _callOverlayEntry?.markNeedsBuild();
+  }
+
   void _updateOverlay() {
     if (!mounted) return;
     final ctrl = _controller;
     final shouldShow = ctrl != null && (ctrl.hasIncomingCall || ctrl.hasSession);
+    if (!shouldShow && _minimized) {
+      _minimized = false;
+    }
     if (shouldShow && _callOverlayEntry == null) {
       _showCallOverlay();
     } else if (!shouldShow && _callOverlayEntry != null) {
@@ -80,7 +98,16 @@ class _CallOverlayHostState extends State<CallOverlayHost>
           return _IncomingCallSheet(callController: ctrl);
         }
         if (ctrl.hasSession) {
-          return _ActiveCallSheet(callController: ctrl);
+          if (_minimized) {
+            return _MinimizedCallBar(
+              callController: ctrl,
+              onExpand: () => _setMinimized(false),
+            );
+          }
+          return _ActiveCallSheet(
+            callController: ctrl,
+            onMinimize: () => _setMinimized(true),
+          );
         }
         return const SizedBox.shrink();
       },
@@ -116,9 +143,19 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CallController?>();
+    // Faol qo'ng'iroqda "orqaga" ekranni kichraytiradi (qo'ng'iroq davom
+    // etadi). Kiruvchi qo'ng'iroqda esa hech narsa qilmaydi — javob berish
+    // yoki rad etish kerak.
+    final blocksPop = controller != null &&
+        (controller.hasIncomingCall || (controller.hasSession && !_minimized));
     return PopScope(
-      canPop: controller == null ||
-          (!controller.hasSession && !controller.hasIncomingCall),
+      canPop: !blocksPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (controller != null && controller.hasSession && !_minimized) {
+          _setMinimized(true);
+        }
+      },
       child: widget.child,
     );
   }
@@ -330,9 +367,137 @@ class _CallActionButton extends StatelessWidget {
   }
 }
 
-class _ActiveCallSheet extends StatefulWidget {
-  const _ActiveCallSheet({required this.callController});
+/// Kichraytirilgan qo'ng'iroq tasmasi.
+///
+/// Ekran tepasida turadi, qolgan joyni to'smaydi — ilova bilan odatdagidek
+/// ishlash mumkin. Bosilsa qo'ng'iroq ekrani qaytadi.
+class _MinimizedCallBar extends StatefulWidget {
+  const _MinimizedCallBar({
+    required this.callController,
+    required this.onExpand,
+  });
+
   final CallController callController;
+  final VoidCallback onExpand;
+
+  @override
+  State<_MinimizedCallBar> createState() => _MinimizedCallBarState();
+}
+
+class _MinimizedCallBarState extends State<_MinimizedCallBar> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _label() {
+    final ctrl = widget.callController;
+    final connectedAt = ctrl.connectedAt;
+    if (ctrl.state != CallSessionState.connected || connectedAt == null) {
+      return ctrl.isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq";
+    }
+    final elapsed = DateTime.now().difference(connectedAt);
+    final minutes = elapsed.inMinutes.toString().padLeft(2, '0');
+    final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = widget.callController;
+    final peer = ctrl.remotePeer;
+    final peerName = peer?.displayName.trim() ?? '';
+    final title = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
+
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Material(
+            color: const Color(0xFF2A9D5C),
+            borderRadius: BorderRadius.circular(24),
+            elevation: 6,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: widget.onExpand,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      ctrl.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _label(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => unawaited(ctrl.hangUp()),
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveCallSheet extends StatefulWidget {
+  const _ActiveCallSheet({
+    required this.callController,
+    required this.onMinimize,
+  });
+  final CallController callController;
+  final VoidCallback onMinimize;
   @override
   State<_ActiveCallSheet> createState() => _ActiveCallSheetState();
 }
@@ -604,6 +769,27 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
               child: _LocalPreviewCard(renderer: _local, ctrl: ctrl),
             ),
           ),
+        Positioned(
+          top: 8,
+          left: 8,
+          child: SafeArea(
+            bottom: false,
+            child: AnimatedOpacity(
+              opacity: _controlsVisible ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: !_controlsVisible,
+                child: IconButton(
+                  onPressed: widget.onMinimize,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  color: Colors.white,
+                  iconSize: 32,
+                  tooltip: 'Kichraytirish',
+                ),
+              ),
+            ),
+          ),
+        ),
         Positioned(
           bottom: 36,
           left: 20,
