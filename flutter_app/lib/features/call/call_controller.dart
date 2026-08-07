@@ -745,7 +745,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           break;
         }
         final reason = (endData['reason'] ?? '').toString();
-        if (reason == 'connection_lost') {
+        if (reason == 'connection_failed') {
+          _reportError('call_connection_failed');
+        } else if (reason == 'connection_lost') {
           _reportError('call_connection_lost');
         } else if (_connectedAt == null &&
             (reason == 'hangup' || reason == 'disconnect_timeout')) {
@@ -1092,7 +1094,12 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         _iceConnectTimeout?.cancel();
         _iceConnectTimeout = null;
-        unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
+        // Hech qachon ulanmagan bo'lsa — bu "aloqa uzildi" emas, "ulanib
+        // bo'lmadi". Foydalanuvchiga ikkalasi bir xil ko'rinmasin.
+        unawaited(_resetSession(
+          notifyRemote: true,
+          reason: _connectedSignalSent ? 'connection_lost' : 'connection_failed',
+        ));
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
         // Temporary disconnection — end call after 15 s if not recovered
         _iceConnectTimeout ??= Timer(const Duration(seconds: 15), () {
@@ -1274,7 +1281,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _iceConnectTimeout?.cancel();
     _iceConnectTimeout = Timer(const Duration(seconds: 30), () {
       if (_state != null && _state != CallSessionState.connected) {
-        unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
+        // 30 soniya ichida umuman ulanmadi.
+        unawaited(
+            _resetSession(notifyRemote: true, reason: 'connection_failed'));
       }
     });
   }
@@ -1372,6 +1381,13 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     unawaited(_stopCallService());
+    // Ulanish sabablari uzatilgan tomonda ham ko'rsatiladi — o'zimizda ham
+    // xabar berishimiz kerak, aks holda qo'ng'iroq sababsiz yopilardi.
+    if (reason == 'connection_failed') {
+      _reportError('call_connection_failed');
+    } else if (reason == 'connection_lost') {
+      _reportError('call_connection_lost');
+    }
     final target = _targetUsername;
     final callId = _callId;
     final effectiveCallId = callId ?? _incomingCall?.callId;

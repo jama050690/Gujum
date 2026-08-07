@@ -13,10 +13,10 @@ firebase-service-account.json
 key.properties
 
 # Vite env files (contains TURN credentials, Google Client ID)
-vite-project/.env.local
-vite-project/.env.development
-vite-project/.env.production
-vite-project/.env.staging
+web/.env.local
+web/.env.development
+web/.env.production
+web/.env.staging
 
 # Backend env
 backend/.env

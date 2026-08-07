@@ -226,7 +226,11 @@ function registerSocketHandlers(io) {
       pool.query(`UPDATE ${USERS_TABLE} SET is_online = TRUE WHERE username = $1`, [username])
         .catch(e => console.error('is_online true xato:', e.message));
 
-      sendAllUsers();
+      // To'liq ro'yxat faqat shu yangi ulangan soketga yuboriladi (boshlang'ich
+      // holat uchun). Qolganlarga bitta o'zgarish hodisasi yetarli — ilgari har
+      // ulanish/uzilishda butun ro'yxat hammaga qayta yuborilardi, ya'ni N
+      // foydalanuvchi uchun N² emit.
+      sendOnlineListTo(browser);
       browser.broadcast.emit("USER_STATUS_CHANGED", { username, online: true });
 
       // Pending offer bor bo'lsa — faqat CALL_OFFER yuboramiz, CALL_SESSION_SYNC emas.
@@ -608,7 +612,6 @@ function registerSocketHandlers(io) {
             } catch (e) {
               console.error("last_seen yangilashda xato:", e);
             }
-            sendAllUsers();
             io.emit("USER_STATUS_CHANGED", { username, online: false, lastActive });
           }, PRESENCE_OFFLINE_GRACE_MS);
           pendingOfflineTimeouts.set(username, timeout);
@@ -710,15 +713,14 @@ function sweepStaleCalls() {
 
 setInterval(sweepStaleCalls, 60 * 1000).unref?.();
 
-async function sendAllUsers() {
-  const list = Array.from(onlineUsers.keys())
-    .filter(u => hasLiveSockets(u) || pendingOfflineTimeouts.has(u))
-    .map(u => ({ username: u, online: true }));
-  for (const [, sockets] of onlineUsers) {
-    for (const s of sockets) {
-      if (s.connected) s.emit("ONLINE_USERS_LIST", list);
-    }
-  }
+function onlineUsersList() {
+  return Array.from(onlineUsers.keys())
+    .filter((u) => hasLiveSockets(u) || pendingOfflineTimeouts.has(u))
+    .map((u) => ({ username: u, online: true }));
+}
+
+function sendOnlineListTo(socket) {
+  if (socket.connected) socket.emit("ONLINE_USERS_LIST", onlineUsersList());
 }
 
 export { registerSocketHandlers, emitToUser };
