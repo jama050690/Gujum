@@ -204,7 +204,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _targetUsername = peer.username;
     _state = CallSessionState.calling;
     notifyListeners();
-    await _startOutgoingTone();
+    // Chaqiruv ohangi fonda boshlanadi: uni kutib turish kamerani ochishni
+    // kechiktirardi.
+    unawaited(_startOutgoingTone());
 
     try {
       await _requestMediaPermissions(video: video);
@@ -213,6 +215,12 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
+      // Kamera ochilishi bilan o'z tasvirimizni ko'rsatamiz. Ilgari bu yerda
+      // hech qanday xabar berilmasdi va oldindan ko'rish faqat keyinroq —
+      // boshqa biror hodisa ekranni qayta chizganda paydo bo'lardi, ya'ni
+      // qo'ng'iroq boshlangandan ancha keyin.
+      _localStreamVersion++;
+      notifyListeners();
       final pc = await _createPeerConnection();
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
@@ -294,6 +302,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _localStream = mediaState.stream;
       _isVideo = mediaState.videoEnabled;
       _isCameraOff = !_isVideo;
+      // Javob berish yo'lida ham o'z tasvirimizni darhol ko'rsatamiz.
+      _localStreamVersion++;
+      notifyListeners();
 
       for (final track in _localStream!.getTracks()) {
         await pc.addTrack(track, _localStream!);
