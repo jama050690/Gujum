@@ -88,6 +88,7 @@ extension _ConversationPaneView on _ConversationPaneState {
                       ? _buildSelectionHeaderActions(t, chat, selectedMessages)
                       : _buildHeaderActions(t),
             ),
+            if (_chatSearchActive) _buildChatSearchBar(t),
             Expanded(
               child: _buildConversationBody(
                 context,
@@ -175,10 +176,29 @@ extension _ConversationPaneView on _ConversationPaneState {
     bool selectionMode,
     EdgeInsets messagePadding,
   ) {
-    final messages = chat.messages;
+    // Qidiruv yoqilgan bo'lsa faqat mos xabarlar ko'rsatiladi.
+    final query = _chatSearchQuery.trim().toLowerCase();
+    final messages = query.isEmpty
+        ? chat.messages
+        : chat.messages
+            .where((m) => m.content.toLowerCase().contains(query))
+            .toList();
     return Stack(
       children: [
-        ListView.builder(
+        // Ro'yxat teskari, shuning uchun "tepaga yetish" = oxiriga yetish.
+        // Foydalanuvchi eski xabarlarga qarab borganda keyingi bo'lak
+        // oldindan so'raladi — ro'yxat tugab, to'xtab qolishini kutmaymiz.
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (query.isEmpty &&
+                notification.metrics.extentAfter < 600 &&
+                chat.hasMoreOlder &&
+                !chat.loadingOlder) {
+              unawaited(chat.loadOlderMessages());
+            }
+            return false;
+          },
+          child: ListView.builder(
       reverse: true,
       controller: _messagesScrollController,
       padding: messagePadding,
@@ -228,6 +248,7 @@ extension _ConversationPaneView on _ConversationPaneState {
           ],
         );
       },
+        ),
         ),
         if (_showScrollToBottom)
           Positioned(

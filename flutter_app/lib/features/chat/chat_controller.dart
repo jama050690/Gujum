@@ -15,6 +15,9 @@ import 'message_store.dart';
 import '../settings/settings_controller.dart';
 import 'chat_repository.dart';
 
+/// Tarmoq holati — yuqoridagi banner shu asosda ko'rsatiladi.
+enum ConnectionStatus { connected, connecting, offline }
+
 class ChatController extends ChangeNotifier {
   ChatController({
     required ChatRepository chatRepository,
@@ -54,9 +57,15 @@ class ChatController extends ChangeNotifier {
   bool _loadingInbox = false;
   bool _loadingMessages = false;
   bool _messagesLoadFailed = false;
+  bool _loadingOlder = false;
+  /// Serverda yana eski xabarlar bormi. Bir marta bo'sh sahifa kelsa
+  /// so'ramaymiz — pastga har tekkanda so'rov yuborilmasin.
+  bool _hasMoreOlder = true;
+  bool _loadingMoreChats = false;
+  bool _hasMoreChats = true;
   String? _messagesErrorDetail;
   bool _searching = false;
-  String? _connectionLabel;
+  ConnectionStatus _connectionStatus = ConnectionStatus.connected;
   bool _syncingSession = false;
   String? _lastSessionKey;
 
@@ -69,8 +78,80 @@ class ChatController extends ChangeNotifier {
   bool get messagesLoadFailed => _messagesLoadFailed;
   String? get messagesErrorDetail => _messagesErrorDetail;
   bool get searching => _searching;
-  String? get connectionLabel => _connectionLabel;
+  ConnectionStatus get connectionStatus => _connectionStatus;
+
+  /// Tarjima kaliti — ulanish yaxshi bo'lsa null (banner ko'rsatilmaydi).
+  String? get connectionLabel => switch (_connectionStatus) {
+        ConnectionStatus.connected => null,
+        ConnectionStatus.connecting => 'connection_connecting',
+        ConnectionStatus.offline => 'connection_offline',
+      };
   bool get isConnected => _socketService.isConnected;
+  bool get loadingOlder => _loadingOlder;
+  bool get hasMoreOlder => _hasMoreOlder;
+  bool get hasMoreChats => _hasMoreChats;
+
+  /// Suhbatlar ro'yxatining keyingi bo'lagi. Xabarlar bilan bir xil kursor
+  /// yondashuvi — oxirgi xabar vaqtidan oldingilari.
+  Future<void> loadMoreChats() async {
+    if (_loadingMoreChats || !_hasMoreChats || _inbox.isEmpty) return;
+    final user = _authController.user;
+    if (user == null) return;
+    final oldest = _inbox.last.lastMessageAt;
+    if (oldest == null) return;
+
+    _loadingMoreChats = true;
+    try {
+      final more =
+          await _chatRepository.fetchInbox(user.username, before: oldest);
+      if (more.isEmpty) {
+        _hasMoreChats = false;
+      } else {
+        final seen = _inbox.map((e) => e.username).toSet();
+        _inbox = [..._inbox, ...more.where((e) => !seen.contains(e.username))];
+      }
+    } catch (e) {
+      debugPrint('CHAT_DEBUG loadMoreChats xatosi: $e');
+    } finally {
+      _loadingMoreChats = false;
+      notifyListeners();
+    }
+  }
+
+  /// Ro'yxat tepasiga yetganda chaqiriladi: eng eski yuklangan xabardan
+  /// oldingilarini oladi. Sahifa ochilishida hammasi emas, faqat oxirgi
+  /// bo'lak yuklanadi — qolgani kerak bo'lganda kelaveradi.
+  Future<void> loadOlderMessages() async {
+    if (_loadingOlder || !_hasMoreOlder) return;
+    final user = _authController.user;
+    final peer = _activeChat?.username;
+    if (user == null || peer == null || _messages.isEmpty) return;
+
+    final oldest = _messages.first.createdAt;
+    if (oldest == null) return;
+
+    _loadingOlder = true;
+    notifyListeners();
+    try {
+      final older = await _chatRepository.fetchMessages(
+        user1: user.username,
+        user2: peer,
+        before: oldest,
+      );
+      if (_activeChat?.username != peer) return;
+      if (older.isEmpty) {
+        _hasMoreOlder = false;
+      } else {
+        _messages = MessageStore.merge(older, _messages);
+        _persist(peer, _messages);
+      }
+    } catch (e) {
+      debugPrint('CHAT_DEBUG loadOlderMessages xatosi: $e');
+    } finally {
+      _loadingOlder = false;
+      notifyListeners();
+    }
+  }
 
   // --- KOMPILYATSIYA XATOLARINI TUZATUVCHI METODLAR ---
   Future<void> bootstrap() async {
@@ -81,11 +162,16 @@ class ChatController extends ChangeNotifier {
   /// Joriy foydalanuvchi uchun local do'kon. Akkaunt almashsa qaytadan
   /// ochiladi — bir qurilmadagi ikki akkaunt tarixi aralashmasin.
   Future<MessageStore?> _ensureStore() async {
-    final username = _authController.user?.username;
-    if (username == null) return null;
-    if (_store?.owner == username) return _store;
+    final user = _authController.user;
+    if (user == null) return null;
+    // Akkaunt id si bo'yicha ajratamiz. Username bo'yicha ajratilganda
+    // o'chirilgan akkaunt bilan bir xil pochtadan qayta ro'yxatdan o'tilsa
+    // aynan o'sha username qaytadi va yangi akkaunt eski yozishmalarni
+    // ko'rib qolardi.
+    final owner = user.id != null ? 'u${user.id}' : user.username;
+    if (_store?.owner == owner) return _store;
     try {
-      _store = await MessageStore.create(username);
+      _store = await MessageStore.create(owner);
     } catch (e) {
       debugPrint('CHAT_DEBUG MessageStore ochilmadi: $e');
       _store = null;
@@ -262,6 +348,7 @@ class ChatController extends ChangeNotifier {
     _loadingMessages = !hasCache;
     _messagesLoadFailed = false;
     _messagesErrorDetail = null;
+    _hasMoreOlder = true;
     notifyListeners();
     try {
       final fetched = await _chatRepository.fetchMessages(
@@ -392,15 +479,16 @@ class ChatController extends ChangeNotifier {
   void _handleSocketPacket(SocketPacket packet) {
     switch (packet.event) {
       case 'connect':
-        _connectionLabel = null;
+        _connectionStatus = ConnectionStatus.connected;
         if (_activeChat != null && !_loadingMessages) unawaited(reloadActiveChat());
         break;
       case 'disconnect':
-        _connectionLabel = 'Socket uzildi';
+        // socket.io o'zi qayta ulanadi — foydalanuvchiga "ulanmoqda" deymiz.
+        _connectionStatus = ConnectionStatus.connecting;
         break;
       case 'connect_error':
       case 'error':
-        _connectionLabel = 'Socket ulanmayapti';
+        _connectionStatus = ConnectionStatus.offline;
         break;
       // Qo'ng'iroq audio → CallController o'zi boshqaradi, bu yerda kerak emas
 
@@ -494,6 +582,7 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
     try {
       _inbox = await _chatRepository.fetchInbox(user.username);
+      _hasMoreChats = _inbox.isNotEmpty;
       // Populate _lastActiveUsers from inbox data (only for offline users)
       final updated = Map<String, DateTime?>.from(_lastActiveUsers);
       for (final item in _inbox) {

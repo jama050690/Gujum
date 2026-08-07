@@ -50,6 +50,7 @@ class _FriendsPageState extends State<FriendsPage> {
   List<SimpleUser> _searchResults = const [];
   List<_PhoneContactMatch> _phoneMatches = const [];
   List<_InviteCandidate> _inviteCandidates = const [];
+  bool _searchOpen = false;
   Timer? _searchDebounce;
   bool _searching = false;
   bool _loadingContacts = false;
@@ -268,14 +269,48 @@ class _FriendsPageState extends State<FriendsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(widget.titleKey ?? 'search_users')),
+        // Qidiruv sarlavha joyida ochiladi: odatda faqat belgi turadi,
+        // bosilganda esa butun sarlavha maydonini egallaydi. Alohida
+        // qidiruv bloki ekranning tepasini keraksiz band qilardi.
+        title: _searchOpen
+            ? TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: t('search_hint'),
+                  border: InputBorder.none,
+                ),
+                onChanged: _onSearchChanged,
+              )
+            : Text(t(widget.titleKey ?? 'search_users')),
+        actions: [
+          IconButton(
+            icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded),
+            onPressed: () {
+              setState(() {
+                _searchOpen = !_searchOpen;
+                if (!_searchOpen) {
+                  _searchController.clear();
+                  _searchResults = const [];
+                } else {
+                  _searchFocusNode.requestFocus();
+                }
+              });
+            },
+          ),
+        ],
       ),
       // Qo'lda qidirib qo'shish: raqami telefon kitobida yo'q odamni
       // username orqali topish uchun. Telegram'da ham shunga o'xshash
       // tugma bor — joyi boshqacha, vazifasi bir xil.
       floatingActionButton: _showPhoneContactsSection
           ? FloatingActionButton(
-              onPressed: () => _searchFocusNode.requestFocus(),
+              onPressed: () => setState(() {
+                _searchOpen = true;
+                _searchFocusNode.requestFocus();
+              }),
               tooltip: t('add_friend'),
               child: const Icon(Icons.person_add_alt_1_rounded),
             )
@@ -292,7 +327,6 @@ class _FriendsPageState extends State<FriendsPage> {
         showPhoneContactsSection: _showPhoneContactsSection,
         onSearch: _runSearch,
         onSearchChanged: _onSearchChanged,
-        searchFocusNode: _searchFocusNode,
         onRefreshContacts: _loadPhoneContactMatches,
         onOpenChat: _openChat,
         onInvite: _invite,
@@ -317,7 +351,6 @@ class _SearchTab extends StatelessWidget {
     required this.onOpenChat,
     required this.onInvite,
     required this.inviteCandidates,
-    required this.searchFocusNode,
   });
 
   final TextEditingController controller;
@@ -334,7 +367,6 @@ class _SearchTab extends StatelessWidget {
   final ValueChanged<SimpleUser> onOpenChat;
   final ValueChanged<_InviteCandidate> onInvite;
   final List<_InviteCandidate> inviteCandidates;
-  final FocusNode searchFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -345,20 +377,13 @@ class _SearchTab extends StatelessWidget {
           Expanded(
             child: RefreshIndicator(
               onRefresh: onRefreshContacts,
-              child: ListView(
-                children: [
-                  // Qidiruv eng tepada — Telegram ham shunday, va yozilayotganda
-                  // izlaydi, tugma bosish shart emas.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: _SearchBox(
-                      controller: controller,
-                      t: t,
-                      onSearch: onSearch,
-                      onChanged: onSearchChanged,
-                      focusNode: searchFocusNode,
-                    ),
-                  ),
+              child: Builder(builder: (context) {
+                // Ro'yxat dangasa bo'lishi shart: ListView(children: [...])
+                // barcha qatorlarni birdan quradi va bir necha ming
+                // kontaktda sahifa ochilmay qolardi. ListView.builder
+                // faqat ekranga tushganini quradi — 'ko'proq ko'rsatish'
+                // tugmasi ham keraksiz bo'ladi, Telegram'da ham yo'q.
+                final items = <Widget>[
                   if (results.isNotEmpty)
                     ...results.map((user) {
                       final imageUrl =
@@ -512,8 +537,12 @@ class _SearchTab extends StatelessWidget {
                       );
                     }),
                   const SizedBox(height: 24),
-                ],
-              ),
+                ];
+                return ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => items[index],
+                );
+              }),
             ),
           )
         else ...[

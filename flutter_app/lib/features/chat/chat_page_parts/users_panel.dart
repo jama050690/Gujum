@@ -132,10 +132,19 @@ class _UsersPanel extends StatelessWidget {
             Positioned.fill(
               child: RefreshIndicator(
                 onRefresh: chat.loadInbox,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.only(bottom: safeBottom + 118),
-                  children: [
+                child: NotificationListener<ScrollNotification>(
+                  // Ro'yxat oxiriga yaqinlashganda keyingi bo'lak
+                  // so'raladi — tugab qolishini kutmaymiz.
+                  onNotification: (n) {
+                    if (n.metrics.extentAfter < 600 && chat.hasMoreChats) {
+                      unawaited(chat.loadMoreChats());
+                    }
+                    return false;
+                  },
+                  child: Builder(builder: (context) {
+                    // Dangasa ro'yxat: ListView(children: [...]) barcha
+                    // suhbatlarni birdan quradi.
+                    final items = <Widget>[
                     _UsersHeader(
                       settings: settings,
                       currentUser: currentUser,
@@ -146,8 +155,10 @@ class _UsersPanel extends StatelessWidget {
                       onBack: onHideArchived,
                       onChanged: onSearchChanged,
                     ),
-                    if (connectionText != null &&
-                        chat.connectionLabel != 'connected')
+                    // connectionText ulanish yaxshi bo'lganda null bo'ladi,
+                    // shuning uchun alohida 'connected' tekshiruvi kerak emas
+                    // (u hech qachon bunday qiymat qaytarmasdi ham).
+                    if (connectionText != null)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                         child: DecoratedBox(
@@ -181,6 +192,7 @@ class _UsersPanel extends StatelessWidget {
                       else
                         ...filteredItems.map(
                           (item) => _InboxTile(
+                            currentUsername: currentUsername,
                             settings: settings,
                             item: item,
                             isOnline: chat.onlineUsers.contains(item.username),
@@ -214,6 +226,7 @@ class _UsersPanel extends StatelessWidget {
                       else
                         ...filteredItems.map(
                           (item) => _InboxTile(
+                            currentUsername: currentUsername,
                             settings: settings,
                             item: item,
                             isOnline: chat.onlineUsers.contains(item.username),
@@ -246,7 +259,12 @@ class _UsersPanel extends StatelessWidget {
                           ),
                       ],
                     ],
-                  ],
+                  ];
+                    return ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) => items[index],
+                    );
+                  }),
                 ),
               ),
             ),

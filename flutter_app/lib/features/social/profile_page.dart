@@ -52,10 +52,25 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    setState(() => _loading = true);
+    // Sahifa darhol ochiladi: nom, raqam, bio va username allaqachon
+    // seansda bor. Tarmoq javobini kutib bo'sh ekran ko'rsatishning hojati
+    // yo'q — kelgach ustiga yoziladi.
+    _fullNameController.text = user.fullName ?? '';
+    _usernameController.text = user.username;
+    _phoneController.text = user.phone ?? '';
+    _birthdayController.text = user.birthday ?? '';
+    _bioController.text = user.bio ?? '';
+    setState(() => _loading = false);
+
     try {
-      final profile = await repository.fetchProfile(user.username);
-      final blocked = await repository.fetchBlockedUsers();
+      // Ikkala so'rov birga ketadi. Avval ketma-ket edi va sahifa ikkala
+      // javobni kutib turardi — ya'ni ochilish vaqti ikki barobar.
+      final results = await Future.wait([
+        repository.fetchProfile(user.username),
+        repository.fetchBlockedUsers(),
+      ]);
+      final profile = results[0] as ProfileDetails;
+      final blocked = results[1] as List<SimpleUser>;
       if (!mounted) {
         return;
       }

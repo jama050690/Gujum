@@ -6,6 +6,7 @@ class InboxItem {
     required this.lastActive,
     required this.lastMessage,
     required this.lastMessageAt,
+    this.lastSender,
     required this.unreadCount,
   });
 
@@ -14,6 +15,8 @@ class InboxItem {
   final String? avatar;
   final DateTime? lastActive;
   final String lastMessage;
+  /// Oxirgi xabarni kim yozgan — ro'yxatda "Siz:" prefiksi uchun.
+  final String? lastSender;
   final DateTime? lastMessageAt;
   final int unreadCount;
 
@@ -33,6 +36,7 @@ class InboxItem {
       lastActive: lastActive ?? this.lastActive,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      lastSender: lastSender,
       unreadCount: unreadCount ?? this.unreadCount,
     );
   }
@@ -64,6 +68,7 @@ class InboxItem {
                           ? '[file]'
                           : ''),
       lastMessageAt: _parseDate(json['lastMessageTime']),
+      lastSender: json['lastSender']?.toString(),
       unreadCount: int.tryParse('${json['unreadCount'] ?? 0}') ?? 0,
     );
   }

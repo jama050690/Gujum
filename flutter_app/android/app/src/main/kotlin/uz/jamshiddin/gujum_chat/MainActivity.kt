@@ -9,6 +9,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import com.google.android.gms.auth.api.identity.GetPhoneNumberHintIntentRequest
 import com.google.android.gms.auth.api.identity.Identity
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -32,6 +33,13 @@ class MainActivity : FlutterActivity() {
     private var outgoingToneTimer: Timer? = null
     private var phoneHintResult: MethodChannel.Result? = null
 
+    // Qo'ng'iroq davomida quloqchin ulanishi/uzilishini kuzatish uchun.
+    private var callAudioChannel: MethodChannel? = null
+    private var audioDeviceCallback: AudioDeviceCallback? = null
+    private var callAudioActive = false
+    private var lastSpeakerOn = true
+    private var lastPreferWiredHeadset = true
+
     companion object {
         private const val REQ_PHONE_HINT = 7301
     }
@@ -39,10 +47,11 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(
+        callAudioChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "gujum/call_audio"
-        ).setMethodCallHandler { call, result ->
+        )
+        callAudioChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startIncomingRingtone" -> {
                     startIncomingRingtone()
@@ -377,6 +386,48 @@ class MainActivity : FlutterActivity() {
 
     // preferWiredHeadset=false faqat foydalanuvchi speaker tugmasini ataylab
     // bosganda keladi — o'shanda ulangan quloqchin ham speaker'ni to'sib qololmaydi.
+
+    /**
+     * Qo'ng'iroq paytida audio qurilmalar o'zgarishini kuzatadi.
+     *
+     * Ilgari marshrut faqat qo'ng'iroq boshida hisoblanardi: suhbat davomida
+     * simli quloqchin ulansa hech narsa o'zgarmasdi va ovoz dinamikda qolardi.
+     * Endi qurilma qo'shilganda yoki uzilganda marshrut qayta hisoblanadi va
+     * natija Flutter tomonga yuboriladi.
+     */
+    private fun startAudioDeviceWatch() {
+        if (audioDeviceCallback != null) return
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val callback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+                reapplyCallAudio()
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                reapplyCallAudio()
+            }
+        }
+        audioDeviceCallback = callback
+        audioManager.registerAudioDeviceCallback(callback, null)
+    }
+
+    private fun stopAudioDeviceWatch() {
+        val callback = audioDeviceCallback ?: return
+        audioDeviceCallback = null
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioManager.unregisterAudioDeviceCallback(callback)
+    }
+
+    private fun reapplyCallAudio() {
+        if (!callAudioActive) return
+        // Tizim qurilma ro'yxatini yangilashi uchun qisqa kechikish — aks holda
+        // yangi ulangan quloqchin hali availableCommunicationDevices da yo'q.
+        runOnUiThread {
+            val info = activateCallAudio(lastSpeakerOn, lastPreferWiredHeadset)
+            callAudioChannel?.invokeMethod("audioRouteChanged", info)
+        }
+    }
+
     private fun activateCallAudio(
         speakerOn: Boolean,
         preferWiredHeadset: Boolean = true,
@@ -389,6 +440,10 @@ class MainActivity : FlutterActivity() {
             )
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        lastSpeakerOn = speakerOn
+        lastPreferWiredHeadset = preferWiredHeadset
+        callAudioActive = true
+        startAudioDeviceWatch()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (speakerOn) {
@@ -509,6 +564,8 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun restoreAudioRoute() {
+        callAudioActive = false
+        stopAudioDeviceWatch()
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = false

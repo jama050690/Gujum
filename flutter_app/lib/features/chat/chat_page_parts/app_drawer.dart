@@ -192,7 +192,7 @@ class _AppDrawer extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Text(
-                  t('version_label'),
+                  '${t('version_label')} ${AppConfig.appVersion}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: settings.isDarkMode
                             ? Colors.white38

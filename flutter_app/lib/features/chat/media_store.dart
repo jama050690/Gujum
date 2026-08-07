@@ -18,6 +18,10 @@ class MediaStore {
 
   final Directory _dir;
 
+  /// Media yuklab olishda ham ulanish qayta ishlatiladi: bir suhbatda
+  /// o'nlab fayl bo'lishi mumkin, har biriga alohida TLS qo'l siqish qimmat.
+  final http.Client _http = http.Client();
+
   /// Diskda bor fayllar — har safar fayl tizimiga murojaat qilmaslik uchun.
   final Set<String> _present = {};
 
@@ -98,7 +102,9 @@ class MediaStore {
 
   Future<String?> _download(String name, String url) async {
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await _http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 60));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
         // Fayl serverda yo'q (muddati o'tgan) — qayta urinmaymiz.
         return null;

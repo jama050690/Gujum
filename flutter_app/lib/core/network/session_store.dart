@@ -14,6 +14,7 @@ class SessionStore {
   static const _baseUrlKey = 'gujum.base_url';
   static const _lastLoginUsernameKey = 'gujum.last_login_username';
   static const _contactsAskedKey = 'gujum.contacts_asked';
+  static const _permissionsAskedKey = 'gujum.permissions_asked';
 
   final SharedPreferences _prefs;
 
@@ -82,6 +83,14 @@ class SessionStore {
   bool get contactsAsked => _prefs.getBool(_contactsAskedKey) ?? false;
 
   Future<void> markContactsAsked() => _prefs.setBool(_contactsAskedKey, true);
+
+  /// Bildirishnoma / batareya ruxsatlari bir marta so'raladi. Ilgari ular
+  /// har ishga tushishda so'ralardi va ilova yangilangandan keyin ochilganda
+  /// yana chiqib, "yangilanish ruxsat so'rayapti" degan taassurot berardi.
+  bool get permissionsAsked => _prefs.getBool(_permissionsAskedKey) ?? false;
+
+  Future<void> markPermissionsAsked() =>
+      _prefs.setBool(_permissionsAskedKey, true);
 
   String? get lastLoginUsername => _prefs.getString(_lastLoginUsernameKey);
 

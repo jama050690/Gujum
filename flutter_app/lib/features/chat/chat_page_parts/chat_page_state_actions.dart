@@ -19,11 +19,21 @@ Future<void> _showChatActions(
       return SafeArea(
         child: Wrap(
           children: [
-            ListTile(
-              leading: const Icon(Icons.open_in_new_rounded),
-              title: Text(t('chat_open_in_new_window')),
-              onTap: () => Navigator.of(context).pop(_InboxAction.open),
-            ),
+            // "Yangi oynada ochish" faqat vebda ma'noga ega. Telefonda u
+            // shunchaki chatni ochadi — va menyu chatning o'zidan ochilgan
+            // bo'lsa, umuman hech narsa qilmaydi. Shuning uchun matn
+            // platformaga qarab tanlanadi va chat allaqachon ochiq bo'lsa
+            // band ko'rsatilmaydi.
+            if (chat.activeChat?.username != item.username)
+              ListTile(
+                leading: Icon(
+                  kIsWeb ? Icons.open_in_new_rounded : Icons.chat_bubble_outline,
+                ),
+                title: Text(
+                  kIsWeb ? t('chat_open_in_new_window') : t('open_chat'),
+                ),
+                onTap: () => Navigator.of(context).pop(_InboxAction.open),
+              ),
             ListTile(
               leading: Icon(
                 isArchived
@@ -47,12 +57,6 @@ Future<void> _showChatActions(
               ),
               title: Text(isMuted ? t('chat_unmute') : t('chat_mute')),
               onTap: () => Navigator.of(context).pop(_InboxAction.mute),
-            ),
-            ListTile(
-              leading: const Icon(Icons.mark_chat_unread_outlined),
-              title: Text(t('chat_mark_unread')),
-              onTap: () =>
-                  Navigator.of(context).pop(_InboxAction.markUnread),
             ),
             ListTile(
               leading: const Icon(Icons.history_rounded),

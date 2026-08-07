@@ -60,7 +60,12 @@ router.get("/calls/history", async (req, res) => {
 
 // GET /api/messages
 router.get("/messages", async (req, res) => {
-  const { user1, user2 } = req.query;
+  const { user1, user2, before } = req.query;
+  // Kursorli sahifalash: OFFSET emas. OFFSET 5000 da Postgres avval 5000
+  // qatorni sanab chiqadi, kursor esa indeks bo'yicha to'g'ridan-to'g'ri
+  // kerakli joyga tushadi. Bundan tashqari suhbat davomida yangi xabar
+  // kelsa OFFSET qatorlarni takrorlab yoki tashlab yuboradi.
+  const limit = Math.min(Number(req.query.limit) || 40, 100);
 
   // Agar user1 va user2 berilgan bo'lsa - private chat
   if (user1 && user2) {
@@ -107,6 +112,13 @@ router.get("/messages", async (req, res) => {
         emitToUser(user2, "MESSAGES_READ", { by: user1 });
       }
 
+      const params = [chatId, user1Id, limit];
+      let cursorClause = "";
+      if (before) {
+        params.push(before);
+        cursorClause = `AND m.created_at < $${params.length}`;
+      }
+
       const { rows } = await pool.query(
         `SELECT * FROM (
            SELECT m.id, m.content, m.image, m.audio, m.video, m.is_read, m.created_at,
@@ -119,11 +131,12 @@ router.get("/messages", async (req, res) => {
                SELECT 1 FROM message_deletions d
                WHERE d.message_id = m.id AND d.user_id = $2
              )
+             ${cursorClause}
            ORDER BY m.created_at DESC
-           LIMIT 80
+           LIMIT $3
          ) recent
          ORDER BY recent.created_at ASC`,
-        [chatId, user1Id],
+        params,
       );
 
       return res.json(rows);
@@ -260,8 +273,10 @@ router.post("/messages", authMiddleware, async (req, res) => {
 
 // GET /api/inbox
 router.get("/inbox", async (req, res) => {
-  const { username } = req.query;
+  const { username, before } = req.query;
   if (!username) return res.status(400).json({ message: "username kerak" });
+  // Xabarlar bilan bir xil yondashuv: kursor oxirgi xabar vaqti bo'yicha.
+  const limit = Math.min(Number(req.query.limit) || 40, 100);
 
   try {
     const userResult = await pool.query(
@@ -275,6 +290,13 @@ router.get("/inbox", async (req, res) => {
 
     const userId = userResult.rows[0].id;
 
+    const params = [userId, limit];
+    let cursorClause = "";
+    if (before) {
+      params.push(before);
+      cursorClause = `AND lm.created_at < $${params.length}`;
+    }
+
     // Get chats with last message info using LATERAL join
     const { rows } = await pool.query(`
       SELECT
@@ -287,6 +309,7 @@ router.get("/inbox", async (req, res) => {
         lm.audio as lastAudio,
         lm.video as lastVideo,
         lm.created_at as lastMessageTime,
+        lm.sender_username as "lastSender",
         COALESCE(uc.unread_count, 0) as unreadCount
       FROM ${CHATS_TABLE} c
       JOIN ${USERS_TABLE} u ON (
@@ -296,10 +319,12 @@ router.get("/inbox", async (req, res) => {
         END
       )
       LEFT JOIN LATERAL (
-        SELECT content, image, audio, video, created_at
-        FROM ${MESSAGES_TABLE}
-        WHERE chat_id = c.id
-        ORDER BY created_at DESC
+        SELECT m2.content, m2.image, m2.audio, m2.video, m2.created_at,
+               su.username AS sender_username
+        FROM ${MESSAGES_TABLE} m2
+        JOIN ${USERS_TABLE} su ON su.id = m2.sender_id
+        WHERE m2.chat_id = c.id
+        ORDER BY m2.created_at DESC
         LIMIT 1
       ) lm ON true
       LEFT JOIN LATERAL (
@@ -309,10 +334,12 @@ router.get("/inbox", async (req, res) => {
           AND um.sender_id <> $1
           AND COALESCE(um.is_read, FALSE) = FALSE
       ) uc ON true
-      WHERE c.user1_id = $1 OR c.user2_id = $1
+      WHERE (c.user1_id = $1 OR c.user2_id = $1)
+        ${cursorClause}
       ORDER BY lm.created_at DESC NULLS LAST
+      LIMIT $2
     `,
-      [userId],
+      params,
     );
 
     res.json(rows);

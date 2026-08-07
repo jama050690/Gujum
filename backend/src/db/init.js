@@ -386,6 +386,21 @@ async function initIndexes() {
        ON ${BLOCKED_USERS_TABLE} (blocked_id)`,
     `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
        ON push_subscriptions (user_id)`,
+
+    // TTL tozalash butun jadval bo'ylab created_at bo'yicha o'chiradi.
+    // idx_..._chat_created chat_id dan boshlanadi, shuning uchun bu so'rovga
+    // yaramaydi — usiz har safar to'liq skan bo'lardi.
+    `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_created
+       ON ${MESSAGES_TABLE} (created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_${GROUP_MESSAGES_TABLE}_created
+       ON ${GROUP_MESSAGES_TABLE} (created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_${CHANNEL_MESSAGES_TABLE}_created
+       ON ${CHANNEL_MESSAGES_TABLE} (created_at)`,
+
+    // O'chirilgan akkauntlar arxivi 2 yildan keyin shu ustun bo'yicha
+    // tozalanadi.
+    `CREATE INDEX IF NOT EXISTS idx_deleted_accounts_deleted_at
+       ON deleted_accounts (deleted_at)`,
   ];
 
   for (const sql of indexes) {
