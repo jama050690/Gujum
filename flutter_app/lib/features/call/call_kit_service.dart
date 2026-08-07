@@ -20,7 +20,6 @@ class CallKitService {
 
   void _handle(CallEvent? event) {
     if (event == null) return;
-    debugPrint('[CallKit] event=${event.runtimeType}');
     switch (event) {
       case CallEventActionCallAccept(:final id):
         _controller.add((action: 'accept', callId: id));
@@ -69,7 +68,6 @@ class CallKitService {
         ),
       ));
     } catch (e) {
-      debugPrint('[CallKit] showIncoming error: $e');
     }
   }
 
@@ -80,7 +78,6 @@ class CallKitService {
         CallKitParams(id: callId),
       );
     } catch (e) {
-      debugPrint('[CallKit] hideIncoming error: $e');
     }
   }
 
@@ -89,7 +86,6 @@ class CallKitService {
     try {
       await FlutterCallkitIncoming.setCallConnected(callId);
     } catch (e) {
-      debugPrint('[CallKit] setConnected error: $e');
     }
   }
 
@@ -97,7 +93,6 @@ class CallKitService {
     try {
       await FlutterCallkitIncoming.endCall(callId);
     } catch (e) {
-      debugPrint('[CallKit] endCall error: $e');
     }
   }
 
@@ -105,7 +100,6 @@ class CallKitService {
     try {
       await FlutterCallkitIncoming.endAllCalls();
     } catch (e) {
-      debugPrint('[CallKit] endAllCalls error: $e');
     }
   }
 

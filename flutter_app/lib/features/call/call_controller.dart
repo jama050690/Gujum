@@ -84,7 +84,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         (key, value) => MapEntry(key.toString(), value),
       );
       if (info == null) return null;
-      debugPrint('CALL_DEBUG audioRouteChanged $info');
       _syncAudioRouteInfo(info);
       // WebRTC o'zining speakerphone bayrog'ini yuritadi — quloqchin suhbat
       // o'rtasida ulanganda unga ham xabar berilmasa ovoz dinamikda qoladi.
@@ -126,7 +125,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       });
     } catch (e) {
       _callServiceRunning = false;
-      debugPrint('CALL_DEBUG call service start failed: $e');
     }
   }
 
@@ -155,7 +153,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       );
       notifyListeners();
     } catch (e) {
-      debugPrint('CALL_DEBUG _enrichRemotePeer() failed: $e');
     }
   }
 
@@ -165,7 +162,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await _callServiceChannel.invokeMethod('stop');
     } catch (e) {
-      debugPrint('CALL_DEBUG call service stop failed: $e');
     }
   }
 
@@ -285,9 +281,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _reportError('call_not_connected');
       return;
     }
-    debugPrint(
-      'CALL_DEBUG startCall() target=${peer.username} video=$video socketConnected=${_socketService.isConnected}',
-    );
 
     await _prepareForNewSession(video: video);
     _remotePeer = peer;
@@ -323,7 +316,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await pc.setLocalDescription(offer);
       _peerConnection = pc;
       _startRingingTimeout();
-      debugPrint('CALL_DEBUG OFFER SDP:\n${offer.sdp}');
 
       _socketService.emit('CALL_OFFER', {
         'callId': _callId,
@@ -336,13 +328,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           'avatar': _authController.user?.avatar,
         }
       });
-      debugPrint('CALL_DEBUG CALL_OFFER emitted callId=$_callId');
     } on CallSetupException catch (error) {
-      debugPrint('CALL_DEBUG startCall() setup error=${error.errorKey}');
       _reportError(error.errorKey);
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     } catch (error) {
-      debugPrint('CALL_DEBUG startCall() failed error=$error');
       _reportError('call_failed');
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
@@ -350,9 +339,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> acceptIncomingCall() async {
     if (_incomingCall == null) return;
-    debugPrint(
-      'CALL_DEBUG acceptIncomingCall() callId=${_incomingCall!.callId} caller=${_incomingCall!.caller.username} video=${_incomingCall!.isVideo}',
-    );
 
     final incoming = _incomingCall!;
     // Ringing fazasida kelgan caller ICE kandidatlarini saqlash.
@@ -433,7 +419,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       final answer = RTCSessionDescription(fixedSdp, rawAnswer.type);
       await pc.setLocalDescription(answer);
       _startIceTimeout();
-      debugPrint('CALL_DEBUG ANSWER SDP (fixed):\n${answer.sdp}');
 
       // CALL_ANSWER ni Telecom handoff DAN OLDIN yuboramiz.
       // setConnected() → Telecom audio tranzitsiyasi → socket qisqa uzilishi mumkin.
@@ -451,7 +436,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         },
       });
       notifyListeners();
-      debugPrint('CALL_DEBUG CALL_ANSWER emitted callId=$_callId');
 
       // Telecom audio handoff
       await _applyAudioRoute();
@@ -459,15 +443,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await Future.delayed(const Duration(milliseconds: 500));
       await _applyAudioRoute();
     } on CallSetupException catch (error) {
-      debugPrint(
-        'CALL_DEBUG acceptIncomingCall() setup error=${error.errorKey}',
-      );
       _reportError(error.errorKey);
       // _incomingCall allaqachon null — rejectIncomingCall callerni xabardor qilmaydi.
       // _resetSession(notifyRemote: true) CALL_END yuboradi, caller "Ulanmoqda"da qolmaydi.
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     } catch (error) {
-      debugPrint('CALL_DEBUG acceptIncomingCall() failed error=$error');
       _reportError('call_failed');
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
@@ -518,7 +498,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       _isFrontCamera = !_isFrontCamera;
       notifyListeners();
     } catch (e) {
-      debugPrint('CALL_DEBUG flipCamera() error=$e');
     }
   }
 
@@ -529,7 +508,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
     _isUpgradingToVideo = true;
     notifyListeners();
-    debugPrint('CALL_DEBUG _upgradeToVideo() start');
 
     try {
       final status = await Permission.camera.request();
@@ -560,7 +538,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
       final offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      debugPrint('CALL_DEBUG RENEGOTIATE OFFER SDP:\n${offer.sdp}');
 
       _socketService.emit('CALL_RENEGOTIATE', {
         'callId': _callId,
@@ -568,9 +545,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'offer': {'sdp': offer.sdp, 'type': offer.type},
         'isVideo': true,
       });
-      debugPrint('CALL_DEBUG CALL_RENEGOTIATE emitted');
     } catch (error) {
-      debugPrint('CALL_DEBUG _upgradeToVideo() error=$error');
       _isUpgradingToVideo = false;
       notifyListeners();
     }
@@ -582,9 +557,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> toggleSpeaker() async {
     _routePreference =
         _audioRoute == CallAudioRoute.speaker ? 'auto' : 'speaker';
-    debugPrint(
-      'CALL_DEBUG toggleSpeaker() preference=$_routePreference hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
-    );
     await _applyAudioRoute();
     notifyListeners();
   }
@@ -611,7 +583,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _handlePacket(SocketPacket packet) {
-    debugPrint('CALL_DEBUG packet event=${packet.event} payload=${packet.payload}');
     switch (packet.event) {
       case 'CALL_OFFER':
         final data = Map<String, dynamic>.from(packet.payload as Map? ?? {});
@@ -689,13 +660,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         final answer = Map<String, dynamic>.from(data['answer'] as Map? ?? {});
         final callId = data['callId']?.toString();
         if (callId != null && _callId != null && callId != _callId) {
-          debugPrint(
-              'CALL_DEBUG begona CALL_ANSWER e\'tiborsiz qoldirildi callId=$callId current=$_callId');
           break;
         }
         if (_remoteDescriptionReady) {
-          debugPrint(
-              'CALL_DEBUG dublikat CALL_ANSWER e\'tiborsiz qoldirildi callId=$callId');
           _state = CallSessionState.connecting;
           notifyListeners();
           break;
@@ -723,7 +690,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         _ringingTimeout = null;
         _startIceTimeout();
         _connectedAt ??= DateTime.now();
-        debugPrint('CALL_DEBUG ANSWER SDP:\n${answer['sdp']}');
         final sessionCallId = _callId;
         // Avval toneni to'liq to'xtatamiz — keyin setRemoteDescription.
         // ToneGenerator audio bufferi to'liq tozalanmasa WebRTC audiosi bilan aralashib shovqin beradi.
@@ -762,8 +728,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final rejectCallId = rejectData['callId']?.toString();
         if (rejectCallId != null && _callId != null && rejectCallId != _callId) {
-          debugPrint(
-              'CALL_DEBUG eski CALL_REJECT etiborga olinmadi rejectCallId=$rejectCallId current=$_callId');
           break;
         }
         _reportError('call_rejected');
@@ -773,8 +737,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         final endData = Map<String, dynamic>.from(packet.payload as Map? ?? {});
         final endCallId = endData['callId']?.toString();
         if (endCallId != null && _callId != null && endCallId != _callId) {
-          debugPrint(
-              'CALL_DEBUG eski CALL_END etiborga olinmadi endCallId=$endCallId current=$_callId');
           break;
         }
         final reason = (endData['reason'] ?? '').toString();
@@ -880,9 +842,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
                 answerMap['type']?.toString() ?? 'answer',
               ));
               _startIceTimeout();
-              debugPrint('CALL_DEBUG CALL_SESSION_SYNC: remote desc set from buffered answer');
             } catch (e) {
-              debugPrint('CALL_DEBUG CALL_SESSION_SYNC answer error=$e');
             }
           }());
         }
@@ -959,7 +919,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               notifyListeners();
             }
           } catch (e) {
-            debugPrint('CALL_DEBUG CALL_RENEGOTIATE error=$e');
           }
         }());
         break;
@@ -983,10 +942,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             _isUpgradingToVideo = false;
             unawaited(_startCallService());
             unawaited(_switchToVideoAudioRoute());
-            debugPrint('CALL_DEBUG video upgrade complete');
             notifyListeners();
           } catch (e) {
-            debugPrint('CALL_DEBUG CALL_RENEGOTIATE_ANSWER error=$e');
             _isUpgradingToVideo = false;
             notifyListeners();
           }
@@ -1057,7 +1014,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       return (stream: await _openLocalMedia(video: true), videoEnabled: true);
     } catch (error) {
-      debugPrint('CALL_DEBUG video media failed, falling back to audio: $error');
       _reportError('call_video_fallback');
       return (stream: await _openLocalMedia(video: false), videoEnabled: false);
     }
@@ -1081,10 +1037,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
     pc.onTrack = (event) async {
       final track = event.track;
-      debugPrint(
-        'CALL_DEBUG onTrack kind=${track.kind} id=${track.id} '
-        'streams=${event.streams.length} remoteStream=${_remoteStream?.id}',
-      );
       if (event.streams.isNotEmpty) {
         final incoming = event.streams.first;
         if (_remoteStream == null) {
@@ -1109,24 +1061,17 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             _remoteStream = localStream;
           }
         } catch (e) {
-          debugPrint('CALL_DEBUG onTrack local stream addTrack failed: $e');
         }
       }
       // Video track kelganda renderer'ni majburan yangilaymiz (renegotiation case)
       if (track.kind == 'video') {
         _remoteStreamVersion++;
       }
-      debugPrint(
-        'CALL_DEBUG onTrack done remoteStream=${_remoteStream?.id} '
-        'videoTracks=${_remoteStream?.getVideoTracks().length} '
-        'audioTracks=${_remoteStream?.getAudioTracks().length}',
-      );
       notifyListeners();
     };
 
     // Fallback for implementations that fire onAddStream instead of onTrack
     pc.onAddStream = (stream) {
-      debugPrint('CALL_DEBUG onAddStream id=${stream.id}');
       if (_remoteStream?.id != stream.id) {
         _remoteStream = stream;
         notifyListeners();
@@ -1134,7 +1079,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     };
 
     pc.onIceConnectionState = (state) {
-      debugPrint('CALL_DEBUG ICE state: $state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _iceConnectTimeout?.cancel();
@@ -1155,7 +1099,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     };
 
     pc.onConnectionState = (state) {
-      debugPrint('CALL_DEBUG peer connection state: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         unawaited(_markCallConnected());
       } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
@@ -1203,11 +1146,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _startOutgoingTone() async {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        debugPrint('CALL_DEBUG startOutgoingTone() using native tone');
         await _audioChannel.invokeMethod<void>('startOutgoingTone');
         return;
       } catch (error) {
-        debugPrint('CALL_DEBUG startOutgoingTone() native failed error=$error');
       }
     }
     try {
@@ -1215,7 +1156,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.play(AssetSource('sounds/dialing.wav'));
     } catch (error) {
-      debugPrint('CALL_DEBUG _startOutgoingTone() asset failed error=$error');
     }
   }
 
@@ -1228,21 +1168,17 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        debugPrint('CALL_DEBUG startIncomingTone() using native ringtone');
         await _audioChannel.invokeMethod<void>('startIncomingRingtone');
         return;
       } catch (error) {
-        debugPrint('CALL_DEBUG startIncomingTone() native ringtone failed error=$error');
       }
     }
 
     if (!_toneActive) return;
 
-    debugPrint('CALL_DEBUG startIncomingTone() using asset ringtone fallback');
     try {
       await _audioPlayer.play(AssetSource('sounds/ringtone.wav'));
     } catch (error) {
-      debugPrint('CALL_DEBUG startIncomingTone() asset ringtone failed error=$error');
     }
   }
 
@@ -1280,7 +1216,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             ? CallAudioRoute.speaker
             : CallAudioRoute.earpiece;
       } catch (error) {
-        debugPrint('CALL_DEBUG _applyAudioRoute() helper failed error=$error');
       }
       return;
     }
@@ -1292,10 +1227,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'activateCallAudio',
         {'route': _routePreference},
       );
-      debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');
       _syncAudioRouteInfo(result);
     } catch (error) {
-      debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }
     // WebRTC's audio engine keeps its own speakerphone flag, so it has to be
     // told too — but with the RESOLVED route, not the original request. Passing
@@ -1327,7 +1260,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _ringingTimeout?.cancel();
     _ringingTimeout = Timer(const Duration(seconds: 60), () {
       if (_state == CallSessionState.calling) {
-        debugPrint('CALL_DEBUG ringing timeout — no answer after 60s');
         unawaited(_resetSession(notifyRemote: true, reason: 'no_answer'));
       }
     });
@@ -1337,7 +1269,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _iceConnectTimeout?.cancel();
     _iceConnectTimeout = Timer(const Duration(seconds: 30), () {
       if (_state != null && _state != CallSessionState.connected) {
-        debugPrint('CALL_DEBUG ICE timeout — no connection after 30s');
         unawaited(_resetSession(notifyRemote: true, reason: 'connection_lost'));
       }
     });
@@ -1366,7 +1297,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         return;
       }
     } catch (e) {
-      debugPrint('CALL_DEBUG _rebuildRemoteStream error=$e');
     }
   }
 
@@ -1464,16 +1394,13 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await action().timeout(const Duration(seconds: 3));
     } on TimeoutException {
-      debugPrint('CALL_DEBUG cleanup timeout: $label');
     } catch (e) {
-      debugPrint('CALL_DEBUG cleanup error ($label): $e');
     }
   }
 
   // Socket reconnect dan keyin PC yo'q bo'lsa — yangi offer yuborib qo'ng'iroqni tiklaydi.
   Future<void> _restartOutgoingOffer() async {
     if (_callId == null || _targetUsername == null || _remotePeer == null) return;
-    debugPrint('CALL_DEBUG _restartOutgoingOffer() callId=$_callId target=$_targetUsername');
     try {
       await _closePeerResources();
       await _requestMediaPermissions(video: _isVideo);
@@ -1501,10 +1428,8 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           'avatar': _authController.user?.avatar,
         }
       });
-      debugPrint('CALL_DEBUG _restartOutgoingOffer() re-emitted CALL_OFFER');
       notifyListeners();
     } catch (error) {
-      debugPrint('CALL_DEBUG _restartOutgoingOffer() error=$error');
       await _resetSession(notifyRemote: true, reason: 'setup_failed');
     }
   }
@@ -1556,11 +1481,9 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   void setPendingAutoAccept(String callId) {
     if (callId.isEmpty) return;
     _pendingAutoAcceptCallId = callId;
-    debugPrint('[CallKit] setPendingAutoAccept callId=$callId');
   }
 
   void _handleCallKitEvent(({String action, String callId}) event) {
-    debugPrint('[CallKit] action=${event.action} callId=${event.callId}');
     switch (event.action) {
       case 'accept':
         if (_incomingCall?.callId == event.callId) {

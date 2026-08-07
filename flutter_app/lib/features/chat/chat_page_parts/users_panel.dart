@@ -21,7 +21,6 @@ class _UsersPanel extends StatelessWidget {
     required this.onOpenChat,
     required this.onOpenSearchResult,
     required this.onShowChatActions,
-    required this.onOpenNewChat,
     required this.onOpenContacts,
     required this.onOpenSettings,
     required this.onOpenProfile,
@@ -46,7 +45,6 @@ class _UsersPanel extends StatelessWidget {
   final Future<void> Function(InboxItem item) onOpenChat;
   final Future<void> Function(SearchUser user) onOpenSearchResult;
   final ValueChanged<InboxItem> onShowChatActions;
-  final VoidCallback onOpenNewChat;
   final VoidCallback onOpenContacts;
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenProfile;
@@ -266,19 +264,6 @@ class _UsersPanel extends StatelessWidget {
                 ),
               ),
             ),
-            if (!showArchived)
-              Positioned(
-                right: 20,
-                bottom: safeBottom + 92,
-                child: FloatingActionButton(
-                  heroTag: 'new_chat_fab',
-                  onPressed: onOpenNewChat,
-                  backgroundColor: const Color(0xFF2EA6FF),
-                  foregroundColor: Colors.white,
-                  elevation: 10,
-                  child: const Icon(Icons.add_rounded, size: 32),
-                ),
-              ),
             if (!showArchived)
               Positioned(
                 left: 18,

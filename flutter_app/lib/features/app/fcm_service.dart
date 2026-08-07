@@ -61,7 +61,6 @@ Future<void> onBackgroundMessage(RemoteMessage message) async {
       ),
     ));
   } catch (e) {
-    debugPrint('[FCM] showCallkitIncoming error: $e');
   }
 }
 
@@ -156,7 +155,6 @@ class FcmService {
       if (token != null) await _saveToken(token);
       FirebaseMessaging.instance.onTokenRefresh.listen(_saveToken);
     } catch (e) {
-      debugPrint('[FCM] register error: $e');
     }
   }
 
@@ -184,7 +182,6 @@ class FcmService {
         }),
       );
     } catch (e) {
-      debugPrint('[FCM] unregister error: $e');
     }
   }
 
@@ -202,9 +199,7 @@ class FcmService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': _username, 'token': token}),
       );
-      debugPrint('[FCM] Token saqlandi');
     } catch (e) {
-      debugPrint('[FCM] save token error: $e');
     }
   }
 }

@@ -87,13 +87,6 @@ extension _ChatPageStateBuild on _ChatPageState {
             onOpenSearchResult: (user) => _openChatFromSearch(chat, user),
             onShowChatActions: (item) =>
                 _showChatActions(context, chat, item, settings),
-            onOpenNewChat: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const FriendsPage(titleKey: 'search_users'),
-                ),
-              );
-            },
             onOpenContacts: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
