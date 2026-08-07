@@ -27,6 +27,16 @@ class ApiClient {
   final SessionStore _sessionStore;
   final String Function() _baseUrlProvider;
 
+  /// Bitta umumiy klient — ulanish qayta ishlatiladi (keep-alive).
+  ///
+  /// Ilgari har bir so'rov `request.send()` orqali yuborilardi va bu har
+  /// safar yangi klient ochib, yangi TCP ulanish va to'liq TLS qo'l siqishni
+  /// bajarardi. Ya'ni har bir API chaqiruviga ikkita ortiqcha borish-kelish
+  /// qo'shilardi — ilova sekin ko'rinishining asosiy sabablaridan biri.
+  final http.Client _client = http.Client();
+
+  void dispose() => _client.close();
+
   String get baseUrl => AppConfig.normalizeBaseUrl(_baseUrlProvider());
 
   Future<dynamic> getJson(
@@ -38,7 +48,7 @@ class ApiClient {
       try {
         final request = http.Request('GET', _buildUri(path, query));
         _applyHeaders(request.headers, authenticated: authenticated);
-        final response = await request.send().timeout(_requestTimeout);
+        final response = await _client.send(request).timeout(_requestTimeout);
         return await _decode(response);
       } on http.ClientException catch (e) {
         final msg = e.message.toLowerCase();
@@ -68,7 +78,7 @@ class ApiClient {
       json: true,
     );
     request.body = jsonEncode(body ?? <String, dynamic>{});
-    final response = await request.send().timeout(_requestTimeout);
+    final response = await _client.send(request).timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -84,7 +94,7 @@ class ApiClient {
       json: true,
     );
     request.body = jsonEncode(body ?? <String, dynamic>{});
-    final response = await request.send().timeout(_requestTimeout);
+    final response = await _client.send(request).timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -98,7 +108,7 @@ class ApiClient {
     // o'qimaydi va req.body bo'sh keladi.
     _applyHeaders(request.headers, authenticated: authenticated, json: body != null);
     if (body != null) request.body = jsonEncode(body);
-    final response = await request.send().timeout(_requestTimeout);
+    final response = await _client.send(request).timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -112,7 +122,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send().timeout(_uploadTimeout);
+    final response = await _client.send(request).timeout(_uploadTimeout);
     return _decode(response);
   }
 
@@ -126,7 +136,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send().timeout(_uploadTimeout);
+    final response = await _client.send(request).timeout(_uploadTimeout);
     return _decode(response);
   }
 
