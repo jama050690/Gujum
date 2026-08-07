@@ -4,20 +4,20 @@ class _UsersHeader extends StatefulWidget {
   const _UsersHeader({
     required this.settings,
     required this.currentUser,
-    required this.widget.searchController,
-    required this.widget.showArchived,
-    required this.widget.onOpenSidebar,
-    required this.widget.onBack,
+    required this.searchController,
+    required this.showArchived,
+    required this.onOpenSidebar,
+    required this.onBack,
     required this.onChanged,
     this.title,
   });
 
   final SettingsController settings;
   final SessionUser? currentUser;
-  final TextEditingController widget.searchController;
-  final bool widget.showArchived;
-  final VoidCallback widget.onOpenSidebar;
-  final VoidCallback widget.onBack;
+  final TextEditingController searchController;
+  final bool showArchived;
+  final VoidCallback onOpenSidebar;
+  final VoidCallback onBack;
   final ValueChanged<String> onChanged;
   final String? title;
 
