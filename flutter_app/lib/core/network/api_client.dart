@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import 'session_store.dart';
+import '../../l10n/app_strings.dart';
 
 /// Hech bir so'rov cheksiz kutmasligi kerak. Timeout bo'lmaganida ilova
 /// javob kelmasa spinnerda muzlab qolardi — foydalanuvchi uchun bu "ilova
@@ -63,7 +64,7 @@ class ApiClient {
         rethrow;
       }
     }
-    throw http.ClientException('Ulanish muvaffaqiyatsiz');
+    throw http.ClientException(AppStrings.t('connection_failed'));
   }
 
   Future<dynamic> postJson(
@@ -172,7 +173,7 @@ class ApiClient {
 
     final message = switch (decoded) {
       Map<String, dynamic> map when map['message'] is String => map['message'] as String,
-      _ => response.reasonPhrase ?? 'Request failed',
+      _ => response.reasonPhrase ?? AppStrings.t('request_failed'),
     };
 
     throw ApiException(

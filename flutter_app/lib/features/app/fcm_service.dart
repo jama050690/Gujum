@@ -93,10 +93,10 @@ class FcmService {
     // kerak bo'lgan yo'l jim edi. Android kanal sozlamalarini yaratilgandan
     // keyin o'zgartirishga ruxsat bermaydi, shuning uchun yangi ID kerak.
     await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         'incoming_calls_v2',
-        'Incoming Calls',
-        description: "Qo'ng'iroqlar uchun bildirishnomalar",
+        AppStrings.t('notif_calls_channel'),
+        description: AppStrings.t('notif_calls_channel_desc'),
         importance: Importance.max,
         playSound: true,
         enableVibration: true,
@@ -108,10 +108,10 @@ class FcmService {
 
     // Xabar kanali — FCM notification shu kanalga yuboriladi
     await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         'messages',
-        'Xabarlar',
-        description: "Yangi xabarlar uchun bildirishnomalar",
+        AppStrings.t('notif_messages_channel'),
+        description: AppStrings.t('notif_messages_channel_desc'),
         importance: Importance.high,
         playSound: true,
         enableVibration: true,
@@ -133,8 +133,9 @@ class FcmService {
 
     // Android 13+ uchun notification permission
     await FlutterCallkitIncoming.requestNotificationPermission({
-      'rationaleMessagePermission': "Qo'ng'iroqlar uchun bildirishnoma ruxsati kerak",
-      'postNotificationMessagePermission': "Bildirishnomalar uchun ruxsat bering",
+      'rationaleMessagePermission': AppStrings.t('notif_permission_calls'),
+      'postNotificationMessagePermission':
+          AppStrings.t('notif_permission_generic'),
     });
 
     // Android 14+ uchun to'liq ekran ruxsati (lock screen da ko'rinishi uchun)

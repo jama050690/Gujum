@@ -32,7 +32,7 @@ Future<void> _uploadAndSendAttachment(
             return;
           }
           if (platformFile.size > _maxVideoBytes) {
-            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
+            _showInfoSnackBar(t('video_too_large'));
             return;
           }
           uploadedPath = await chat.uploadPickedVideo(platformFile);
@@ -48,7 +48,7 @@ Future<void> _uploadAndSendAttachment(
           }
           final fileSize = await file.length();
           if (fileSize > _maxVideoBytes) {
-            _showInfoSnackBar('Video hajmi 500MB dan oshmasligi kerak');
+            _showInfoSnackBar(t('video_too_large'));
             return;
           }
           uploadedPath = await chat.uploadXFileVideo(file);

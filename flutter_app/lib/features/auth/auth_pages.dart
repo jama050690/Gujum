@@ -129,7 +129,7 @@ class _WelcomePageState extends State<WelcomePage> {
               ),
               const SizedBox(height: 12),
               Text(
-                "Yaqinlaringiz bilan bepul suhbat va qo'ng'iroq",
+                t('auth_tagline'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -254,16 +254,8 @@ class _LoginPageState extends State<LoginPage> {
     final t = (String key) => AppStrings.text(settings.localeCode, key);
     final compact = MediaQuery.sizeOf(context).height < 900;
     final showSavedUsernameSuggestion = _shouldShowSavedUsernameSuggestion();
-    final suggestionPrompt = switch (settings.localeCode) {
-      'ru' => 'Использовать сохраненный username?',
-      'en' => 'Use saved username?',
-      _ => 'Shuni xohlaysizmi?',
-    };
-    final suggestionActionLabel = switch (settings.localeCode) {
-      'ru' => 'Выбрать',
-      'en' => 'Use',
-      _ => 'Tanlash',
-    };
+    final suggestionPrompt = t('auth_use_saved_username');
+    final suggestionActionLabel = t('use_saved_username_action');
 
     return _AuthScaffold(
       title: t('app_title'),
