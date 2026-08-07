@@ -98,12 +98,10 @@ class _CallOverlayHostState extends State<CallOverlayHost>
           return _IncomingCallSheet(callController: ctrl);
         }
         if (ctrl.hasSession) {
-          if (_minimized) {
-            return _MinimizedCallBar(
-              callController: ctrl,
-              onExpand: () => _setMinimized(false),
-            );
-          }
+          // Kichraytirilgan holatda qo'ng'iroq tasmasi overlay emas, ilova
+          // ustunining bir qismi bo'ladi (pastdagi build) — shunda u
+          // sarlavhani to'smaydi, balki butun kontentni pastga suradi.
+          if (_minimized) return const SizedBox.shrink();
           return _ActiveCallSheet(
             callController: ctrl,
             onMinimize: () => _setMinimized(true),
@@ -148,6 +146,29 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     // yoki rad etish kerak.
     final blocksPop = controller != null &&
         (controller.hasIncomingCall || (controller.hasSession && !_minimized));
+    final showBar =
+        controller != null && controller.hasSession && _minimized;
+    Widget content = widget.child;
+    if (showBar) {
+      content = Column(
+        children: [
+          _MinimizedCallBar(
+            callController: controller!,
+            onExpand: () => _setMinimized(false),
+          ),
+          // Tasma tepadagi xavfsiz zonani o'zi egallaydi — bola vidjet uni
+          // ikkinchi marta qo'shmasligi kerak.
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: content,
+            ),
+          ),
+        ],
+      );
+    }
+
     return PopScope(
       canPop: !blocksPop,
       onPopInvokedWithResult: (didPop, _) {
@@ -156,7 +177,7 @@ class _CallOverlayHostState extends State<CallOverlayHost>
           _setMinimized(true);
         }
       },
-      child: widget.child,
+      child: content,
     );
   }
 }
@@ -420,69 +441,59 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
     final peerName = peer?.displayName.trim() ?? '';
     final title = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
+    return Material(
+      color: const Color(0xFF2A9D5C),
       child: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Material(
-            color: const Color(0xFF2A9D5C),
-            borderRadius: BorderRadius.circular(24),
-            elevation: 6,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: widget.onExpand,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      ctrl.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+        child: InkWell(
+          onTap: widget.onExpand,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Row(
+              children: [
+                Icon(
+                  ctrl.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title.isEmpty
+                        ? "Qo'ng'iroqqa qaytish"
+                        : "Qo'ng'iroqqa qaytish · $title",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _label(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => unawaited(ctrl.hangUp()),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.call_end_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _label(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => unawaited(ctrl.hangUp()),
-                      behavior: HitTestBehavior.opaque,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(
-                          Icons.call_end_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
