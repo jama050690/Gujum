@@ -164,6 +164,7 @@ class _FriendsPageState extends State<FriendsPage> {
         return;
       }
 
+      if (!mounted) return;
       final repository = context.read<SocialRepository>();
       final currentUser = context.read<AuthController>().user;
       final matchedUsers = await repository.fetchPhoneContacts(phones);

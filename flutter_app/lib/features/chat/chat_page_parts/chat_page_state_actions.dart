@@ -143,6 +143,7 @@ Future<void> _showChatActions(
         )) {
           return;
         }
+        if (!mounted) return;
         await context.read<SocialRepository>().blockUser(item.username);
         chat.removeChat(item.username);
         await _removeChatPreferences(item.username);

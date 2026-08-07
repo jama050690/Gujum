@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:provider/provider.dart';
 import '../../l10n/app_strings.dart';
 import '../settings/settings_controller.dart';
 

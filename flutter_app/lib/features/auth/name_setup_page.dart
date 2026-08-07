@@ -51,8 +51,10 @@ class _NameSetupPageState extends State<NameSetupPage> {
       _error = null;
     });
     try {
-      await context.read<SocialRepository>().saveFullName(name);
-      await context.read<AuthController>().refreshSession();
+      final repository = context.read<SocialRepository>();
+      final auth = context.read<AuthController>();
+      await repository.saveFullName(name);
+      await auth.refreshSession();
     } catch (_) {
       if (!mounted) return;
       setState(() {
