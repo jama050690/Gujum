@@ -20,6 +20,8 @@ const CHATS_TABLE = "chat_messages";
 const BLOCKED_USERS_TABLE = "blocked_users";
 const SPAM_REPORTS_TABLE = "spam_reports";
 const FRIENDS_TABLE = "friends";
+// Bir marta bajarilgan migratsiyalar yozib boriladigan jadval.
+const MIGRATIONS_TABLE = "schema_migrations";
 
 export {
   pool,
@@ -29,4 +31,5 @@ export {
   BLOCKED_USERS_TABLE,
   SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
+  MIGRATIONS_TABLE,
 };

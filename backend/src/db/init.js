@@ -6,6 +6,7 @@ import {
   BLOCKED_USERS_TABLE,
   SPAM_REPORTS_TABLE,
   FRIENDS_TABLE,
+  MIGRATIONS_TABLE,
 } from "../config/database.js";
 import argon2 from "argon2";
 
@@ -289,7 +290,68 @@ async function initIndexes() {
   console.log(`Indexlar tayyor (${indexes.length} ta)`);
 }
 
+/// Bir marta bajariladigan migratsiyalar ro'yxati.
+///
+/// Har bir migratsiya bajarilgach ${MIGRATIONS_TABLE} ga yoziladi va
+/// keyingi ishga tushishlarda o'tkazib yuboriladi. Aks holda jadval
+/// tashlash kabi buyruqlar server har qayta ishga tushganda qaytadan
+/// bajarilaverardi.
+const MIGRATIONS = [
+  {
+    id: "2026_08_drop_groups_and_channels",
+    // Guruh va kanallar ilovadan butunlay chiqarildi. Jadvallari qolsa,
+    // faqat joy egallaydi va zaxira nusxalarni kattalashtiradi. Bog'liq
+    // jadvallar CASCADE bilan birga ketadi.
+    statements: [
+      "DROP TABLE IF EXISTS group_messages CASCADE",
+      "DROP TABLE IF EXISTS group_members CASCADE",
+      "DROP TABLE IF EXISTS groups CASCADE",
+      "DROP TABLE IF EXISTS channel_messages CASCADE",
+      "DROP TABLE IF EXISTS channel_subscribers CASCADE",
+      "DROP TABLE IF EXISTS channels CASCADE",
+    ],
+  },
+];
+
+async function runMigrations() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+      id VARCHAR(120) PRIMARY KEY,
+      applied_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  for (const migration of MIGRATIONS) {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM ${MIGRATIONS_TABLE} WHERE id = $1`,
+      [migration.id]
+    );
+    if (rows.length > 0) continue;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const sql of migration.statements) {
+        await client.query(sql);
+      }
+      await client.query(`INSERT INTO ${MIGRATIONS_TABLE} (id) VALUES ($1)`, [
+        migration.id,
+      ]);
+      await client.query("COMMIT");
+      console.log(`Migratsiya bajarildi: ${migration.id}`);
+    } catch (e) {
+      await client.query("ROLLBACK");
+      // Migratsiya o'tmasa server baribir ko'tarilishi kerak — keyingi
+      // ishga tushishda qayta urinadi.
+      console.error(`Migratsiya xatosi (${migration.id}): ${e.message}`);
+    } finally {
+      client.release();
+    }
+  }
+}
+
 async function initDb() {
+  await runMigrations();
   await initUsersTable();
   await ensureAdminUser();
   await initChatsTable();
