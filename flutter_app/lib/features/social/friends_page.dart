@@ -662,10 +662,12 @@ class _SearchTab extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: _SearchBox(
+                    child: AppSearchField(
                       controller: controller,
-                      t: t,
-                      onSearch: onSearch,
+                      hintText: t('search_hint'),
+                      autofocus: false,
+                      onChanged: onSearchChanged,
+                      onSubmitted: (_) => onSearch(),
                     ),
                   ),
                   if (searching)
@@ -709,10 +711,12 @@ class _SearchTab extends StatelessWidget {
         else ...[
         Padding(
           padding: const EdgeInsets.all(16),
-          child: _SearchBox(
+          child: AppSearchField(
             controller: controller,
-            t: t,
-            onSearch: onSearch,
+            hintText: t('search_hint'),
+            autofocus: false,
+            onChanged: onSearchChanged,
+            onSubmitted: (_) => onSearch(),
           ),
         ),
         Expanded(
@@ -743,49 +747,6 @@ class _SearchTab extends StatelessWidget {
         ),
         ],
       ],
-    );
-  }
-}
-
-class _SearchBox extends StatelessWidget {
-  const _SearchBox({
-    required this.controller,
-    required this.t,
-    required this.onSearch,
-    this.onChanged,
-    this.focusNode,
-  });
-
-  final TextEditingController controller;
-  final String Function(String key) t;
-  final Future<void> Function() onSearch;
-  final ValueChanged<String>? onChanged;
-  final FocusNode? focusNode;
-
-  @override
-  Widget build(BuildContext context) {
-    // Alohida "Qidirish" tugmasi yo'q: yozilayotganda izlaydi.
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: t('search_hint'),
-        prefixIcon: const Icon(Icons.search),
-        border: const OutlineInputBorder(),
-        isDense: true,
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () {
-                  controller.clear();
-                  onChanged?.call('');
-                },
-              ),
-      ),
-      onChanged: onChanged,
-      onSubmitted: (_) => onSearch(),
     );
   }
 }
