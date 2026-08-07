@@ -1,113 +1,49 @@
 part of '../chat_page.dart';
 
-class _UsersHeader extends StatelessWidget {
+class _UsersHeader extends StatefulWidget {
   const _UsersHeader({
     required this.settings,
     required this.currentUser,
-    required this.searchController,
-    required this.showArchived,
-    required this.onOpenSidebar,
-    required this.onBack,
+    required this.widget.searchController,
+    required this.widget.showArchived,
+    required this.widget.onOpenSidebar,
+    required this.widget.onBack,
     required this.onChanged,
     this.title,
   });
 
   final SettingsController settings;
   final SessionUser? currentUser;
-  final TextEditingController searchController;
-  final bool showArchived;
-  final VoidCallback onOpenSidebar;
-  final VoidCallback onBack;
+  final TextEditingController widget.searchController;
+  final bool widget.showArchived;
+  final VoidCallback widget.onOpenSidebar;
+  final VoidCallback widget.onBack;
   final ValueChanged<String> onChanged;
   final String? title;
 
-  Future<void> _openSearchSheet(BuildContext context) async {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
-    final sheetBackground = settings.isDarkMode
-        ? const Color(0xFF1D2A39)
-        : Colors.white;
-    final fieldFill = settings.isDarkMode
-        ? const Color(0xFF223140)
-        : const Color(0xFFF1F4F8);
-    final textColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
-    final hintColor = settings.isDarkMode
-        ? const Color(0xFF8FA3B6)
-        : const Color(0xFF7A8B9B);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: sheetBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            18,
-            20,
-            MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                t('search'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: searchController,
-                autofocus: true,
-                onChanged: onChanged,
-                style: TextStyle(color: textColor),
-                decoration: InputDecoration(
-                  hintText: t('search'),
-                  hintStyle: TextStyle(color: hintColor),
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            searchController.clear();
-                            onChanged('');
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                  ),
-                  filled: true,
-                  fillColor: fieldFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  @override
+  State<_UsersHeader> createState() => _UsersHeaderState();
+}
+
+class _UsersHeaderState extends State<_UsersHeader> {
+  /// Telegram qidiruvni sarlavha o'rnida ochadi — alohida modal oyna emas.
+  bool _searchOpen = false;
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top + 14;
-    final avatarLabel = currentUser?.displayName ?? 'Gujum';
+    final avatarLabel = widget.currentUser?.displayName ?? 'Gujum';
     final avatarUrl = AppConfig.resolveMediaUrl(
-      currentUser?.avatar,
-      settings.baseUrl,
+      widget.currentUser?.avatar,
+      widget.settings.baseUrl,
     );
-    final titleColor = settings.isDarkMode
+    final titleColor = widget.settings.isDarkMode
         ? Colors.white
         : const Color(0xFF2492E8);
-    final searchChipColor = settings.isDarkMode
+    final searchChipColor = widget.settings.isDarkMode
         ? const Color(0xFF223140)
         : const Color(0xFFEAF0F6);
-    final searchTextColor = settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
+    final searchTextColor = widget.settings.isDarkMode ? Colors.white : const Color(0xFF17212B);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 12),
@@ -116,7 +52,7 @@ class _UsersHeader extends StatelessWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: showArchived ? onBack : onOpenSidebar,
+                onTap: widget.showArchived ? widget.onBack : widget.onOpenSidebar,
                 child: Container(
                   width: 44,
                   height: 44,
@@ -129,7 +65,7 @@ class _UsersHeader extends StatelessWidget {
                     ),
                   ),
                   child: ClipOval(
-                    child: showArchived
+                    child: widget.showArchived
                         ? const ColoredBox(
                             color: Color(0xFF223140),
                             child: Icon(
@@ -147,63 +83,68 @@ class _UsersHeader extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  showArchived ? (title ?? '') : 'Gujum',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: titleColor,
-                        fontWeight: FontWeight.w800,
+                child: _searchOpen && !widget.showArchived
+                    // Telegram uslubi: maydon sarlavha o'rnida, keng va
+                    // yumaloq, ichida tozalash tugmasi bilan.
+                    ? Container(
+                        height: 42,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: searchChipColor,
+                          borderRadius: BorderRadius.circular(21),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search_rounded, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: widget.searchController,
+                                autofocus: true,
+                                onChanged: widget.onChanged,
+                                style: TextStyle(color: searchTextColor),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  hintText: AppStrings.text(
+                                      widget.settings.localeCode, 'search'),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                widget.searchController.clear();
+                                widget.onChanged('');
+                                setState(() => _searchOpen = false);
+                              },
+                              child: const Icon(Icons.close_rounded, size: 20),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Text(
+                        widget.showArchived ? (widget.title ?? '') : 'Gujum',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: titleColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
-                ),
               ),
-              if (!showArchived) ...[
+              if (!widget.showArchived && !_searchOpen) ...[
                 IconButton(
-                  onPressed: () => _openSearchSheet(context),
+                  onPressed: () => setState(() => _searchOpen = true),
                   icon: const Icon(Icons.search_rounded),
                   color: titleColor,
                 ),
                 IconButton(
-                  onPressed: onOpenSidebar,
+                  onPressed: widget.onOpenSidebar,
                   icon: const Icon(Icons.more_vert_rounded),
                   color: titleColor,
                 ),
               ],
             ],
           ),
-          if (!showArchived && searchController.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: searchChipColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search_rounded, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      searchController.text.trim(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: searchTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      searchController.clear();
-                      onChanged('');
-                    },
-                    icon: const Icon(Icons.close_rounded),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
