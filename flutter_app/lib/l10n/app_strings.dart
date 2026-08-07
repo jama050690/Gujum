@@ -18,6 +18,8 @@ class AppStrings {
 
   static const Map<String, Map<String, String>> _values = {
     'uz': {
+      'you': "Siz",
+      'show_more': "Ko'proq",
       'chat_more_actions': "Boshqa amallar",
       'connection_connecting': "Ulanmoqda…",
       'connection_offline': "Tarmoq yo'q — xabarlar yuborilmayapti",
@@ -246,6 +248,8 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'en': {
+      'you': "You",
+      'show_more': "Show more",
       'chat_more_actions': "More actions",
       'connection_connecting': "Connecting…",
       'connection_offline': "No network — messages aren't being sent",
@@ -475,6 +479,8 @@ class AppStrings {
       'version_label': 'Gujum v2.0',
     },
     'ru': {
+      'you': "Вы",
+      'show_more': "Показать ещё",
       'chat_more_actions': "Другие действия",
       'connection_connecting': "Подключение…",
       'connection_offline': "Нет сети — сообщения не отправляются",
@@ -617,6 +623,8 @@ class AppStrings {
       'chat_location_failed': 'Не удалось получить местоположение',
     },
     'ar': {
+      'you': "أنت",
+      'show_more': "عرض المزيد",
       'chat_more_actions': "إجراءات أخرى",
       'connection_connecting': "جارٍ الاتصال…",
       'connection_offline': "لا يوجد اتصال — لا تُرسل الرسائل",
@@ -835,6 +843,8 @@ class AppStrings {
       'version_label': "الإصدار",
     },
     'ko': {
+      'you': "나",
+      'show_more': "더 보기",
       'chat_more_actions': "추가 작업",
       'connection_connecting': "연결 중…",
       'connection_offline': "네트워크 없음 — 메시지가 전송되지 않습니다",

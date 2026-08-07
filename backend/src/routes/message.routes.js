@@ -287,6 +287,7 @@ router.get("/inbox", async (req, res) => {
         lm.audio as lastAudio,
         lm.video as lastVideo,
         lm.created_at as lastMessageTime,
+        lm.sender_username as "lastSender",
         COALESCE(uc.unread_count, 0) as unreadCount
       FROM ${CHATS_TABLE} c
       JOIN ${USERS_TABLE} u ON (
@@ -296,10 +297,12 @@ router.get("/inbox", async (req, res) => {
         END
       )
       LEFT JOIN LATERAL (
-        SELECT content, image, audio, video, created_at
-        FROM ${MESSAGES_TABLE}
-        WHERE chat_id = c.id
-        ORDER BY created_at DESC
+        SELECT m2.content, m2.image, m2.audio, m2.video, m2.created_at,
+               su.username AS sender_username
+        FROM ${MESSAGES_TABLE} m2
+        JOIN ${USERS_TABLE} su ON su.id = m2.sender_id
+        WHERE m2.chat_id = c.id
+        ORDER BY m2.created_at DESC
         LIMIT 1
       ) lm ON true
       LEFT JOIN LATERAL (

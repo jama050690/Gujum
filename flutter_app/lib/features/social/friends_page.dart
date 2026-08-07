@@ -50,6 +50,12 @@ class _FriendsPageState extends State<FriendsPage> {
   List<SimpleUser> _searchResults = const [];
   List<_PhoneContactMatch> _phoneMatches = const [];
   List<_InviteCandidate> _inviteCandidates = const [];
+  /// Taklif ro'yxati bir necha ming kontakt bo'lishi mumkin. ListView
+  /// bolalarini birdan quradi, shuning uchun hammasini chizish sahifani
+  /// ochilmas qilib qo'yardi — bo'lib-bo'lib ko'rsatamiz.
+  static const _invitePageSize = 50;
+  int _inviteLimit = _invitePageSize;
+  bool _searchOpen = false;
   Timer? _searchDebounce;
   bool _searching = false;
   bool _loadingContacts = false;
@@ -196,6 +202,7 @@ class _FriendsPageState extends State<FriendsPage> {
       setState(() {
         _phoneMatches = matches;
         _inviteCandidates = inviteList;
+        _inviteLimit = _invitePageSize;
       });
     } catch (error) {
       _showError(error);
@@ -268,14 +275,48 @@ class _FriendsPageState extends State<FriendsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(widget.titleKey ?? 'search_users')),
+        // Qidiruv sarlavha joyida ochiladi: odatda faqat belgi turadi,
+        // bosilganda esa butun sarlavha maydonini egallaydi. Alohida
+        // qidiruv bloki ekranning tepasini keraksiz band qilardi.
+        title: _searchOpen
+            ? TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: t('search_hint'),
+                  border: InputBorder.none,
+                ),
+                onChanged: _onSearchChanged,
+              )
+            : Text(t(widget.titleKey ?? 'search_users')),
+        actions: [
+          IconButton(
+            icon: Icon(_searchOpen ? Icons.close_rounded : Icons.search_rounded),
+            onPressed: () {
+              setState(() {
+                _searchOpen = !_searchOpen;
+                if (!_searchOpen) {
+                  _searchController.clear();
+                  _searchResults = const [];
+                } else {
+                  _searchFocusNode.requestFocus();
+                }
+              });
+            },
+          ),
+        ],
       ),
       // Qo'lda qidirib qo'shish: raqami telefon kitobida yo'q odamni
       // username orqali topish uchun. Telegram'da ham shunga o'xshash
       // tugma bor — joyi boshqacha, vazifasi bir xil.
       floatingActionButton: _showPhoneContactsSection
           ? FloatingActionButton(
-              onPressed: () => _searchFocusNode.requestFocus(),
+              onPressed: () => setState(() {
+                _searchOpen = true;
+                _searchFocusNode.requestFocus();
+              }),
               tooltip: t('add_friend'),
               child: const Icon(Icons.person_add_alt_1_rounded),
             )
@@ -287,6 +328,10 @@ class _FriendsPageState extends State<FriendsPage> {
         settings: settings,
         phoneMatches: _phoneMatches,
         inviteCandidates: _inviteCandidates,
+        inviteLimit: _inviteLimit,
+        onShowMoreInvites: () => setState(
+          () => _inviteLimit += _invitePageSize,
+        ),
         loadingContacts: _loadingContacts,
         contactsErrorKey: _contactsErrorKey,
         showPhoneContactsSection: _showPhoneContactsSection,
@@ -317,6 +362,8 @@ class _SearchTab extends StatelessWidget {
     required this.onOpenChat,
     required this.onInvite,
     required this.inviteCandidates,
+    required this.inviteLimit,
+    required this.onShowMoreInvites,
     required this.searchFocusNode,
   });
 
@@ -334,6 +381,8 @@ class _SearchTab extends StatelessWidget {
   final ValueChanged<SimpleUser> onOpenChat;
   final ValueChanged<_InviteCandidate> onInvite;
   final List<_InviteCandidate> inviteCandidates;
+  final int inviteLimit;
+  final VoidCallback onShowMoreInvites;
   final FocusNode searchFocusNode;
 
   @override
@@ -347,18 +396,6 @@ class _SearchTab extends StatelessWidget {
               onRefresh: onRefreshContacts,
               child: ListView(
                 children: [
-                  // Qidiruv eng tepada — Telegram ham shunday, va yozilayotganda
-                  // izlaydi, tugma bosish shart emas.
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: _SearchBox(
-                      controller: controller,
-                      t: t,
-                      onSearch: onSearch,
-                      onChanged: onSearchChanged,
-                      focusNode: searchFocusNode,
-                    ),
-                  ),
                   if (results.isNotEmpty)
                     ...results.map((user) {
                       final imageUrl =
@@ -451,7 +488,7 @@ class _SearchTab extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    ...inviteCandidates.map(
+                    ...inviteCandidates.take(inviteLimit).map(
                       (candidate) => ListTile(
                         leading: CircleAvatar(
                           child: Text(
@@ -468,6 +505,17 @@ class _SearchTab extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (inviteCandidates.length > inviteLimit)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                        child: OutlinedButton(
+                          onPressed: onShowMoreInvites,
+                          child: Text(
+                            '${t('show_more')} '
+                            '(${inviteCandidates.length - inviteLimit})',
+                          ),
+                        ),
+                      ),
                   ],
                   const Divider(height: 24),
                   Padding(

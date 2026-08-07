@@ -11,6 +11,7 @@ class _InboxTile extends StatelessWidget {
     required this.isActive,
     required this.onTap,
     required this.onLongPress,
+    this.currentUsername,
   });
 
   final SettingsController settings;
@@ -22,6 +23,8 @@ class _InboxTile extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  /// "Siz:" prefiksini qo'yish uchun kerak.
+  final String? currentUsername;
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +41,6 @@ class _InboxTile extends StatelessWidget {
     final timeColor = item.unreadCount > 0
         ? const Color(0xFF2EA6FF)
         : (isDark ? const Color(0xFF8FA3B6) : const Color(0xFF91A0AE));
-    final onlineColor = isDark
-        ? const Color(0xFF41D481)
-        : const Color(0xFF189C5B);
     final badgeColor = isMuted
         ? (isDark ? const Color(0xFF5C7084) : const Color(0xFFB8C5D1))
         : const Color(0xFF2EA6FF);
@@ -128,9 +128,7 @@ class _InboxTile extends StatelessWidget {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: item.lastMessage.isEmpty && isOnline
-                                      ? onlineColor
-                                      : previewColor,
+                                  color: previewColor,
                                   height: 1.2,
                                 ),
                           ),
@@ -183,26 +181,39 @@ class _InboxTile extends StatelessWidget {
   }
 
   String _previewText(InboxItem item, String Function(String key) t) {
+    final mine = item.lastSender != null && item.lastSender == currentUsername;
+
     final callInfo = _parseCallMessage(item.lastMessage);
     if (callInfo != null) {
-      return callInfo.isMissed
-          ? t('call_missed')
-          : t(callInfo.isVideo ? 'call_video' : 'call_audio');
+      // Ilgari faqat "Ovozli qo'ng'iroq" deb turardi — kim qilgani ham,
+      // qancha davom etgani ham ko'rinmasdi.
+      if (callInfo.isMissed) {
+        return '${mine ? '↗' : '↙'} ${t('call_missed')}';
+      }
+      final label = t(callInfo.isVideo ? 'call_video' : 'call_audio');
+      final duration = _formatCallDuration(callInfo.durationSeconds);
+      return '${mine ? '↗' : '↙'} $label · $duration';
     }
+
+    // Media va fayllar uchun ham "Siz:" prefiksi qo'yiladi.
+    String withSender(String text) => mine ? '${t('you')}: $text' : text;
 
     switch (item.lastMessage) {
       case '[image]':
-        return '${String.fromCharCode(0x1F5BC)} ${t('chat_photo')}';
+        return withSender('${String.fromCharCode(0x1F5BC)} ${t('chat_photo')}');
       case '[video]':
-        return '${String.fromCharCode(0x1F3AC)} ${t('chat_video')}';
+        return withSender('${String.fromCharCode(0x1F3AC)} ${t('chat_video')}');
       case '[audio]':
-        return '${String.fromCharCode(0x1F399)} ${t('chat_voice_message')}';
+        return withSender(
+            '${String.fromCharCode(0x1F399)} ${t('chat_voice_message')}');
+      case '[file]':
+        return withSender('${String.fromCharCode(0x1F4CE)} ${t('chat_file')}');
+      case '[location]':
+        return withSender('${String.fromCharCode(0x1F4CD)} ${t('chat_location')}');
       default:
-        return item.lastMessage.isEmpty
-            ? (isOnline
-                ? t('online')
-                : _formatLastSeenClock(lastActive, settings.localeCode))
-            : item.lastMessage;
+        // Xabar bo'lmasa bo'sh qoldiramiz. Ilgari bu yerda onlayn holati
+        // ko'rsatilardi va u oxirgi xabar bilan chalkashib ketardi.
+        return item.lastMessage.isEmpty ? '' : withSender(item.lastMessage);
     }
   }
 }

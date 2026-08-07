@@ -183,6 +183,7 @@ class _UsersPanel extends StatelessWidget {
                       else
                         ...filteredItems.map(
                           (item) => _InboxTile(
+                            currentUsername: currentUsername,
                             settings: settings,
                             item: item,
                             isOnline: chat.onlineUsers.contains(item.username),
@@ -216,6 +217,7 @@ class _UsersPanel extends StatelessWidget {
                       else
                         ...filteredItems.map(
                           (item) => _InboxTile(
+                            currentUsername: currentUsername,
                             settings: settings,
                             item: item,
                             isOnline: chat.onlineUsers.contains(item.username),
