@@ -335,7 +335,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _birthdayController,
-                          decoration: const InputDecoration(labelText: 'YYYY-MM-DD'),
+                          decoration: InputDecoration(
+                              labelText: t('profile_birthday_hint')),
                         ),
                         const SizedBox(height: 12),
                         TextField(

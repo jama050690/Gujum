@@ -21,6 +21,7 @@ class SettingsController extends ChangeNotifier {
 
   void load() {
     _localeCode = _sessionStore.localeCode;
+    AppStrings.currentLocale = _localeCode;
     _isDarkMode = _sessionStore.isDarkMode;
     _baseUrl = _sessionStore.baseUrl;
   }
@@ -33,6 +34,7 @@ class SettingsController extends ChangeNotifier {
     }
 
     _localeCode = code;
+    AppStrings.currentLocale = code;
     await _sessionStore.saveLocaleCode(code);
     notifyListeners();
   }

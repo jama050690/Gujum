@@ -8,6 +8,7 @@ import '../call/call_controller.dart';
 import '../settings/settings_controller.dart';
 import '../chat/media_viewer_page.dart';
 import 'social_repository.dart';
+import '../../l10n/app_strings.dart';
 
 class ContactProfilePage extends StatefulWidget {
   const ContactProfilePage({
@@ -26,6 +27,9 @@ class ContactProfilePage extends StatefulWidget {
 }
 
 class _ContactProfilePageState extends State<ContactProfilePage> {
+  String _t(String key) => AppStrings.text(
+      context.read<SettingsController>().localeCode, key);
+
   ProfileDetails? _profile;
   bool _loading = true;
 
@@ -143,11 +147,11 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
         color: cardBg,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _Btn(icon: Icons.message_rounded, label: "Xabar",
+          _Btn(icon: Icons.message_rounded, label: _t('profile_message'),
               onTap: () => Navigator.pop(context)),
-          _Btn(icon: Icons.call_rounded, label: "Qo'ng'iroq",
+          _Btn(icon: Icons.call_rounded, label: _t('call_audio'),
               onTap: () => _startCall(video: false)),
-          _Btn(icon: Icons.videocam_rounded, label: "Video",
+          _Btn(icon: Icons.videocam_rounded, label: _t('profile_video_call'),
               onTap: () => _startCall(video: true)),
         ]),
       ),
@@ -155,15 +159,17 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
         const SizedBox(height: 12),
         Container(color: cardBg, child: Column(children: [
           if (p.phone.isNotEmpty)
-            _InfoRow(Icons.phone_rounded, p.phone, "Mobil", tc, sc),
-          _InfoRow(Icons.alternate_email_rounded, '@${p.username}', "Username",
+            _InfoRow(Icons.phone_rounded, p.phone, _t('profile_mobile'), tc, sc),
+          _InfoRow(Icons.alternate_email_rounded, '@${p.username}',
+              _t('profile_username_label'),
               tc, sc, onTap: () => Clipboard.setData(
                   ClipboardData(text: p.username))),
           if (p.birthday.isNotEmpty && p.birthday != 'null')
             _InfoRow(Icons.cake_rounded, _fmtBday(p.birthday),
-                "Tug'ilgan kun", tc, sc),
+                _t('profile_birthday'), tc, sc),
           if (p.bio.isNotEmpty)
-            _InfoRow(Icons.info_outline_rounded, p.bio, "Bio", tc, sc),
+            _InfoRow(Icons.info_outline_rounded, p.bio, _t('profile_bio_label'),
+                tc, sc),
         ])),
       ],
       const SizedBox(height: 32),

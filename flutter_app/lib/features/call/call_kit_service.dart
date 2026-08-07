@@ -35,11 +35,17 @@ class CallKitService {
     }
   }
 
+  /// Matnlar chaqiruvchi tomondan beriladi — bu servis til bilan ishlamaydi,
+  /// shuning uchun qatorlar shu yerda qotib qolmasligi kerak.
   static Future<void> showIncoming({
     required String callId,
     required String callerName,
     required String callerUsername,
     required bool isVideo,
+    required String acceptLabel,
+    required String declineLabel,
+    required String incomingChannelName,
+    required String missedChannelName,
   }) async {
     try {
       await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
@@ -56,10 +62,10 @@ class CallKitService {
           ringtonePath: 'system_ringtone_default',
           backgroundColor: '#0C111A',
           actionColor: '#4D82E3',
-          textAccept: "Qabul qilish",
-          textDecline: "Rad etish",
-          incomingCallNotificationChannelName: "Qo'ng'iroq",
-          missedCallNotificationChannelName: "O'tkazib yuborilgan",
+          textAccept: acceptLabel,
+          textDecline: declineLabel,
+          incomingCallNotificationChannelName: incomingChannelName,
+          missedCallNotificationChannelName: missedChannelName,
         ),
       ));
     } catch (e) {

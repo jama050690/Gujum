@@ -25,9 +25,11 @@ extension _ChatPageStateBuild on _ChatPageState {
         }
         _lastBackPress = now;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Chiqish uchun qayta bosing'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(AppStrings.text(
+                context.read<SettingsController>().localeCode,
+                'exit_press_again')),
+            duration: const Duration(seconds: 2),
           ),
         );
       },

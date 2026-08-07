@@ -220,7 +220,8 @@ class _IncomingCallSheetState extends State<_IncomingCallSheet>
     final settings = context.watch<SettingsController>();
     final avatar = AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
     final initials = _initials(incoming.caller.displayName);
-    final typeLabel = incoming.isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq";
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final typeLabel = t(incoming.isVideo ? 'call_video' : 'call_voice');
 
     return Material(
       color: Colors.transparent,
@@ -268,13 +269,13 @@ class _IncomingCallSheetState extends State<_IncomingCallSheet>
                   _CallActionButton(
                     icon: Icons.call_end_rounded,
                     color: const Color(0xFFE53935),
-                    label: 'Rad etish',
+                    label: t('call_decline'),
                     onPressed: () => widget.callController.rejectIncomingCall(),
                   ),
                   _CallActionButton(
                     icon: incoming.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
                     color: const Color(0xFF43A047),
-                    label: 'Qabul qilish',
+                    label: t('call_accept'),
                     onPressed: () => unawaited(widget.callController.acceptIncomingCall()),
                   ),
                 ],
@@ -422,11 +423,11 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
     super.dispose();
   }
 
-  String _label() {
+  String _label(String Function(String key) t) {
     final ctrl = widget.callController;
     final connectedAt = ctrl.connectedAt;
     if (ctrl.state != CallSessionState.connected || connectedAt == null) {
-      return ctrl.isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq";
+      return t(ctrl.isVideo ? 'call_video' : 'call_voice');
     }
     final elapsed = DateTime.now().difference(connectedAt);
     final minutes = elapsed.inMinutes.toString().padLeft(2, '0');
@@ -440,6 +441,9 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
     final peer = ctrl.remotePeer;
     final peerName = peer?.displayName.trim() ?? '';
     final title = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
+    final settings = context.watch<SettingsController>();
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    final returnLabel = t('call_return');
 
     return Material(
       color: const Color(0xFF2A9D5C),
@@ -459,9 +463,7 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    title.isEmpty
-                        ? "Qo'ng'iroqqa qaytish"
-                        : "Qo'ng'iroqqa qaytish · $title",
+                    title.isEmpty ? returnLabel : '$returnLabel · $title',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -473,7 +475,7 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _label(),
+                  _label(t),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -795,7 +797,9 @@ class _ActiveCallSheetState extends State<_ActiveCallSheet> {
                   icon: const Icon(Icons.keyboard_arrow_down_rounded),
                   color: Colors.white,
                   iconSize: 32,
-                  tooltip: 'Kichraytirish',
+                  tooltip: AppStrings.text(
+                      context.read<SettingsController>().localeCode,
+                      'call_minimize'),
                 ),
               ),
             ),

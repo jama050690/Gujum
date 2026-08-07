@@ -9,7 +9,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/network/socket_service.dart';
+import '../../l10n/app_strings.dart';
 import '../auth/auth_controller.dart';
+import '../settings/settings_controller.dart';
 import '../social/social_repository.dart';
 import 'call_kit_service.dart';
 
@@ -67,9 +69,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   CallController({
     required SocketService socketService,
     required AuthController authController,
+    required SettingsController settingsController,
     SocialRepository? socialRepository,
   })  : _socketService = socketService,
         _authController = authController,
+        _settingsController = settingsController,
         _socialRepository = socialRepository {
     _subscription = _socketService.packets.listen(_handlePacket);
     _callKitSub = CallKitService.instance.events.listen(_handleCallKitEvent);
@@ -117,7 +121,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         'title': _remotePeer?.displayName.trim().isNotEmpty == true
             ? _remotePeer!.displayName
             : (_remotePeer?.username ?? 'Gujum'),
-        'text': _isVideo ? "Video qo'ng'iroq" : "Ovozli qo'ng'iroq",
+        'text': _t('call_ongoing'),
         'isVideo': _isVideo,
       });
     } catch (e) {
@@ -196,6 +200,12 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   final SocketService _socketService;
   final AuthController _authController;
   final SocialRepository? _socialRepository;
+  final SettingsController _settingsController;
+
+  /// Qo'ng'iroq matnlari (bildirishnoma, CallKit tugmalari) foydalanuvchi
+  /// tanlagan tilda bo'lishi kerak — hech qayerda qatorlar qotib qolmasin.
+  String _t(String key) =>
+      AppStrings.text(_settingsController.localeCode, key);
   late final StreamSubscription<SocketPacket> _subscription;
   late final StreamSubscription<({String action, String callId})> _callKitSub;
   late final AudioPlayer _audioPlayer;
@@ -665,6 +675,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             callerName: _incomingCall!.caller.displayName,
             callerUsername: _incomingCall!.caller.username,
             isVideo: _incomingCall!.isVideo,
+            acceptLabel: _t('call_accept'),
+            declineLabel: _t('call_decline'),
+            incomingChannelName: _t('call_channel_incoming'),
+            missedChannelName: _t('call_channel_missed'),
           ));
         } else {
           _startIncomingTone();
@@ -820,6 +834,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               callerName: _incomingCall!.caller.displayName,
               callerUsername: _incomingCall!.caller.username,
               isVideo: _incomingCall!.isVideo,
+              acceptLabel: _t('call_accept'),
+              declineLabel: _t('call_decline'),
+              incomingChannelName: _t('call_channel_incoming'),
+              missedChannelName: _t('call_channel_missed'),
             ));
           } else {
             _startIncomingTone();

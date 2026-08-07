@@ -5,6 +5,8 @@ import '../social/social_repository.dart';
 import 'auth_controller.dart';
 import 'phone_countries.dart';
 import 'phone_hint_service.dart';
+import '../../l10n/app_strings.dart';
+import '../settings/settings_controller.dart';
 
 /// Ro'yxatdan o'tishning 1-qadami: telefon raqami.
 ///
@@ -22,6 +24,9 @@ class PhoneSetupPage extends StatefulWidget {
 }
 
 class _PhoneSetupPageState extends State<PhoneSetupPage> {
+  String _t(String key) => AppStrings.text(
+      context.read<SettingsController>().localeCode, key);
+
   final _controller = TextEditingController();
   PhoneCountry _country = defaultPhoneCountry;
   bool _saving = false;
@@ -72,7 +77,7 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
   Future<void> _save() async {
     final digits = _controller.text.replaceAll(RegExp(r'\D'), '');
     if (digits.length < _country.nationalLength) {
-      setState(() => _error = "Raqam to'liq emas");
+      setState(() => _error = _t('onboarding_phone_incomplete'));
       return;
     }
     setState(() {
@@ -92,8 +97,8 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
       setState(() {
         _saving = false;
         _error = e.toString().contains('409')
-            ? "Bu raqam boshqa akkauntga biriktirilgan"
-            : "Saqlab bo'lmadi, qaytadan urinib ko'ring";
+            ? _t('onboarding_phone_taken')
+            : _t('onboarding_save_failed');
       });
       return;
     }
@@ -147,15 +152,14 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
                   size: 56, color: theme.colorScheme.primary),
               const SizedBox(height: 20),
               Text(
-                'Telefon raqamingiz',
+                _t('onboarding_phone_title'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Text(
-                "Tanishlaringiz sizni shu raqam orqali topadi. "
-                "Hech kimga ko'rsatilmaydi.",
+                _t('onboarding_phone_body'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -230,7 +234,7 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
                   child: TextButton.icon(
                     onPressed: _saving ? null : _askSim,
                     icon: const Icon(Icons.sim_card_rounded, size: 18),
-                    label: const Text('SIM kartadan tanlash'),
+                    label: Text(_t('onboarding_phone_from_sim')),
                   ),
                 ),
               const SizedBox(height: 20),
@@ -246,14 +250,15 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Davom etish', style: TextStyle(fontSize: 17)),
+                    : Text(_t('onboarding_continue'),
+                        style: const TextStyle(fontSize: 17)),
               ),
               const SizedBox(height: 4),
               TextButton(
                 onPressed: _saving
                     ? null
                     : () => context.read<AuthController>().skipPhonePrompt(),
-                child: const Text('Keyinroq'),
+                child: Text(_t('onboarding_later')),
               ),
             ],
           ),
