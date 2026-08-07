@@ -9,6 +9,14 @@ class AppConfig {
   static const androidLanBaseUrl = 'http://10.10.3.180:4000';
   static const desktopLoopbackBaseUrl = 'http://127.0.0.1:4000';
   static const webLoopbackBaseUrl = 'http://localhost:4000';
+  /// Haqiqiy versiya build vaqtida beriladi (CI --dart-define orqali
+  /// pubspec dagi qiymatni uzatadi). Ilgari yon panelda qo'lda yozilgan
+  /// "Gujum v2.0" turardi va u hech qachon o'zgarmasdi.
+  static const appVersion = String.fromEnvironment(
+    'GUJUM_VERSION',
+    defaultValue: 'dev',
+  );
+
   static const googleServerClientId = String.fromEnvironment(
     'GUJUM_GOOGLE_CLIENT_ID',
     defaultValue:

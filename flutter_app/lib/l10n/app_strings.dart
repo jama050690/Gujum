@@ -250,7 +250,7 @@ class AppStrings {
       'call_connection_lost': 'Aloqa uzildi',
       'call_busy': 'Siz allaqachon boshqa qo\'ng\'iroqdasiz',
       'call_not_connected': 'Serverga ulanish yo\'q',
-      'version_label': 'Gujum v2.0',
+      'version_label': 'Gujum',
     },
     'en': {
       'call_mute': "Mute",
@@ -486,7 +486,7 @@ class AppStrings {
       'call_connection_lost': 'Connection was lost',
       'call_busy': 'You are already in another call',
       'call_not_connected': 'No server connection',
-      'version_label': 'Gujum v2.0',
+      'version_label': 'Gujum',
     },
     'ru': {
       'call_mute': "Без звука",
@@ -630,7 +630,7 @@ class AppStrings {
       'saved_messages_hint': 'Здесь будут храниться ваши важные сообщения',
       'search_global_results': 'ГЛОБАЛЬНЫЙ ПОИСК',
       'search_tap_to_chat': 'Нажмите, чтобы открыть чат',
-      'version_label': 'Gujum v2.0',
+      'version_label': 'Gujum',
       'chat_document': 'Документ',
       'chat_location': 'Местоположение',
       'chat_location_permission_denied': 'Доступ к геолокации запрещен',
