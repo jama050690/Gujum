@@ -13,6 +13,7 @@ import '../../models/social_models.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
+import 'calls_page.dart';
 import 'social_repository.dart';
 
 /// Telefon kitobidagi, lekin Gujumda yo'q kontakt — taklif qilish uchun.
@@ -549,6 +550,36 @@ class _SearchTab extends StatelessWidget {
                 // faqat ekranga tushganini quradi — 'ko'proq ko'rsatish'
                 // tugmasi ham keraksiz bo'ladi, Telegram'da ham yo'q.
                 final items = <Widget>[
+                  // Telegramdagidek qisqa yorliqlar: taklif ro'yxati va
+                  // qo'ng'iroqlar tarixi asosiy ro'yxatni to'ldirmasin.
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF2492E8),
+                      child: Icon(Icons.person_add_alt_1_rounded,
+                          color: Colors.white),
+                    ),
+                    title: Text(t('invite_friends')),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => _InviteFriendsPage(
+                          candidates: inviteCandidates,
+                          onInvite: onInvite,
+                          settings: settings,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF2A9D5C),
+                      child: Icon(Icons.call_rounded, color: Colors.white),
+                    ),
+                    title: Text(t('recent_calls')),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CallsPage()),
+                    ),
+                  ),
+                  const Divider(height: 24),
                   if (results.isNotEmpty)
                     ...results.map((user) {
                       final imageUrl =
@@ -618,40 +649,11 @@ class _SearchTab extends StatelessWidget {
                         ),
                         title: Text(match.contactName),
                         subtitle: Text('@${user.username}'),
-                        trailing: FilledButton.tonal(
-                          onPressed: () => onOpenChat(user),
-                          child: Text(t('open_chat')),
-                        ),
+                        // Alohida "Chatni ochish" tugmasi yo'q — Telegramdagidek
+                        // qatorning istalgan joyi bosilsa chat ochiladi.
+                        onTap: () => onOpenChat(user),
                       );
                     }),
-                  // Gujumda bo'lmagan kontaktlar — taklif ro'yxati.
-                  if (inviteCandidates.isNotEmpty) ...[
-                    const Divider(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: Text(
-                        t('invite_friends'),
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    ...inviteCandidates.map(
-                      (candidate) => ListTile(
-                        leading: CircleAvatar(
-                          child: Text(
-                            candidate.name.isNotEmpty
-                                ? candidate.name.substring(0, 1).toUpperCase()
-                                : '#',
-                          ),
-                        ),
-                        title: Text(candidate.name),
-                        subtitle: Text(candidate.phone),
-                        trailing: TextButton(
-                          onPressed: () => onInvite(candidate),
-                          child: Text(t('invite')),
-                        ),
-                      ),
-                    ),
-                  ],
                   const Divider(height: 24),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -690,10 +692,7 @@ class _SearchTab extends StatelessWidget {
                         ),
                         title: Text(user.fullName),
                         subtitle: Text('@${user.username}'),
-                        trailing: FilledButton.tonal(
-                          onPressed: () => onOpenChat(user),
-                          child: Text(t('open_chat')),
-                        ),
+                        onTap: () => onOpenChat(user),
                       );
                     }),
                   const SizedBox(height: 24),
@@ -737,16 +736,62 @@ class _SearchTab extends StatelessWidget {
                           ),
                           title: Text(user.fullName),
                           subtitle: Text('@${user.username}'),
-                          trailing: FilledButton.tonal(
-                            onPressed: () => onOpenChat(user),
-                            child: Text(t('open_chat')),
-                          ),
+                          onTap: () => onOpenChat(user),
                         );
                       },
                     ),
         ),
         ],
       ],
+    );
+  }
+}
+
+/// Gujumda bo'lmagan telefon kontaktlari — SMS orqali taklif qilish uchun.
+///
+/// Telegramda ham bu ro'yxat asosiy kontaktlar ostida emas, alohida
+/// "Do'stlarni taklif qilish" ekranida turadi.
+class _InviteFriendsPage extends StatelessWidget {
+  const _InviteFriendsPage({
+    required this.candidates,
+    required this.onInvite,
+    required this.settings,
+  });
+
+  final List<_InviteCandidate> candidates;
+  final ValueChanged<_InviteCandidate> onInvite;
+  final SettingsController settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    return Scaffold(
+      appBar: AppBar(title: Text(t('invite_friends'))),
+      body: candidates.isEmpty
+          ? Center(child: Text(t('contacts_empty_gujum')))
+          : ListView.separated(
+              itemCount: candidates.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final candidate = candidates[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text(
+                      candidate.name.isNotEmpty
+                          ? candidate.name.substring(0, 1).toUpperCase()
+                          : '#',
+                    ),
+                  ),
+                  title: Text(candidate.name),
+                  subtitle: Text(candidate.phone),
+                  onTap: () => onInvite(candidate),
+                  trailing: TextButton(
+                    onPressed: () => onInvite(candidate),
+                    child: Text(t('invite')),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
