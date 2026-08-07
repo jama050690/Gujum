@@ -5,6 +5,11 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import 'session_store.dart';
 
+/// Hech bir so'rov cheksiz kutmasligi kerak. Timeout bo'lmaganida ilova
+/// javob kelmasa spinnerda muzlab qolardi — foydalanuvchi uchun bu "ilova
+/// osilib qoldi" degani, xato xabari ham chiqmasdi.
+const _requestTimeout = Duration(seconds: 20);
+
 class ApiClient {
   ApiClient({
     required SessionStore sessionStore,
@@ -26,7 +31,7 @@ class ApiClient {
       try {
         final request = http.Request('GET', _buildUri(path, query));
         _applyHeaders(request.headers, authenticated: authenticated);
-        final response = await request.send();
+        final response = await request.send().timeout(_requestTimeout);
         return await _decode(response);
       } on http.ClientException catch (e) {
         final msg = e.message.toLowerCase();
@@ -56,7 +61,7 @@ class ApiClient {
       json: true,
     );
     request.body = jsonEncode(body ?? <String, dynamic>{});
-    final response = await request.send();
+    final response = await request.send().timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -72,7 +77,7 @@ class ApiClient {
       json: true,
     );
     request.body = jsonEncode(body ?? <String, dynamic>{});
-    final response = await request.send();
+    final response = await request.send().timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -86,7 +91,7 @@ class ApiClient {
     // o'qimaydi va req.body bo'sh keladi.
     _applyHeaders(request.headers, authenticated: authenticated, json: body != null);
     if (body != null) request.body = jsonEncode(body);
-    final response = await request.send();
+    final response = await request.send().timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -100,7 +105,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send();
+    final response = await request.send().timeout(_requestTimeout);
     return _decode(response);
   }
 
@@ -114,7 +119,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send();
+    final response = await request.send().timeout(_requestTimeout);
     return _decode(response);
   }
 

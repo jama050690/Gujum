@@ -34,6 +34,20 @@ app.use(
 );
 
 // 2. Standart Middleware'lar
+// Har bir so'rov: usul, yo'l, status va davomiyligi. Ilgari faqat ba'zi
+// yo'llar log yozardi, shuning uchun "serverda hech qanday log yo'q" degani
+// so'rov kelmadimi yoki jimgina bajarildimi — ajratib bo'lmasdi.
+app.use((req, res, next) => {
+  const started = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - started;
+    // Sekin so'rovlar ko'zga tashlanib tursin.
+    const mark = ms >= 1000 ? " ⏱ SEKIN" : "";
+    console.log(`${req.method} ${req.originalUrl} → ${res.statusCode} ${ms}ms${mark}`);
+  });
+  next();
+});
+
 app.use(cookieParser());
 app.use(express.json({ limit: "50mb" })); // Katta hajmli JSON (masalan, base64 rasmlar) uchun limitni oshirish
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));

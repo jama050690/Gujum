@@ -174,25 +174,41 @@ class SettingsPage extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final auth = context.read<AuthController>();
+    final repository = context.read<SocialRepository>();
     try {
-      await context.read<SocialRepository>().deleteAccount(
-            reason: selected,
-            comment: commentController.text,
-          );
-      // Serverda hech narsa qolmadi — qurilmadagi nusxalarni ham tozalaymiz,
-      // aks holda keyingi kirishda begona tarix ko'rinib qolardi.
-      final auth = context.read<AuthController>();
-      final username = auth.user?.username;
+      await repository.deleteAccount(
+        reason: selected,
+        comment: commentController.text,
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(t('delete_account_failed'))),
+      );
+      return;
+    }
+
+    // Server tomonda akkaunt yo'q — endi chiqish har qanday holatda ham
+    // bajarilishi kerak. Qurilmadagi nusxalarni tozalash yiqilsa ham
+    // foydalanuvchini o'chirilgan akkauntda qoldirib bo'lmaydi.
+    final username = auth.user?.username;
+    try {
       if (username != null) {
         final store = await MessageStore.create(username);
         await store.clearAll();
       }
       await MediaStore.clearAll();
-      await auth.logout();
     } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(t('delete_account_failed'))),
-      );
+      // tozalash muvaffaqiyatsiz — chiqishga to'sqinlik qilmaydi
     }
+    await auth.logout();
+
+    // Sozlamalar sahifasi Navigator.push bilan ochilgan, ya'ni u ildiz
+    // ekranning ustida turadi. Ildizni AuthFlow ga almashtirish uni
+    // yopmaydi — shuning uchun kirish ekraniga qaytish uchun stekni
+    // bo'shatish kerak. Aks holda o'chirilgandan keyin ham sozlamalarda
+    // qolib ketilardi.
+    navigator.popUntil((route) => route.isFirst);
   }
 }

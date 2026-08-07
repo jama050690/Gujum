@@ -81,7 +81,12 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
     });
     try {
       await context.read<SocialRepository>().savePhone(_e164, fromSim: _fromSim);
-      await context.read<AuthController>().refreshSession();
+      if (!mounted) return;
+      // Raqam saqlandi — keyingi qadamga o'tish uchun serverdan profilni
+      // qayta so'rashning hojati yo'q. Avval refreshSession() kutilardi va
+      // aynan shu yerda ekran qotib qolardi: ikkinchi so'rov sekin bo'lsa
+      // yoki javob bermasa, "Davom etish" tugmasi aylanaverardi.
+      await context.read<AuthController>().updateLocalProfile(phone: _e164);
     } catch (e) {
       if (!mounted) return;
       setState(() {
