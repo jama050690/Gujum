@@ -46,6 +46,7 @@ Future<void> main() async {
   final callController = CallController(
     socketService: socketService,
     authController: authController,
+    socialRepository: socialRepository,
   );
   CallKitService.instance.init();
 

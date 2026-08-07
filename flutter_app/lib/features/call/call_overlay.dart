@@ -1013,52 +1013,33 @@ class _SpeakerButton extends StatefulWidget {
 }
 
 class _SpeakerButtonState extends State<_SpeakerButton> {
-  int _tapCount = 0;
-  Timer? _tapTimer;
   OverlayEntry? _optionsEntry;
   final _btnKey = GlobalKey();
-  static const _doubleTapWindow = Duration(milliseconds: 300);
 
   @override
   void dispose() {
-    _tapTimer?.cancel();
     _dismissOptions();
     super.dispose();
   }
 
+  /// Bosish — dinamikni yoqadi/o'chiradi (kechikishsiz). Ilgari bu yerda
+  /// ikki marta bosishni kutish uchun 300 ms taymer bor edi va har bosish
+  /// marshrutni aylantirib chiqardi — natijada tugma "ishlamayapti" degan
+  /// taassurot qolardi. Boshqa qurilmani tanlash uzoq bosish orqali.
   void _onTap() {
     if (_optionsEntry != null) {
       _dismissOptions();
       return;
     }
-    _tapCount++;
-    if (_tapCount == 1) {
-      _tapTimer = Timer(_doubleTapWindow, () {
-        if (mounted) {
-          _cycleRoute();
-          _tapCount = 0;
-        }
-      });
-    } else {
-      _tapTimer?.cancel();
-      _tapCount = 0;
-      _showOptions();
-    }
+    widget.ctrl.toggleSpeaker();
   }
 
-  void _cycleRoute() {
-    final ctrl = widget.ctrl;
-    switch (ctrl.audioRoute) {
-      case CallAudioRoute.earpiece:
-        ctrl.setAudioRoute(CallAudioRoute.speaker);
-      case CallAudioRoute.speaker:
-        ctrl.setAudioRoute(
-          ctrl.hasBluetoothAudio ? CallAudioRoute.bluetooth : CallAudioRoute.earpiece,
-        );
-      case CallAudioRoute.bluetooth:
-      case CallAudioRoute.headset:
-        ctrl.setAudioRoute(CallAudioRoute.earpiece);
+  void _onLongPress() {
+    if (_optionsEntry != null) {
+      _dismissOptions();
+      return;
     }
+    _showOptions();
   }
 
   void _showOptions() {
@@ -1118,6 +1099,17 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
                         ctrl.setAudioRoute(CallAudioRoute.speaker);
                       },
                     ),
+                    if (ctrl.hasHeadsetAudio) ...[
+                      const SizedBox(width: 8),
+                      _AudioRouteOption(
+                        icon: Icons.headset_rounded,
+                        selected: ctrl.audioRoute == CallAudioRoute.headset,
+                        onTap: () {
+                          _dismissOptions();
+                          ctrl.setAudioRoute(CallAudioRoute.headset);
+                        },
+                      ),
+                    ],
                     if (ctrl.hasBluetoothAudio) ...[
                       const SizedBox(width: 8),
                       _AudioRouteOption(
@@ -1157,6 +1149,7 @@ class _SpeakerButtonState extends State<_SpeakerButton> {
     final ctrl = widget.ctrl;
     return GestureDetector(
       onTap: _onTap,
+      onLongPress: _onLongPress,
       child: Container(
         key: _btnKey,
         width: 58,

@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/network/socket_service.dart';
 import '../auth/auth_controller.dart';
+import '../social/social_repository.dart';
 import 'call_kit_service.dart';
 
 enum CallSessionState { calling, ringing, connecting, connected }
@@ -66,8 +67,10 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   CallController({
     required SocketService socketService,
     required AuthController authController,
+    SocialRepository? socialRepository,
   })  : _socketService = socketService,
-        _authController = authController {
+        _authController = authController,
+        _socialRepository = socialRepository {
     _subscription = _socketService.packets.listen(_handlePacket);
     _callKitSub = CallKitService.instance.events.listen(_handleCallKitEvent);
     // Qo'ng'iroq davomida quloqchin ulansa/uzilsa native tomon xabar beradi.
@@ -79,6 +82,11 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       if (info == null) return null;
       debugPrint('CALL_DEBUG audioRouteChanged $info');
       _syncAudioRouteInfo(info);
+      // WebRTC o'zining speakerphone bayrog'ini yuritadi — quloqchin suhbat
+      // o'rtasida ulanganda unga ham xabar berilmasa ovoz dinamikda qoladi.
+      try {
+        await Helper.setSpeakerphoneOn(_audioRoute == CallAudioRoute.speaker);
+      } catch (_) {}
       notifyListeners();
       return null;
     });
@@ -115,6 +123,35 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e) {
       _callServiceRunning = false;
       debugPrint('CALL_DEBUG call service start failed: $e');
+    }
+  }
+
+  /// Suhbatdoshning ismi/rasmi to'liq bo'lmasa serverdan to'ldiradi.
+  ///
+  /// Signal paketidagi "display card" ni jo'natuvchi tomon to'ldiradi va u
+  /// har doim ham to'liq bo'lmaydi (masalan chaqiruvchining o'z profili hali
+  /// yuklanmagan bo'lsa) — natijada qabul qiluvchi ekranda ism o'rniga
+  /// username va rasm o'rniga harf ko'rinardi.
+  Future<void> _enrichRemotePeer() async {
+    final repo = _socialRepository;
+    final peer = _remotePeer;
+    if (repo == null || peer == null || peer.username.isEmpty) return;
+    final name = peer.displayName.trim();
+    final needsName = name.isEmpty || name == peer.username;
+    final needsAvatar = (peer.avatar ?? '').isEmpty;
+    if (!needsName && !needsAvatar) return;
+    try {
+      final profile = await repo.fetchProfile(peer.username);
+      if (_remotePeer?.username != peer.username) return;
+      final fullName = profile.fullName.trim();
+      _remotePeer = CallPeer(
+        username: peer.username,
+        displayName: needsName && fullName.isNotEmpty ? fullName : peer.displayName,
+        avatar: needsAvatar ? profile.avatar : peer.avatar,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('CALL_DEBUG _enrichRemotePeer() failed: $e');
     }
   }
 
@@ -158,6 +195,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   final SocketService _socketService;
   final AuthController _authController;
+  final SocialRepository? _socialRepository;
   late final StreamSubscription<SocketPacket> _subscription;
   late final StreamSubscription<({String action, String callId})> _callKitSub;
   late final AudioPlayer _audioPlayer;
@@ -183,11 +221,14 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   bool _isCameraOff = false;
   bool _toneActive = false;
   bool _isSpeakerOn = true;
-  // _isSpeakerOn starts true as a *default*, not as a choice the user made.
-  // Only a deliberate tap on the speaker control may outrank a plugged-in
-  // headset — otherwise the session default silently hijacks call audio to the
-  // loudspeaker even though an earphone is connected.
-  bool _speakerExplicit = false;
+  /// Foydalanuvchi tanlagan marshrut: 'auto' | 'speaker' | 'earpiece' |
+  /// 'headset' | 'bluetooth'.
+  ///
+  /// 'auto' — hech narsa tanlanmagan: ulangan quloqchin (bluetooth yoki simli)
+  /// avtomatik ustun bo'ladi, suhbat o'rtasida ulansa ham. Ilgari bu yerda
+  /// bitta `_speakerExplicit` bayrog'i bor edi va speaker tugmasi bir marta
+  /// bosilsa butun sessiya davomida quloqchin aniqlash o'chib qolardi.
+  String _routePreference = 'auto';
   bool _isFrontCamera = true;
   bool _hasBluetoothAudio = false;
   bool _hasHeadsetAudio = false;
@@ -240,6 +281,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
     await _prepareForNewSession(video: video);
     _remotePeer = peer;
+    unawaited(_enrichRemotePeer());
     _callId = 'call_${DateTime.now().millisecondsSinceEpoch}';
     _targetUsername = peer.username;
     _state = CallSessionState.calling;
@@ -314,6 +356,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         video: incoming.isVideo, preserveIncoming: true);
     _pendingCandidates.addAll(savedCandidates);
     _remotePeer = incoming.caller;
+    unawaited(_enrichRemotePeer());
     _callId = incoming.callId;
     _targetUsername = incoming.caller.username;
     _state = CallSessionState.connecting;
@@ -523,12 +566,14 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Speaker tugmasi: dinamik yoqilgan bo'lsa — avtomatik rejimga qaytamiz
+  /// (quloqchin ulangan bo'lsa unga, aks holda eshitgichga), aks holda
+  /// dinamikni yoqamiz.
   Future<void> toggleSpeaker() async {
-    _isSpeakerOn = !_isSpeakerOn;
-    // Deliberate tap — from here on the user's choice outranks the headset.
-    _speakerExplicit = true;
+    _routePreference =
+        _audioRoute == CallAudioRoute.speaker ? 'auto' : 'speaker';
     debugPrint(
-      'CALL_DEBUG toggleSpeaker() speakerOn=$_isSpeakerOn hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
+      'CALL_DEBUG toggleSpeaker() preference=$_routePreference hasBluetooth=$hasBluetoothAudio hasHeadset=$hasHeadsetAudio route=$_audioRoute',
     );
     await _applyAudioRoute();
     notifyListeners();
@@ -536,23 +581,13 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> setAudioRoute(CallAudioRoute route) async {
     if (kIsWeb) return;
-    // Picking a route from the sheet is always deliberate.
-    _speakerExplicit = true;
-    try {
-      if (route == CallAudioRoute.bluetooth) {
-        await _audioChannel.invokeMethod<void>('activateBluetooth');
-        _audioRoute = CallAudioRoute.bluetooth;
-        _isSpeakerOn = false;
-      } else if (route == CallAudioRoute.speaker) {
-        _isSpeakerOn = true;
-        await _applyAudioRoute();
-      } else {
-        _isSpeakerOn = false;
-        await _applyAudioRoute();
-      }
-    } catch (e) {
-      debugPrint('CALL_DEBUG setAudioRoute() error=$e');
-    }
+    _routePreference = switch (route) {
+      CallAudioRoute.speaker => 'speaker',
+      CallAudioRoute.bluetooth => 'bluetooth',
+      CallAudioRoute.headset => 'headset',
+      CallAudioRoute.earpiece => 'earpiece',
+    };
+    await _applyAudioRoute();
     notifyListeners();
   }
 
@@ -606,6 +641,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
           isVideo: data['isVideo'] == true,
         );
         _remotePeer = _incomingCall!.caller;
+        unawaited(_enrichRemotePeer());
 
         // Callkit orqali qabul qilingan bo'lsa — avtomatik javob berish
         if (_pendingAutoAcceptCallId == _incomingCall!.callId) {
@@ -765,6 +801,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             isVideo: data['isVideo'] == true,
           );
           _remotePeer = peer;
+          unawaited(_enrichRemotePeer());
           // Notification orqali "Answer" bosilgan bo'lsa — avtomatik qabul qilish
           if (_pendingAutoAcceptCallId == _incomingCall!.callId) {
             _pendingAutoAcceptCallId = null;
@@ -792,6 +829,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
         final peer = CallPeer.fromMap(
             Map<String, dynamic>.from(data['peer'] as Map? ?? {}));
         _remotePeer = peer;
+        unawaited(_enrichRemotePeer());
         _callId = data['callId']?.toString();
         _targetUsername = peer.username;
         // Server video upgrade ni bilmaydi — _isVideo ni false ga qaytarmaymiz.
@@ -899,6 +937,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
               _isVideo = true;
               _isCameraOff = false;
               unawaited(_startCallService());
+              unawaited(_switchToVideoAudioRoute());
               notifyListeners();
             }
           } catch (e) {
@@ -925,6 +964,7 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
             _isCameraOff = false;
             _isUpgradingToVideo = false;
             unawaited(_startCallService());
+            unawaited(_switchToVideoAudioRoute());
             debugPrint('CALL_DEBUG video upgrade complete');
             notifyListeners();
           } catch (e) {
@@ -947,12 +987,14 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     _isVideo = video;
     _isMuted = false;
     _isCameraOff = false;
-    _isSpeakerOn = true;
-    _speakerExplicit = false;
+    _isSpeakerOn = video;
+    // Ovozli qo'ng'iroq eshitgichdan (yoki ulangan quloqchindan) boshlanadi,
+    // video qo'ng'iroq esa dinamikdan — Telegram bilan bir xil.
+    _routePreference = video ? 'speaker' : 'auto';
     _hasBluetoothAudio = false;
     _hasHeadsetAudio = false;
     _isUpgradingToVideo = false;
-    _audioRoute = CallAudioRoute.speaker;
+    _audioRoute = video ? CallAudioRoute.speaker : CallAudioRoute.earpiece;
     if (!preserveIncoming) {
       _incomingCall = null;
     }
@@ -1198,6 +1240,18 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Video rejimga o'tilganda dinamikka o'tamiz — lekin faqat foydalanuvchi
+  /// marshrutni o'zi tanlamagan bo'lsa (quloqchin ulangan bo'lsa ham 'auto'
+  /// uni saqlab qoladi).
+  Future<void> _switchToVideoAudioRoute() async {
+    if (_routePreference != 'auto' || _hasHeadsetAudio || _hasBluetoothAudio) {
+      return;
+    }
+    _routePreference = 'speaker';
+    await _applyAudioRoute();
+    notifyListeners();
+  }
+
   Future<void> _applyAudioRoute() async {
     if (kIsWeb) return;
 
@@ -1213,28 +1267,15 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
-    // Save the user's intent before the native call may return stale state.
-    final requestedSpeaker = _isSpeakerOn;
     try {
+      // Marshrutni native tomon hal qiladi va haqiqiy natijani qaytaradi —
+      // Flutter tomonda taxmin qilmaymiz.
       final result = await _audioChannel.invokeMapMethod<String, dynamic>(
         'activateCallAudio',
-        {
-          'speakerOn': requestedSpeaker,
-          // A wired headset beats the speaker default, but never beats an
-          // explicit tap on the speaker button.
-          'preferWiredHeadset': !_speakerExplicit,
-        },
+        {'route': _routePreference},
       );
       debugPrint('CALL_DEBUG _applyAudioRoute() result=$result');
       _syncAudioRouteInfo(result);
-      // _syncAudioRouteInfo may override _isSpeakerOn with a stale native value.
-      // Restore the user's requested state unless bluetooth/headset took over.
-      if (_audioRoute != CallAudioRoute.bluetooth &&
-          _audioRoute != CallAudioRoute.headset) {
-        _isSpeakerOn = requestedSpeaker;
-        _audioRoute =
-            requestedSpeaker ? CallAudioRoute.speaker : CallAudioRoute.earpiece;
-      }
     } catch (error) {
       debugPrint('CALL_DEBUG _applyAudioRoute() failed error=$error');
     }

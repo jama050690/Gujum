@@ -37,8 +37,7 @@ class MainActivity : FlutterActivity() {
     private var callAudioChannel: MethodChannel? = null
     private var audioDeviceCallback: AudioDeviceCallback? = null
     private var callAudioActive = false
-    private var lastSpeakerOn = true
-    private var lastPreferWiredHeadset = true
+    private var lastRoute = "auto"
 
     companion object {
         private const val REQ_PHONE_HINT = 7301
@@ -71,11 +70,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "activateCallAudio" -> {
                     result.success(
-                        activateCallAudio(
-                            speakerOn = call.argument<Boolean>("speakerOn") ?: true,
-                            preferWiredHeadset =
-                                call.argument<Boolean>("preferWiredHeadset") ?: true,
-                        )
+                        activateCallAudio(call.argument<String>("route") ?: "auto")
                     )
                 }
                 "activateBluetooth" -> {
@@ -406,9 +401,6 @@ class MainActivity : FlutterActivity() {
         outgoingToneGenerator = null
     }
 
-    // preferWiredHeadset=false faqat foydalanuvchi speaker tugmasini ataylab
-    // bosganda keladi — o'shanda ulangan quloqchin ham speaker'ni to'sib qololmaydi.
-
     /**
      * Qo'ng'iroq paytida audio qurilmalar o'zgarishini kuzatadi.
      *
@@ -444,16 +436,27 @@ class MainActivity : FlutterActivity() {
         if (!callAudioActive) return
         // Tizim qurilma ro'yxatini yangilashi uchun qisqa kechikish — aks holda
         // yangi ulangan quloqchin hali availableCommunicationDevices da yo'q.
-        runOnUiThread {
-            val info = activateCallAudio(lastSpeakerOn, lastPreferWiredHeadset)
+        window.decorView.postDelayed({
+            if (!callAudioActive) return@postDelayed
+            val info = activateCallAudio(lastRoute)
             callAudioChannel?.invokeMethod("audioRouteChanged", info)
-        }
+        }, 350)
     }
 
-    private fun activateCallAudio(
-        speakerOn: Boolean,
-        preferWiredHeadset: Boolean = true,
-    ): Map<String, Any> {
+    /**
+     * Qo'ng'iroq audiosini berilgan marshrutga o'tkazadi.
+     *
+     * [route]: "auto" | "speaker" | "earpiece" | "headset" | "bluetooth".
+     *
+     * "auto" — foydalanuvchi hech narsa tanlamagan holat: ulangan bluetooth
+     * yoki simli quloqchin avtomatik ustun bo'ladi. Qolgan qiymatlar aniq
+     * tanlov: ular ulangan quloqchindan ham ustun turadi (masalan quloqchin
+     * ulangan holda dinamikni yoqish). Ilgari bu yerda faqat `speakerOn`
+     * bayrog'i bor edi va bitta tanlov ("speaker") butun sessiya davomida
+     * quloqchin aniqlashni o'chirib qo'yardi — shu sababli suhbat o'rtasida
+     * ulangan quloqchin e'tiborsiz qolardi.
+     */
+    private fun activateCallAudio(route: String): Map<String, Any> {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             ?: return mapOf(
                 "currentRoute" to "speaker",
@@ -462,101 +465,95 @@ class MainActivity : FlutterActivity() {
             )
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        lastSpeakerOn = speakerOn
-        lastPreferWiredHeadset = preferWiredHeadset
+        lastRoute = route
         callAudioActive = true
         startAudioDeviceWatch()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (speakerOn) {
-                // Bluetooth quloqchin ulangan bo'lsa — uni ustunlik bering
-                val btDevice = audioManager.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
-                    it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
-                }
-                // Simli quloqchin ulangan bo'lsa — u speaker'dan ustun.
-                // Avval bu tekshiruv faqat speakerOn=false shoxobchasida bor edi,
-                // lekin _prepareForNewSession() har sessiyada _isSpeakerOn=true
-                // qilib qo'yadi — natijada kiruvchi qo'ng'iroqda ulangan simli
-                // quloqchin setCommunicationDevice(speaker) bilan bekor qilinardi.
-                val wiredDevice = if (!preferWiredHeadset) null else {
-                    audioManager.availableCommunicationDevices.firstOrNull {
-                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                        it.type == AudioDeviceInfo.TYPE_USB_HEADSET
-                    }
-                }
-                if (btDevice != null) {
-                    audioManager.setCommunicationDevice(btDevice)
-                } else if (wiredDevice != null) {
-                    audioManager.stopBluetoothSco()
-                    @Suppress("DEPRECATION")
-                    audioManager.isBluetoothScoOn = false
-                    @Suppress("DEPRECATION")
-                    audioManager.isSpeakerphoneOn = false
-                    audioManager.setCommunicationDevice(wiredDevice)
-                } else {
-                    audioManager.stopBluetoothSco()
-                    @Suppress("DEPRECATION")
-                    audioManager.isBluetoothScoOn = false
-                    // Ba'zi OEM qurilmalarda (Samsung/Xiaomi) TYPE_BUILTIN_SPEAKER
-                    // o'rniga TYPE_BUILTIN_SPEAKER_SAFE ishlatiladi — ikkalasini tekshiramiz.
-                    val speaker = audioManager.availableCommunicationDevices
-                        .firstOrNull {
-                            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER ||
-                            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE
-                        }
-                    if (speaker != null) {
-                        audioManager.setCommunicationDevice(speaker)
-                    } else {
-                        // Hech qaysi speaker topi topilmadi — deprecated API bilan urinib ko'ramiz.
-                        audioManager.clearCommunicationDevice()
-                        @Suppress("DEPRECATION")
-                        audioManager.isSpeakerphoneOn = true
-                    }
-                }
-            } else {
-                // BT SCO ni to'xtatamiz — aks holda earpiece'ga o'tish ishlamaydi
+            val devices = audioManager.availableCommunicationDevices
+            fun findOf(vararg types: Int) =
+                devices.firstOrNull { device -> types.any { it == device.type } }
+
+            val bluetooth = findOf(
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BLE_HEADSET,
+                AudioDeviceInfo.TYPE_BLE_SPEAKER,
+            )
+            val wired = findOf(
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_USB_HEADSET,
+            )
+            val speaker = findOf(
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
+            )
+            // Quloqchin ulangan bo'lsa "earpiece" jismonan quloqchinga boradi —
+            // shuning uchun u yerda ham wired ustun.
+            val earpiece = wired ?: findOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
+
+            val target = when (route) {
+                "speaker" -> speaker
+                "bluetooth" -> bluetooth
+                "headset" -> wired ?: bluetooth
+                "earpiece" -> earpiece
+                else -> bluetooth ?: wired ?: earpiece
+            } ?: (bluetooth ?: wired ?: earpiece ?: speaker)
+
+            val isSpeakerTarget = target != null && (
+                target.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER ||
+                target.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE
+            )
+            val isBluetoothTarget = target != null && (
+                target.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                target.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                target.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+            )
+
+            if (!isBluetoothTarget) {
                 audioManager.stopBluetoothSco()
                 @Suppress("DEPRECATION")
                 audioManager.isBluetoothScoOn = false
+            }
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = isSpeakerTarget
+
+            if (target != null) {
+                // Bir xil qurilmani qayta o'rnatish ba'zi qurilmalarda audio
+                // uzilishiga olib keladi — faqat o'zgarganda chaqiramiz.
+                if (audioManager.communicationDevice?.id != target.id) {
+                    audioManager.setCommunicationDevice(target)
+                }
+            } else {
                 audioManager.clearCommunicationDevice()
-                @Suppress("DEPRECATION")
-                audioManager.isSpeakerphoneOn = false
-                // BT o'chgandan keyin earpiece/wired qurilma mavjud bo'lsa — belgilaymiz
-                val earpiece = audioManager.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
-                    it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-                }
-                if (earpiece != null) {
-                    audioManager.setCommunicationDevice(earpiece)
-                }
             }
         } else {
-            // Android 12 dan oldin
-            if (speakerOn) {
-                @Suppress("DEPRECATION")
-                val btOn = audioManager.isBluetoothScoOn
-                @Suppress("DEPRECATION")
-                val wiredOn = preferWiredHeadset && audioManager.isWiredHeadsetOn
-                // Simli quloqchin ulangan bo'lsa speaker'ni yoqmaymiz — aks holda
-                // ovoz quloqchindan emas, dinamikdan chiqadi (Android 12+ bilan bir xil mantiq).
-                if (!btOn && !wiredOn) {
+            when (route) {
+                "speaker" -> {
                     audioManager.stopBluetoothSco()
                     @Suppress("DEPRECATION")
                     audioManager.isBluetoothScoOn = false
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = true
-                } else if (wiredOn) {
+                }
+                "bluetooth" -> {
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
+                    audioManager.startBluetoothSco()
+                    @Suppress("DEPRECATION")
+                    audioManager.isBluetoothScoOn = true
+                }
+                else -> {
+                    // "auto"/"headset"/"earpiece": quloqchin ulangan bo'lsa tizim
+                    // o'zi unga yo'naltiradi, dinamikni o'chirish kifoya.
+                    if (route != "auto" || !audioManager.isBluetoothScoOn) {
+                        audioManager.stopBluetoothSco()
+                        @Suppress("DEPRECATION")
+                        audioManager.isBluetoothScoOn = false
+                    }
                     @Suppress("DEPRECATION")
                     audioManager.isSpeakerphoneOn = false
                 }
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.isSpeakerphoneOn = false
             }
         }
 
