@@ -25,13 +25,13 @@ Future<void> _uploadAndSendAttachment(
         uploadedPath = await chat.uploadPickedAudio(file);
         break;
       case _AttachmentType.video:
-        const _maxVideoBytes = 500 * 1024 * 1024;
+        const maxVideoBytes = 500 * 1024 * 1024;
         if (platformFile != null) {
           if (!_matchesAllowedExtension(platformFile, _ConversationPaneState._videoExtensions)) {
             _showInfoSnackBar(t('chat_invalid_file_type'));
             return;
           }
-          if (platformFile.size > _maxVideoBytes) {
+          if (platformFile.size > maxVideoBytes) {
             _showInfoSnackBar(t('video_too_large'));
             return;
           }
@@ -47,7 +47,7 @@ Future<void> _uploadAndSendAttachment(
             return;
           }
           final fileSize = await file.length();
-          if (fileSize > _maxVideoBytes) {
+          if (fileSize > maxVideoBytes) {
             _showInfoSnackBar(t('video_too_large'));
             return;
           }
@@ -144,9 +144,13 @@ Future<void> _sendLocation(
       return;
     }
 
+    // desiredAccuracy/timeLimit eskirgan — sozlamalar endi
+    // LocationSettings orqali beriladi.
     final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 12),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 12),
+      ),
     );
 
     final payload = _encodeLocationPayload(
