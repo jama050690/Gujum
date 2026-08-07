@@ -8,7 +8,14 @@ import 'session_store.dart';
 /// Hech bir so'rov cheksiz kutmasligi kerak. Timeout bo'lmaganida ilova
 /// javob kelmasa spinnerda muzlab qolardi — foydalanuvchi uchun bu "ilova
 /// osilib qoldi" degani, xato xabari ham chiqmasdi.
-const _requestTimeout = Duration(seconds: 20);
+///
+/// Oddiy JSON so'rovlari kichik: 8 soniyada javob kelmasa, kutishning ma'nosi
+/// yo'q — xatoni ko'rsatib, qayta urinish imkonini bergan yaxshiroq.
+const _requestTimeout = Duration(seconds: 8);
+
+/// Fayl yuklash boshqa masala: rasm yoki video sekin tarmoqda bir necha
+/// o'nlab soniya ketishi mumkin, uni 8 soniyada uzib qo'yish noto'g'ri.
+const _uploadTimeout = Duration(seconds: 90);
 
 class ApiClient {
   ApiClient({
@@ -105,7 +112,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send().timeout(_requestTimeout);
+    final response = await request.send().timeout(_uploadTimeout);
     return _decode(response);
   }
 
@@ -119,7 +126,7 @@ class ApiClient {
     _applyHeaders(request.headers, authenticated: authenticated);
     request.fields.addAll(fields ?? const <String, String>{});
     request.files.addAll(files ?? const <http.MultipartFile>[]);
-    final response = await request.send().timeout(_requestTimeout);
+    final response = await request.send().timeout(_uploadTimeout);
     return _decode(response);
   }
 

@@ -307,18 +307,34 @@ router.post("/login/google", async (req, res) => {
 });
 
 // GET /api/me
-router.get("/me", (req, res) => {
-  console.log(
-    `${new Date().toISOString()} da ${req.url}ga ${req.method} API chaqiruv keldi.`,
-  );
+router.get("/me", async (req, res) => {
   const token = req.cookies.access_token;
   if (!token) return res.sendStatus(401);
 
+  let decoded;
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({ user });
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
-    res.sendStatus(403);
+    return res.sendStatus(403);
+  }
+
+  // Avval shu yerda jwt.verify() natijasi qaytarilardi — ya'ni token ichidagi
+  // {id, username, is_premium, role}. Unda telefon, ism, bio, tug'ilgan kun
+  // va avatar yo'q, shuning uchun klient profilni yangilaganda bu maydonlar
+  // har safar null bo'lib kelardi. Eng ko'zga tashlangani: raqam saqlangandan
+  // keyin ham "telefon yo'q" holati saqlanib qolar va ro'yxatdan o'tish
+  // keyingi qadamga o'tmasdi.
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, username, email, full_name, phone, birthday, bio, avatar, role
+       FROM ${USERS_TABLE} WHERE id = $1`,
+      [decoded.id]
+    );
+    if (rows.length === 0) return res.sendStatus(401);
+    return res.json({ user: formatUser(rows[0]) });
+  } catch (err) {
+    console.error("/me xato:", err.message);
+    return res.status(500).json({ message: "Xatolik yuz berdi" });
   }
 });
 
