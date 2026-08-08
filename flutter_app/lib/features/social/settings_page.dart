@@ -92,7 +92,9 @@ class SettingsPage extends StatelessWidget {
             title: Text(t('chat_saved_messages')),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () {
-              context.read<ChatController>().openSavedMessages();
+              context
+                  .read<ChatController>()
+                  .openSavedMessages(title: t('chat_saved_messages'));
               HomeShellScope.of(context)?.selectTab(HomeTab.chats);
             },
           ),

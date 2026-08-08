@@ -8,14 +8,6 @@ extension _ConversationPaneView on _ConversationPaneState {
     final currentUser = context.read<AuthController>().user;
     final appTitle = t('app_title');
 
-    if (widget.showSavedMessages) {
-      return _SavedMessagesPane(
-        settings: widget.settings,
-        showBack: widget.showBack,
-        onBack: widget.onBack,
-      );
-    }
-
     if (activeChat == null) {
       return _ChatBackdrop(
         settings: widget.settings,

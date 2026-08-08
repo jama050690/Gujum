@@ -124,7 +124,9 @@ Future<void> _openChatFromSearch(ChatController chat, SearchUser user) async {
 }
 
 void _openSavedMessages(ChatController chat) {
-  chat.openSavedMessages();
+  final t = AppStrings.text(
+      context.read<SettingsController>().localeCode, 'chat_saved_messages');
+  unawaited(chat.openSavedMessages(title: t));
 }
 
 void _closeConversation(ChatController chat) {
