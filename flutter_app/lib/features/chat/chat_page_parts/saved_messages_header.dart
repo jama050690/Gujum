@@ -1,47 +1,5 @@
 part of '../chat_page.dart';
 
-class _SavedMessagesPane extends StatelessWidget {
-  const _SavedMessagesPane({
-    required this.settings,
-    required this.showBack,
-    required this.onBack,
-  });
-
-  final SettingsController settings;
-  final bool showBack;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    String t(String key) => AppStrings.text(settings.localeCode, key);
-
-    return Column(
-      children: [
-        _ConversationHeader(
-          settings: settings,
-          title: t('chat_saved_messages'),
-          subtitle: t('saved_messages_hint'),
-          label: t('chat_saved_messages'),
-          imageUrl: '',
-          isSaved: true,
-          showBack: showBack,
-          onBack: onBack,
-        ),
-        Expanded(
-          child: _ChatBackdrop(
-            settings: settings,
-            child: _BrandEmptyState(
-              settings: settings,
-              title: t('chat_saved_messages'),
-              subtitle: t('saved_messages_hint'),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ConversationHeader extends StatelessWidget {
   const _ConversationHeader({
     required this.settings,

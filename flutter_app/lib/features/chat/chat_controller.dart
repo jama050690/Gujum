@@ -89,6 +89,40 @@ class ChatController extends ChangeNotifier {
   List<InboxItem> get inbox => _inbox;
   List<ChatMessage> get messages => _messages;
   InboxItem? get activeChat => _activeChat;
+
+  /// "Saqlangan xabarlar" — o'zi bilan suhbat.
+  ///
+  /// Ilgari bu shunchaki bo'sh ekran edi: sarlavha bor, xabarlar ro'yxati
+  /// ham, yozish maydoni ham yo'q. Endi u oddiy suhbat, faqat suhbatdoshi
+  /// o'zingiz — shuning uchun yozish, fayl yuborish, tarix va qurilmadagi
+  /// nusxa boshqa suhbatlar bilan bir xil kod orqali ishlaydi.
+  ///
+  /// Server tomonda ham cheklov yo'q: (men, men) juftligi odatdagi chat
+  /// qatoriga aylanadi.
+  bool get showSavedMessages =>
+      _activeChat != null &&
+      _activeChat!.username == _authController.user?.username;
+
+  Future<void> openSavedMessages({required String title}) async {
+    final me = _authController.user;
+    if (me == null) return;
+    await openChat(InboxItem(
+      username: me.username,
+      // Sarlavhada o'z ismingiz emas, "Saqlangan xabarlar" turadi.
+      fullName: title,
+      avatar: me.avatar,
+      lastActive: null,
+      lastMessage: '',
+      lastMessageAt: DateTime.now(),
+      unreadCount: 0,
+    ));
+  }
+
+  void closeSavedMessages() {
+    if (!showSavedMessages) return;
+    closeChat();
+  }
+
   Set<String> get onlineUsers => _onlineUsers;
   bool get loadingInbox => _loadingInbox;
   bool get loadingMessages => _loadingMessages;

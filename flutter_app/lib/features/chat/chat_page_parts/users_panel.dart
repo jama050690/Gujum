@@ -13,7 +13,6 @@ class _UsersPanel extends StatelessWidget {
     required this.showSavedMessages,
     required this.globalResults,
     required this.loadingGlobalSearch,
-    required this.onOpenSidebar,
     required this.onSearchChanged,
     required this.onShowArchived,
     required this.onHideArchived,
@@ -21,9 +20,6 @@ class _UsersPanel extends StatelessWidget {
     required this.onOpenChat,
     required this.onOpenSearchResult,
     required this.onShowChatActions,
-    required this.onOpenContacts,
-    required this.onOpenSettings,
-    required this.onOpenProfile,
   });
 
   final SettingsController settings;
@@ -37,7 +33,6 @@ class _UsersPanel extends StatelessWidget {
   final bool showSavedMessages;
   final List<SearchUser> globalResults;
   final bool loadingGlobalSearch;
-  final VoidCallback onOpenSidebar;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onShowArchived;
   final VoidCallback onHideArchived;
@@ -45,9 +40,6 @@ class _UsersPanel extends StatelessWidget {
   final Future<void> Function(InboxItem item) onOpenChat;
   final Future<void> Function(SearchUser user) onOpenSearchResult;
   final ValueChanged<InboxItem> onShowChatActions;
-  final VoidCallback onOpenContacts;
-  final VoidCallback onOpenSettings;
-  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +49,6 @@ class _UsersPanel extends StatelessWidget {
         chat.connectionLabel == null ? null : t(chat.connectionLabel!);
     final panelBackground =
         settings.isDarkMode ? const Color(0xFF17212B) : Colors.white;
-    final activeColor =
-        settings.isDarkMode ? const Color(0xFF253444) : const Color(0xFFE7F1FB);
     final iconColor =
         settings.isDarkMode ? Colors.white70 : const Color(0xFF506070);
     final bodyColor =
@@ -71,7 +61,6 @@ class _UsersPanel extends StatelessWidget {
         settings.isDarkMode ? const Color(0xFF9EB1C2) : const Color(0xFF5E7388);
     final emptyTextColor =
         settings.isDarkMode ? const Color(0xFF8EA3B7) : const Color(0xFF667B90);
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
     final panelTheme = Theme.of(context).copyWith(
       iconTheme: IconThemeData(color: iconColor),
       dividerColor: dividerColor,
@@ -147,10 +136,22 @@ class _UsersPanel extends StatelessWidget {
                       title: showArchived ? t('archive_title') : null,
                       searchController: searchController,
                       showArchived: showArchived,
-                      onOpenSidebar: onOpenSidebar,
                       onBack: onHideArchived,
                       onChanged: onSearchChanged,
                     ),
+                    // "Saqlangan xabarlar" ilgari faqat yon menyuda edi.
+                    // Menyu olib tashlangach, u Telegramdagi kabi
+                    // ro'yxatning tepasida turadi.
+                    if (!showArchived && query.isEmpty)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: const Icon(Icons.bookmark_rounded,
+                              color: Colors.white),
+                        ),
+                        title: Text(t('chat_saved_messages')),
+                        onTap: onOpenSavedMessages,
+                      ),
                     // connectionText ulanish yaxshi bo'lganda null bo'ladi,
                     // shuning uchun alohida 'connected' tekshiruvi kerak emas
                     // (u hech qachon bunday qiymat qaytarmasdi ham).
@@ -264,19 +265,6 @@ class _UsersPanel extends StatelessWidget {
                 ),
               ),
             ),
-            if (!showArchived)
-              Positioned(
-                left: 18,
-                right: 18,
-                bottom: safeBottom + 14,
-                child: _UsersBottomNav(
-                  settings: settings,
-                  activeColor: activeColor,
-                  onOpenContacts: onOpenContacts,
-                  onOpenSettings: onOpenSettings,
-                  onOpenProfile: onOpenProfile,
-                ),
-              ),
           ],
         ),
       ),

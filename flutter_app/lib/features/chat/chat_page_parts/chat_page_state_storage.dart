@@ -110,27 +110,28 @@ void _handleSearchChanged(ChatController chat, String value) {
 }
 
 Future<void> _openInboxChat(ChatController chat, InboxItem item) async {
-  if (_showSavedMessages) {
-    applyState(() => _showSavedMessages = false);
+  if (chat.showSavedMessages) {
+    chat.closeSavedMessages();
   }
   await chat.openChat(item);
 }
 
 Future<void> _openChatFromSearch(ChatController chat, SearchUser user) async {
-  if (_showSavedMessages) {
-    applyState(() => _showSavedMessages = false);
+  if (chat.showSavedMessages) {
+    chat.closeSavedMessages();
   }
   await chat.startChatWith(user);
 }
 
 void _openSavedMessages(ChatController chat) {
-  chat.closeChat();
-  applyState(() => _showSavedMessages = true);
+  final t = AppStrings.text(
+      context.read<SettingsController>().localeCode, 'chat_saved_messages');
+  unawaited(chat.openSavedMessages(title: t));
 }
 
 void _closeConversation(ChatController chat) {
-  if (_showSavedMessages) {
-    applyState(() => _showSavedMessages = false);
+  if (chat.showSavedMessages) {
+    chat.closeSavedMessages();
     return;
   }
   chat.closeChat();

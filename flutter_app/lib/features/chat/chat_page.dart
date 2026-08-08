@@ -27,7 +27,6 @@ import '../../models/session_user.dart';
 import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../settings/settings_controller.dart';
-import '../social/calls_page.dart';
 import '../social/friends_page.dart';
 import '../social/contact_profile_page.dart';
 import '../social/profile_page.dart';
@@ -44,7 +43,6 @@ part 'chat_page_parts/chat_page_state_actions.dart';
 part 'chat_page_parts/chat_page_build.dart';
 part 'chat_page_parts/users_panel.dart';
 part 'chat_page_parts/users_header.dart';
-part 'chat_page_parts/users_navigation.dart';
 part 'chat_page_parts/inbox_tiles.dart';
 part 'chat_page_parts/search_states.dart';
 part 'chat_page_parts/conversation_pane_preferences.dart';
@@ -65,7 +63,6 @@ part 'chat_page_parts/conversation_parsers.dart';
 part 'chat_page_parts/composer_widgets.dart';
 part 'chat_page_parts/saved_messages_header.dart';
 part 'chat_page_parts/backdrop_empty_state.dart';
-part 'chat_page_parts/app_drawer.dart';
 part 'chat_page_parts/attachment_picker_sheet.dart';
 part 'chat_page_parts/inline_audio.dart';
 part 'chat_page_parts/inline_video.dart';
@@ -99,7 +96,6 @@ class _ChatPageState extends State<ChatPage> {
     setState(fn);
   }
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
 
   Timer? _searchDebounce;
@@ -109,7 +105,6 @@ class _ChatPageState extends State<ChatPage> {
   List<SearchUser> _globalResults = const [];
   bool _loadingGlobalSearch = false;
   bool _showArchived = false;
-  bool _showSavedMessages = false;
   String? _archiveOwner;
   DateTime? _lastBackPress;
 

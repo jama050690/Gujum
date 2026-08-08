@@ -6,7 +6,6 @@ class _UsersHeader extends StatefulWidget {
     required this.currentUser,
     required this.searchController,
     required this.showArchived,
-    required this.onOpenSidebar,
     required this.onBack,
     required this.onChanged,
     this.title,
@@ -16,7 +15,6 @@ class _UsersHeader extends StatefulWidget {
   final SessionUser? currentUser;
   final TextEditingController searchController;
   final bool showArchived;
-  final VoidCallback onOpenSidebar;
   final VoidCallback onBack;
   final ValueChanged<String> onChanged;
   final String? title;
@@ -48,7 +46,12 @@ class _UsersHeaderState extends State<_UsersHeader> {
           Row(
             children: [
               GestureDetector(
-                onTap: widget.showArchived ? widget.onBack : widget.onOpenSidebar,
+                // Yon menyu olib tashlandi: rasmga bosilsa Profil bo'limi
+                // ochiladi.
+                onTap: widget.showArchived
+                    ? widget.onBack
+                    : () => HomeShellScope.of(context)
+                        ?.selectTab(HomeTab.profile),
                 child: Container(
                   width: 44,
                   height: 44,
@@ -105,11 +108,6 @@ class _UsersHeaderState extends State<_UsersHeader> {
                 IconButton(
                   onPressed: () => setState(() => _searchOpen = true),
                   icon: const Icon(Icons.search_rounded),
-                  color: titleColor,
-                ),
-                IconButton(
-                  onPressed: widget.onOpenSidebar,
-                  icon: const Icon(Icons.more_vert_rounded),
                   color: titleColor,
                 ),
               ],

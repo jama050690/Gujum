@@ -111,7 +111,8 @@ Future<void> _showChatActions(
         await _toggleMute(item);
         break;
       case _InboxAction.markUnread:
-        if (chat.activeChat?.username == item.username && !_showSavedMessages) {
+        if (chat.activeChat?.username == item.username &&
+            !chat.showSavedMessages) {
           chat.closeChat();
         }
         chat.markChatUnread(item.username);
@@ -194,5 +195,5 @@ Future<bool> _confirmChatAction({
 }
 
 bool _hasConversation(ChatController chat) =>
-    _showSavedMessages || chat.activeChat != null;
+    chat.showSavedMessages || chat.activeChat != null;
 }

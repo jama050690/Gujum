@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../auth/auth_controller.dart';
+import '../app/home_shell_scope.dart';
+import '../chat/chat_controller.dart';
 import '../chat/media_store.dart';
 import '../chat/message_store.dart';
 import '../settings/settings_controller.dart';
 import 'blocked_users_page.dart';
+import 'language_page.dart';
 import 'social_repository.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -18,94 +22,147 @@ class SettingsPage extends StatelessWidget {
     String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
-      appBar: AppBar(title: Text(t('settings'))),
+      appBar: AppBar(
+        title: Text(t('settings')),
+        actions: [
+          // Akkauntni o'chirish kundalik amal emas va qizil qator bo'lib
+          // ro'yxatda turishi shart emas — u uch nuqta ostiga yashirildi.
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete_account') {
+                _confirmDeleteAccount(context, t);
+              }
+            },
+            itemBuilder: (menuContext) => [
+              PopupMenuItem<String>(
+                value: 'delete_account',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_forever_rounded,
+                      color: Theme.of(menuContext).colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      t('delete_account'),
+                      style: TextStyle(
+                        color: Theme.of(menuContext).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // Kartochkalar o'rniga oddiy qatorlar: har biri alohida qutida
+        // turganda ro'yxat parchalanib ko'rinardi. Bo'limlar sarlavha va
+        // ingichka ajratgich bilan bo'linadi — Telegramdagi kabi.
+        padding: EdgeInsets.zero,
         children: [
-          Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Text(
-                    t('settings_appearance'),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                SwitchListTile(
-                  value: settings.isDarkMode,
-                  onChanged: settings.setDarkMode,
-                  title: Text(t('dark_mode')),
-                ),
-                ListTile(
-                  title: Text(t('language')),
-                  trailing: DropdownButton<String>(
-                    value: settings.localeCode,
-                    underline: const SizedBox.shrink(),
-                    items: [
-                      for (final code in AppStrings.supportedLocales)
-                        DropdownMenuItem(
-                          value: code,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                code.toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Tilning o'z nomi — o'sha tilda yozilgan holda.
-                              Text(AppStrings.languageNames[code] ?? code),
-                            ],
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        settings.setLocaleCode(value);
-                      }
-                    },
-                  ),
-                ),
-              ],
+          _SectionLabel(text: t('settings_appearance')),
+          SwitchListTile(
+            value: settings.isDarkMode,
+            onChanged: settings.setDarkMode,
+            secondary: const Icon(Icons.dark_mode_outlined),
+            title: Text(t('dark_mode')),
+          ),
+          ListTile(
+            leading: const Icon(Icons.language_rounded),
+            title: Text(t('language')),
+            // Joriy til o'ng tomonda ko'rinadi — sahifani ochmasdan.
+            subtitle: Text(
+              AppStrings.languageNames[settings.localeCode] ??
+                  settings.localeCode,
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LanguagePage()),
             ),
           ),
-          const SizedBox(height: 16),
+          const Divider(height: 1),
+
+          _SectionLabel(text: t('chats')),
+          // "Saqlangan xabarlar" — Telegramda ham sozlamalar ichida bor.
+          // Bosilganda Suhbatlar bo'limiga o'tib, o'sha ro'yxat ochiladi.
+          ListTile(
+            leading: const Icon(Icons.bookmark_border_rounded),
+            title: Text(t('chat_saved_messages')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              context
+                  .read<ChatController>()
+                  .openSavedMessages(title: t('chat_saved_messages'));
+              HomeShellScope.of(context)?.selectTab(HomeTab.chats);
+            },
+          ),
           // Bloklanganlar profil sahifasidan shu yerga ko'chirildi: profilni
           // tahrirlash bilan aloqasi yo'q edi.
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.block_rounded),
-              title: Text(t('blocked_users')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const BlockedUsersPage()),
-              ),
+          ListTile(
+            leading: const Icon(Icons.block_rounded),
+            title: Text(t('blocked_users')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BlockedUsersPage()),
             ),
           ),
-          const SizedBox(height: 16),
-          // Xavfli hudud — Google Play akkaunt yaratadigan ilovalardan ilova
-          // ichida o'chirish imkonini talab qiladi.
-          Card(
-            child: ListTile(
-              leading: Icon(
-                Icons.delete_forever_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                t('delete_account'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () => _confirmDeleteAccount(context, t),
+          const Divider(height: 1),
+
+          // Chiqish ilgari yon menyuda edi. Menyu olib tashlangach u shu
+          // yerga ko'chdi — Telegramda ham u sozlamalar ichida.
+          ListTile(
+            leading: const Icon(Icons.logout_rounded),
+            title: Text(t('logout')),
+            onTap: () => _confirmLogout(context, t),
+          ),
+          const Divider(height: 1),
+
+          const SizedBox(height: 20),
+          // Versiya — qatorlar orasida emas, eng pastda, kulrang matn bilan.
+          // Bosiladigan narsa emas, shuning uchun qator ko'rinishida ham
+          // turishi shart emas.
+          Center(
+            child: Text(
+              '${t('version_label')} ${AppConfig.appVersion}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(
+    BuildContext context,
+    String Function(String) t,
+  ) async {
+    final auth = context.read<AuthController>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(t('logout_confirm_title')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              t('logout'),
+              style: TextStyle(color: Theme.of(dialogContext).colorScheme.error),
             ),
           ),
         ],
       ),
     );
+    if (confirmed != true) return;
+    await auth.logout();
   }
 
   Future<void> _confirmDeleteAccount(
@@ -239,5 +296,27 @@ class SettingsPage extends StatelessWidget {
     // bo'shatish kerak. Aks holda o'chirilgandan keyin ham sozlamalarda
     // qolib ketilardi.
     navigator.popUntil((route) => route.isFirst);
+  }
+}
+
+/// Bo'lim sarlavhasi — qatorlar guruhini ajratadi.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Text(
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+      ),
+    );
   }
 }
