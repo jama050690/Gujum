@@ -76,21 +76,36 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
 
   Future<void> _forwardMessagesToChat(
     ChatController chat,
-    InboxItem target,
+    List<InboxItem> targets,
     List<ChatMessage> messages,
+    String caption,
     String Function(String) t,
   ) async {
-    for (final message in messages) {
-      final sent = await chat.sendMessage(
-        receiver: target.username,
-        message: message.content,
-        image: message.image,
-        audio: message.audio,
-        video: message.video,
-      );
-      if (!sent) {
-        if (mounted) _showInfoSnackBar(t('message_send_failed'));
-        return;
+    for (final target in targets) {
+      for (final message in messages) {
+        final sent = await chat.sendMessage(
+          receiver: target.username,
+          message: message.content,
+          image: message.image,
+          audio: message.audio,
+          video: message.video,
+        );
+        if (!sent) {
+          if (mounted) _showInfoSnackBar(t('message_send_failed'));
+          return;
+        }
+      }
+      // Izoh uzatilgan xabarlardan keyin alohida xabar bo'lib boradi —
+      // Telegramda ham shunday, uzatilgan matn o'zgarmaydi.
+      if (caption.trim().isNotEmpty) {
+        final sent = await chat.sendMessage(
+          receiver: target.username,
+          message: caption.trim(),
+        );
+        if (!sent) {
+          if (mounted) _showInfoSnackBar(t('message_send_failed'));
+          return;
+        }
       }
     }
     if (!mounted) return;
@@ -115,7 +130,7 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
         return rightTime.compareTo(leftTime);
       });
 
-    final target = await showModalBottomSheet<InboxItem>(
+    final result = await showModalBottomSheet<_ForwardResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).cardColor,
@@ -128,8 +143,9 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
       ),
     );
 
-    if (target == null || !mounted) return;
-    await _forwardMessagesToChat(chat, target, messages, t);
+    if (result == null || result.targets.isEmpty || !mounted) return;
+    await _forwardMessagesToChat(
+        chat, result.targets, messages, result.caption, t);
   }
 }
 
@@ -159,16 +175,33 @@ class _ForwardPicker extends StatefulWidget {
 
 class _ForwardPickerState extends State<_ForwardPicker> {
   final _controller = TextEditingController();
+  final _captionController = TextEditingController();
   Timer? _debounce;
   List<SearchUser> _found = const [];
   bool _searching = false;
   String _query = '';
 
+  /// Bir necha manzil tanlanadi — Telegramdagi kabi. Kalit sifatida
+  /// username, chunki bir odam ham suhbatlar ro'yxatida, ham qidiruv
+  /// natijasida uchrashi mumkin.
+  final Map<String, InboxItem> _selected = <String, InboxItem>{};
+
   @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
+    _captionController.dispose();
     super.dispose();
+  }
+
+  void _toggle(InboxItem item) {
+    setState(() {
+      if (_selected.containsKey(item.username)) {
+        _selected.remove(item.username);
+      } else {
+        _selected[item.username] = item;
+      }
+    });
   }
 
   void _onChanged(String value) {
@@ -282,17 +315,19 @@ class _ForwardPickerState extends State<_ForwardPicker> {
                               color: Colors.white),
                         ),
                         title: Text(t('chat_saved_messages')),
-                        onTap: () => Navigator.of(context).pop(
-                          InboxItem(
-                            username: me.username,
-                            fullName: t('chat_saved_messages'),
-                            avatar: me.avatar,
-                            lastActive: null,
-                            lastMessage: '',
-                            lastMessageAt: DateTime.now(),
-                            unreadCount: 0,
-                          ),
-                        ),
+                        trailing: _selected.containsKey(me.username)
+                            ? Icon(Icons.check_circle_rounded,
+                                color: Theme.of(context).colorScheme.primary)
+                            : const Icon(Icons.circle_outlined),
+                        onTap: () => _toggle(InboxItem(
+                          username: me.username,
+                          fullName: t('chat_saved_messages'),
+                          avatar: me.avatar,
+                          lastActive: null,
+                          lastMessage: '',
+                          lastMessageAt: DateTime.now(),
+                          unreadCount: 0,
+                        )),
                       ),
                     for (final item in chats)
                       _ForwardTile(
@@ -300,7 +335,8 @@ class _ForwardPickerState extends State<_ForwardPicker> {
                         avatar: item.avatar,
                         title: item.fullName,
                         subtitle: item.lastMessage,
-                        onTap: () => Navigator.of(context).pop(item),
+                        selected: _selected.containsKey(item.username),
+                        onTap: () => _toggle(item),
                       ),
                     if (_searching)
                       const Padding(
@@ -314,8 +350,8 @@ class _ForwardPickerState extends State<_ForwardPicker> {
                         avatar: user.avatar,
                         title: user.fullName,
                         subtitle: '@${user.username}',
-                        onTap: () =>
-                            Navigator.of(context).pop(_itemFor(user)),
+                        selected: _selected.containsKey(user.username),
+                        onTap: () => _toggle(_itemFor(user)),
                       ),
                     if (!_searching &&
                         chats.isEmpty &&
@@ -328,6 +364,38 @@ class _ForwardPickerState extends State<_ForwardPicker> {
                   ],
                 ),
               ),
+              if (_selected.isNotEmpty) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _captionController,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: t('message_forward_caption'),
+                            isDense: true,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Tanlanganlar soni tugmaning o'zida ko'rinadi.
+                      FilledButton(
+                        onPressed: () => Navigator.of(context).pop(
+                          _ForwardResult(
+                            targets: _selected.values.toList(growable: false),
+                            caption: _captionController.text,
+                          ),
+                        ),
+                        child: Text('${t('send')} (${_selected.length})'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -336,12 +404,21 @@ class _ForwardPickerState extends State<_ForwardPicker> {
   }
 }
 
+/// Uzatish oynasining natijasi: kimlarga va qanday izoh bilan.
+class _ForwardResult {
+  const _ForwardResult({required this.targets, required this.caption});
+
+  final List<InboxItem> targets;
+  final String caption;
+}
+
 class _ForwardTile extends StatelessWidget {
   const _ForwardTile({
     required this.settings,
     required this.avatar,
     required this.title,
     required this.subtitle,
+    required this.selected,
     required this.onTap,
   });
 
@@ -349,6 +426,7 @@ class _ForwardTile extends StatelessWidget {
   final String? avatar;
   final String title;
   final String subtitle;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
@@ -366,6 +444,10 @@ class _ForwardTile extends StatelessWidget {
       subtitle: subtitle.trim().isEmpty
           ? null
           : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: selected
+          ? Icon(Icons.check_circle_rounded,
+              color: Theme.of(context).colorScheme.primary)
+          : const Icon(Icons.circle_outlined),
       onTap: onTap,
     );
   }

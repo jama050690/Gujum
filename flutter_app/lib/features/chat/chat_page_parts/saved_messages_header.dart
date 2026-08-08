@@ -8,8 +8,8 @@ class _ConversationHeader extends StatelessWidget {
     required this.label,
     required this.imageUrl,
     required this.showBack,
-    required this.onBack,
     this.isSaved = false,
+    required this.onBack,
     this.trailing,
     this.compact = false,
     this.onAvatarTap,
@@ -23,8 +23,10 @@ class _ConversationHeader extends StatelessWidget {
   final String label;
   final String imageUrl;
   final bool showBack;
-  final VoidCallback onBack;
+
+  /// O'zi bilan suhbat — sarlavhada rasm o'rniga xatcho'p belgisi turadi.
   final bool isSaved;
+  final VoidCallback onBack;
   final Widget? trailing;
   final bool compact;
   final VoidCallback? onAvatarTap;
