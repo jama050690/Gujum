@@ -72,7 +72,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             archivedChats: _archivedChats,
             pinnedChats: _pinnedChats,
             mutedChats: _mutedChats,
-            showSavedMessages: _showSavedMessages,
+            showSavedMessages: chat.showSavedMessages,
             globalResults: _globalResults,
             loadingGlobalSearch: _loadingGlobalSearch,
             onSearchChanged: (value) => _handleSearchChanged(chat, value),
@@ -107,7 +107,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             settings: settings,
             chat: chat,
             showBack: !wide,
-            showSavedMessages: _showSavedMessages,
+            showSavedMessages: chat.showSavedMessages,
             onBack: () => _closeConversation(chat),
             onMoreActions: () {
               final item = chat.activeChat;

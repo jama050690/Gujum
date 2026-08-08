@@ -105,7 +105,6 @@ class _ChatPageState extends State<ChatPage> {
   List<SearchUser> _globalResults = const [];
   bool _loadingGlobalSearch = false;
   bool _showArchived = false;
-  bool _showSavedMessages = false;
   String? _archiveOwner;
   DateTime? _lastBackPress;
 

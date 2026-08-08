@@ -89,6 +89,26 @@ class ChatController extends ChangeNotifier {
   List<InboxItem> get inbox => _inbox;
   List<ChatMessage> get messages => _messages;
   InboxItem? get activeChat => _activeChat;
+
+  /// "Saqlangan xabarlar" ochiqmi.
+  ///
+  /// Bayroq ilgari ChatPage ning ichida edi. Endi u boshqa bo'limlardan ham
+  /// ochiladi (Sozlamalar), shuning uchun holat shu yerda — bo'limlar
+  /// bir-birining ichki holatiga tegmaydi.
+  bool _showSavedMessages = false;
+  bool get showSavedMessages => _showSavedMessages;
+
+  void openSavedMessages() {
+    closeChat();
+    _showSavedMessages = true;
+    notifyListeners();
+  }
+
+  void closeSavedMessages() {
+    if (!_showSavedMessages) return;
+    _showSavedMessages = false;
+    notifyListeners();
+  }
   Set<String> get onlineUsers => _onlineUsers;
   bool get loadingInbox => _loadingInbox;
   bool get loadingMessages => _loadingMessages;
