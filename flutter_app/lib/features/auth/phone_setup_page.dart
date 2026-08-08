@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/network/api_client.dart';
 import '../social/social_repository.dart';
 import 'auth_controller.dart';
 import 'phone_countries.dart';
@@ -85,20 +86,44 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
       _error = null;
     });
     try {
-      await context.read<SocialRepository>().savePhone(_e164, fromSim: _fromSim);
+      final linked = await context
+          .read<SocialRepository>()
+          .savePhone(_e164, fromSim: _fromSim);
       if (!mounted) return;
+      if (linked) {
+        // Server bizni raqam egasi bo'lgan akkauntga o'tkazdi — mahalliy
+        // nusxa endi boshqa odamniki. Yangi sessiya cookie si bilan
+        // profilni qaytadan olamiz.
+        await context.read<AuthController>().replaceSessionUser();
+        if (!mounted) return;
+        setState(() => _saving = false);
+        widget.onDone?.call();
+        return;
+      }
       // Raqam saqlandi — keyingi qadamga o'tish uchun serverdan profilni
       // qayta so'rashning hojati yo'q. Avval refreshSession() kutilardi va
       // aynan shu yerda ekran qotib qolardi: ikkinchi so'rov sekin bo'lsa
       // yoki javob bermasa, "Davom etish" tugmasi aylanaverardi.
       await context.read<AuthController>().updateLocalProfile(phone: _e164);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        // Holat kodi bo'yicha tekshiriladi. Ilgari bu yerda
+        // e.toString().contains('409') turardi — ApiException.toString()
+        // esa faqat xabar matnini qaytaradi, unda hech qachon '409'
+        // bo'lmaydi. Shu sababli raqam bandligi ham "saqlanmadi, qayta
+        // urinib ko'ring" bo'lib ko'rinardi va sababi tushunarsiz edi.
+        _error = e.statusCode == 409
+            ? _t('onboarding_phone_taken')
+            : _t('onboarding_save_failed');
+      });
+      return;
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = e.toString().contains('409')
-            ? _t('onboarding_phone_taken')
-            : _t('onboarding_save_failed');
+        _error = _t('onboarding_save_failed');
       });
       return;
     }

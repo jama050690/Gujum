@@ -68,8 +68,13 @@ class SocialRepository {
     );
   }
 
-  Future<void> savePhone(String phone, {bool? fromSim}) async {
-    await _apiClient.multipartPut(
+  /// Raqamni saqlaydi va akkauntlar bog'langan bo'lsa `true` qaytaradi.
+  ///
+  /// Raqam boshqa akkauntga tegishli bo'lsa server o'sha akkauntga
+  /// ulaydi va yangi sessiya beradi — bunday holatda klientdagi
+  /// foydalanuvchi eskirgan bo'ladi va qaytadan olinishi kerak.
+  Future<bool> savePhone(String phone, {bool? fromSim}) async {
+    final response = await _apiClient.multipartPut(
       '/api/users/profile',
       authenticated: true,
       fields: {
@@ -77,6 +82,7 @@ class SocialRepository {
         if (fromSim != null) 'phone_from_sim': fromSim.toString(),
       },
     );
+    return response is Map && response['linked'] == true;
   }
 
   Future<List<SimpleUser>> searchUsers(String query) async {

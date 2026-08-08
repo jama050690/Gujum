@@ -441,4 +441,9 @@ router.post("/logout", (_req, res) => {
   res.json({ message: "Logout success" });
 });
 
+// Telefon qadamida akkauntlarni bog'lash uchun user.routes.js ham shu
+// ikkitasidan foydalanadi — sessiya cookie si va javob shakli bir xil
+// bo'lishi kerak.
+export { setSessionCookie, formatUser };
+
 export default router;

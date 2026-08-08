@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/network/api_client.dart';
@@ -28,9 +29,61 @@ class _AuthFlowState extends State<AuthFlow> {
   // yangi akkauntlarda parol umuman yo'q.
   AuthScreen _screen = AuthScreen.welcome;
 
+  /// Telefon bilan kirishning ikkinchi qadami (ism). Sahifaning ichida emas,
+  /// shu yerda — "orqaga" bitta joyda hal qilinsin.
+  bool _phoneNameStep = false;
+
+  DateTime? _lastBackPress;
+
+  /// Qadamning oldingisi. Birinchi qadamda null — u yerda tizim tugmasi
+  /// odatdagidek ishlaydi (ilovadan chiqadi).
+  AuthScreen? get _previousScreen => switch (_screen) {
+        AuthScreen.welcome => null,
+        AuthScreen.language => AuthScreen.welcome,
+        AuthScreen.signIn => AuthScreen.language,
+        AuthScreen.phoneLogin => AuthScreen.signIn,
+      };
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
+    final previous = _previousScreen;
+    final settings = context.watch<SettingsController>();
+    // Qadamlar Navigator marshrutlari emas, oddiy holat — shuning uchun
+    // tizimning "orqaga" tugmasi ular haqida bilmaydi va marshrutlar
+    // to'plamida bittagina yozuv (home) borligi uchun ilovadan chiqib
+    // ketardi. Ekrandagi strelka ishlab, apparat tugmasi ishlamasdi.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // Ism qadamidan avval raqam qadamiga qaytamiz, keyingina ekrandan.
+        if (_phoneNameStep) {
+          setState(() => _phoneNameStep = false);
+          return;
+        }
+        if (previous != null) {
+          setState(() => _screen = previous);
+          return;
+        }
+        // Birinchi qadam. Chiqish bitta bosishda emas, ikkitasida — chat
+        // sahifasi va ro'yxatdan o'tish qadamlari ham shunday ishlaydi,
+        // bu yerda esa bitta tasodifiy bosish ilovani yopib qo'yardi.
+        final now = DateTime.now();
+        final last = _lastBackPress;
+        if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(AppStrings.text(settings.localeCode, 'exit_press_again')),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      child: AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
       child: switch (_screen) {
         AuthScreen.welcome => WelcomePage(
@@ -44,15 +97,26 @@ class _AuthFlowState extends State<AuthFlow> {
           ),
         AuthScreen.signIn => SignInPage(
             key: const ValueKey('sign_in'),
-            onOpenPhoneLogin: () =>
-                setState(() => _screen = AuthScreen.phoneLogin),
+            onOpenPhoneLogin: () => setState(() {
+              _phoneNameStep = false;
+              _screen = AuthScreen.phoneLogin;
+            }),
             onBack: () => setState(() => _screen = AuthScreen.language),
           ),
         AuthScreen.phoneLogin => PhoneLoginPage(
             key: const ValueKey('phone_login'),
-            onBack: () => setState(() => _screen = AuthScreen.signIn),
+            nameStep: _phoneNameStep,
+            onNeedsName: () => setState(() => _phoneNameStep = true),
+            onBack: () => setState(() {
+              if (_phoneNameStep) {
+                _phoneNameStep = false;
+              } else {
+                _screen = AuthScreen.signIn;
+              }
+            }),
           ),
       },
+      ),
     );
   }
 }

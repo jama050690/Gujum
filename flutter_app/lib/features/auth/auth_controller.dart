@@ -75,6 +75,18 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sessiya boshqa akkauntga o'tganda chaqiriladi (raqam bo'yicha
+  /// bog'lanish). refreshSession() bunga yaramaydi: u mavjud qiymatlarni
+  /// ustun deb biladi va eski username bilan ismni saqlab qolardi.
+  Future<void> replaceSessionUser() async {
+    final result = await _authRepository.fetchMe();
+    if (result.username.isEmpty) return;
+    _user = result;
+    await _sessionStore.saveUser(result.toJson());
+    await _sessionStore.saveLastLoginUsername(result.username);
+    notifyListeners();
+  }
+
   Future<void> refreshSession() async {
     final result = await _authRepository.fetchMe();
     if (result.username.isEmpty) {
