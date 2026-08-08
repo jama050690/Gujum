@@ -2,7 +2,7 @@ name: gujum_chat
 description: Gujum — Flutter client.
 publish_to: "none"
 
-version: 1.0.0+4101
+version: 2.0.0+4601
 
 environment:
   # RadioGroup (settings_page.dart) Flutter 3.32 da paydo bo'lgan. Eski
