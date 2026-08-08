@@ -347,7 +347,17 @@ function registerSocketHandlers(io) {
         const timeout = setTimeout(() => {
           if (pendingCallOffers.has(target)) {
             pendingCallOffers.delete(target);
-            finalizeCallSession(callId);
+            const session = finalizeCallSession(callId);
+            // Yetib bormagan qo'ng'iroq ham javobsiz qo'ng'iroq — chaqirgan
+            // odam keyin ko'ra olishi kerak.
+            if (session) {
+              saveCallMessage(
+                session.caller,
+                session.callee,
+                session.isVideo,
+                0
+              );
+            }
             emitToUser(callerUsername, "CALL_NOT_DELIVERED", { target });
             sendPushToUser(target, {
               title: callerDisplayName,
@@ -412,7 +422,13 @@ function registerSocketHandlers(io) {
     browser.on("CALL_REJECT", (data) => {
       const { target, callId } = data;
       emitToUser(target, "CALL_REJECT", { callId });
-      finalizeCallSession(callId);
+      const session = finalizeCallSession(callId);
+      // Rad etilgan qo'ng'iroq ham tarixda qolishi kerak. Ilgari bu yerda
+      // sessiya shunchaki yopilardi va ikkala tomonda ham hech qanday iz
+      // qolmasdi — go'yo qo'ng'iroq bo'lmagandek.
+      if (session) {
+        saveCallMessage(session.caller, session.callee, session.isVideo, 0);
+      }
     });
 
     browser.on("CALL_END", (data) => {
@@ -697,6 +713,10 @@ function sweepStaleCalls() {
     if (!ringingTooLong && !orphaned) continue;
 
     finalizeCallSession(callId);
+    // Javobsiz qolib jiringlab tugagan qo'ng'iroq. Bu yerda mijozlarga
+    // CALL_END yuborilardi, lekin yozuv saqlanmasdi: ekranda qo'ng'iroq
+    // tugar, tarixda esa hech narsa paydo bo'lmasdi.
+    saveCallMessage(session.caller, session.callee, session.isVideo, 0);
     for (const username of [session.caller, session.callee]) {
       emitToUser(username, "CALL_END", {
         callId,
