@@ -15,6 +15,7 @@ import '../../core/widgets/app_search_field.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
+import '../app/home_shell_scope.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
@@ -736,6 +737,9 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _openChat(SimpleUser user) async {
+    // Bo'lim qobig'i pop dan oldin olinadi — keyin bu context eskirishi
+    // mumkin.
+    final shell = HomeShellScope.of(context);
     await context.read<ChatController>().startChatWith(
           SearchUser(
             username: user.username,
@@ -746,7 +750,12 @@ class _FriendsPageState extends State<FriendsPage> {
     if (!mounted) {
       return;
     }
+    // Kontaktlar endi alohida sahifa emas, pastdagi paneldagi bo'lim:
+    // popUntil hech narsa yopmaydi va suhbat ochilgani bilan foydalanuvchi
+    // Kontaktlar bo'limida qolib ketardi. Ochilgan suhbatni ko'rsatish
+    // uchun Suhbatlar bo'limiga o'tamiz.
     Navigator.of(context).popUntil((route) => route.isFirst);
+    shell?.selectTab(HomeTab.chats);
   }
 
   void _showError(Object error) {
@@ -887,9 +896,20 @@ class _SearchTab extends StatelessWidget {
                       child: Icon(Icons.call_rounded, color: Colors.white),
                     ),
                     title: Text(t('recent_calls')),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CallsPage()),
-                    ),
+                    onTap: () {
+                      // Qobiq shu yerda olinadi: Kontaktlar bo'limi uning
+                      // ostida, ochiladigan sahifa esa yonida turadi va
+                      // u yerdan HomeShellScope ko'rinmaydi.
+                      final shell = HomeShellScope.of(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CallsPage(
+                            onChatOpened: () =>
+                                shell?.selectTab(HomeTab.chats),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 24),
                   // Qidiruv natijalari shu yerda — maydonning o'zi sarlavha

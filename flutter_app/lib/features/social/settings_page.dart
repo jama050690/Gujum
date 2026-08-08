@@ -290,11 +290,11 @@ class SettingsPage extends StatelessWidget {
     }
     await auth.logout();
 
-    // Sozlamalar sahifasi Navigator.push bilan ochilgan, ya'ni u ildiz
-    // ekranning ustida turadi. Ildizni AuthFlow ga almashtirish uni
-    // yopmaydi — shuning uchun kirish ekraniga qaytish uchun stekni
-    // bo'shatish kerak. Aks holda o'chirilgandan keyin ham sozlamalarda
-    // qolib ketilardi.
+    // Sozlamalar endi pastdagi paneldagi bo'lim, ya'ni ildiz marshrutning
+    // o'zi — bu yerda yopiladigan narsa odatda yo'q. Lekin uning ustidan
+    // "Bloklanganlar" yoki "Til" ochilgan bo'lishi mumkin, shuning uchun
+    // stek baribir bo'shatiladi: akkaunt o'chirilgach ekranda ular
+    // qolmasin.
     navigator.popUntil((route) => route.isFirst);
   }
 }

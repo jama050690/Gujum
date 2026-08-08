@@ -18,7 +18,16 @@ import '../settings/settings_controller.dart';
 /// chiqmasdi. Server /api/calls/history da hammasini beradi — veb ilova
 /// allaqachon o'shani ishlatadi.
 class CallsPage extends StatefulWidget {
-  const CallsPage({super.key});
+  const CallsPage({super.key, this.onChatOpened});
+
+  /// Suhbat ochilgandan keyin chaqiriladi — odatda Suhbatlar bo'limiga
+  /// o'tish uchun.
+  ///
+  /// Bu sahifa Navigator.push bilan ochiladi, ya'ni u HomeShell ning
+  /// ostida emas, yonida turadi: HomeShellScope.of(context) bu yerda
+  /// har doim null qaytaradi. Shuning uchun bo'limni almashtirishni
+  /// ochgan tomon (Kontaktlar) o'zi beradi.
+  final VoidCallback? onChatOpened;
 
   @override
   State<CallsPage> createState() => _CallsPageState();
@@ -112,6 +121,9 @@ class _CallsPageState extends State<CallsPage> {
                     ));
                     if (context.mounted) {
                       Navigator.of(context).pop();
+                      // Suhbat Suhbatlar bo'limida ochiladi — o'sha yerga
+                      // o'tamiz, aks holda ekranda Kontaktlar qolardi.
+                      widget.onChatOpened?.call();
                     }
                   },
                 ),
