@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
+import '../app/home_shell_scope.dart';
 import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../chat/chat_controller.dart';
@@ -101,6 +102,9 @@ class _CallsPageState extends State<CallsPage> {
                   settings: settings,
                   isOutgoing: entry.caller == me,
                   onTap: () async {
+                    // Qobiq pop dan oldin olinadi: sahifa yopilgach bu
+                    // context ishlamaydi.
+                    final shell = HomeShellScope.of(context);
                     await chat.openChat(InboxItem(
                       username: entry.peerUsername,
                       fullName: entry.peerFullName,
@@ -112,6 +116,9 @@ class _CallsPageState extends State<CallsPage> {
                     ));
                     if (context.mounted) {
                       Navigator.of(context).pop();
+                      // Suhbat Suhbatlar bo'limida ochiladi — o'sha yerga
+                      // o'tamiz, aks holda ekranda Kontaktlar qolardi.
+                      shell?.selectTab(HomeTab.chats);
                     }
                   },
                 ),

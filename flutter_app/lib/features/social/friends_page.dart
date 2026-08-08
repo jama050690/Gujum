@@ -15,6 +15,7 @@ import '../../core/widgets/app_search_field.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
+import '../app/home_shell_scope.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
@@ -736,6 +737,9 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _openChat(SimpleUser user) async {
+    // Bo'lim qobig'i pop dan oldin olinadi — keyin bu context eskirishi
+    // mumkin.
+    final shell = HomeShellScope.of(context);
     await context.read<ChatController>().startChatWith(
           SearchUser(
             username: user.username,
@@ -746,7 +750,12 @@ class _FriendsPageState extends State<FriendsPage> {
     if (!mounted) {
       return;
     }
+    // Kontaktlar endi alohida sahifa emas, pastdagi paneldagi bo'lim:
+    // popUntil hech narsa yopmaydi va suhbat ochilgani bilan foydalanuvchi
+    // Kontaktlar bo'limida qolib ketardi. Ochilgan suhbatni ko'rsatish
+    // uchun Suhbatlar bo'limiga o'tamiz.
     Navigator.of(context).popUntil((route) => route.isFirst);
+    shell?.selectTab(HomeTab.chats);
   }
 
   void _showError(Object error) {
