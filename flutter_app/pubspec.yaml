@@ -2,7 +2,7 @@ name: gujum_chat
 description: Gujum — Flutter client.
 publish_to: "none"
 
-version: 0.1.1+2801
+version: 1.0.0+4101
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
