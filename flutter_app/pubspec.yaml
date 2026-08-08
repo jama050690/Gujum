@@ -5,8 +5,11 @@ publish_to: "none"
 version: 1.0.0+4101
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.22.0"
+  # RadioGroup (settings_page.dart) Flutter 3.32 da paydo bo'lgan. Eski
+  # chegara yolg'on edi: 3.22 da loyiha umuman yig'ilmaydi. CI da "stable"
+  # ishlatilgani uchun bu sezilmay kelgan.
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.32.0"
 
 dependencies:
   flutter:

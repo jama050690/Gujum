@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
+import android.provider.ContactsContract
 import android.provider.Settings
 import com.google.android.gms.auth.api.identity.GetPhoneNumberHintIntentRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -139,6 +140,53 @@ class MainActivity : FlutterActivity() {
                 "requestPhoneNumberHint" -> requestPhoneNumberHint(result)
                 else -> result.notImplemented()
             }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "gujum/contacts"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openInsert" -> openContactInsert(
+                    call.argument<String>("name") ?: "",
+                    call.argument<String>("phone") ?: "",
+                    result,
+                )
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /**
+     * Kontaktni tizimning "yangi kontakt" oynasida ochadi.
+     *
+     * Kontaktni ilova ichidan jimgina yozib bo'lmaydi: qurilmada asosiy hisob
+     * bulutli (Google) bo'lsa, hisobsiz yozuv qo'shishga urinish
+     * IllegalArgumentException beradi. U fon oqimida otiladi, ya'ni Dart
+     * tomonda ushlab bo'lmaydi va butun jarayon o'ladi — ilova ekrandan
+     * yo'qoladi. Tizim oynasi esa hisobni o'zi tanlaydi va hech qanday
+     * WRITE_CONTACTS ruxsati ham so'ramaydi.
+     */
+    private fun openContactInsert(
+        name: String,
+        phone: String,
+        result: MethodChannel.Result,
+    ) {
+        try {
+            val intent = Intent(Intent.ACTION_INSERT).apply {
+                // Hujjatlarda ko'rsatilgan tur shu. RawContacts.CONTENT_TYPE
+                // ba'zi ishlab chiqaruvchilarning kontakt ilovalarida
+                // ro'yxatdan o'tmagan va ular oynani ochmasdi.
+                type = ContactsContract.Contacts.CONTENT_TYPE
+                putExtra(ContactsContract.Intents.Insert.NAME, name)
+                putExtra(ContactsContract.Intents.Insert.PHONE, phone)
+            }
+            startActivity(intent)
+            result.success(true)
+        } catch (e: Exception) {
+            // Kontaktlar ilovasi yo'q qurilmalar ham bor — bunda Flutter
+            // tomonda faqat xabar ko'rsatiladi, qolgan oqim davom etadi.
+            result.success(false)
         }
     }
 

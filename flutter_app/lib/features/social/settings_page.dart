@@ -121,7 +121,6 @@ class SettingsPage extends StatelessWidget {
     ];
     String? selected;
     final commentController = TextEditingController();
-    var deleting = false;
 
     // Dialog yopilgach controller bo'shatiladi — aks holda har ochilishda
     // bittadan TextEditingController xotirada qolib ketardi.
@@ -142,20 +141,26 @@ class SettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(t('delete_account_reason_q')),
-                for (final key in reasonKeys)
-                  RadioListTile<String>(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: key,
-                    groupValue: selected,
-                    title: Text(t(key)),
-                    onChanged: deleting
-                        ? null
-                        : (value) => setDialogState(() => selected = value),
+                // Flutter 3.32 dan keyin tanlov holati RadioGroup da
+                // yuritiladi; RadioListTile.groupValue/onChanged eskirgan.
+                RadioGroup<String>(
+                  groupValue: selected,
+                  onChanged: (value) => setDialogState(() => selected = value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final key in reasonKeys)
+                        RadioListTile<String>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: key,
+                          title: Text(t(key)),
+                        ),
+                    ],
                   ),
+                ),
                 TextField(
                   controller: commentController,
-                  enabled: !deleting,
                   maxLines: 2,
                   maxLength: 200,
                   decoration: InputDecoration(
@@ -168,13 +173,13 @@ class SettingsPage extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: deleting ? null : () => Navigator.pop(dialogContext, false),
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: Text(t('cancel')),
             ),
             TextButton(
               // Sabab tanlanmaguncha o'chirib bo'lmaydi — tasodifiy bosishdan
               // himoya ham shu.
-              onPressed: (deleting || selected == null)
+              onPressed: selected == null
                   ? null
                   : () => Navigator.pop(dialogContext, true),
               style: TextButton.styleFrom(

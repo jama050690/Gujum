@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -164,14 +163,12 @@ class _GujumLogo extends StatelessWidget {
   const _GujumLogo({
     required this.size,
     this.radius = 22,
-    this.backgroundColor,
     this.padding = 10,
     this.withShadow = false,
   });
 
   final double size;
   final double radius;
-  final Color? backgroundColor;
   final double padding;
   final bool withShadow;
 
@@ -182,8 +179,7 @@ class _GujumLogo extends StatelessWidget {
       height: size,
       padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color:
-            backgroundColor ?? Theme.of(context).colorScheme.primaryContainer,
+        color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(radius),
         boxShadow: withShadow
             ? const [

@@ -92,6 +92,10 @@ Future<void> _showChatActions(
     return;
   }
 
+  // Repozitoriyni await lardan oldin olamiz — keyin context ishlatilsa
+  // vidjet allaqachon yo'q bo'lishi mumkin.
+  final repository = context.read<SocialRepository>();
+
   try {
     switch (action) {
       case _InboxAction.open:
@@ -143,8 +147,7 @@ Future<void> _showChatActions(
         )) {
           return;
         }
-        if (!mounted) return;
-        await context.read<SocialRepository>().blockUser(item.username);
+        await repository.blockUser(item.username);
         chat.removeChat(item.username);
         await _removeChatPreferences(item.username);
         break;
