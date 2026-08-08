@@ -60,18 +60,6 @@ extension _ChatPageStateBuild on _ChatPageState {
         );
       },
       child: Scaffold(
-      key: _scaffoldKey,
-      drawerScrimColor: Colors.black.withAlpha(120),
-      drawer: _AppDrawer(
-        settings: settings,
-        user: auth.user,
-        onOpenCalls: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CallsPage()),
-          );
-        },
-        onOpenSavedMessages: () => _openSavedMessages(chat),
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 960;
@@ -87,7 +75,6 @@ extension _ChatPageStateBuild on _ChatPageState {
             showSavedMessages: _showSavedMessages,
             globalResults: _globalResults,
             loadingGlobalSearch: _loadingGlobalSearch,
-            onOpenSidebar: () => _scaffoldKey.currentState?.openDrawer(),
             onSearchChanged: (value) => _handleSearchChanged(chat, value),
             onShowArchived: () => applyState(() => _showArchived = true),
             onHideArchived: () => applyState(() => _showArchived = false),

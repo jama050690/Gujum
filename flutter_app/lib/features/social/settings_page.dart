@@ -18,7 +18,40 @@ class SettingsPage extends StatelessWidget {
     String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
-      appBar: AppBar(title: Text(t('settings'))),
+      appBar: AppBar(
+        title: Text(t('settings')),
+        actions: [
+          // Akkauntni o'chirish kundalik amal emas va qizil qator bo'lib
+          // ro'yxatda turishi shart emas — u uch nuqta ostiga yashirildi.
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete_account') {
+                _confirmDeleteAccount(context, t);
+              }
+            },
+            itemBuilder: (menuContext) => [
+              PopupMenuItem<String>(
+                value: 'delete_account',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_forever_rounded,
+                      color: Theme.of(menuContext).colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      t('delete_account'),
+                      style: TextStyle(
+                        color: Theme.of(menuContext).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -88,24 +121,46 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Xavfli hudud — Google Play akkaunt yaratadigan ilovalardan ilova
-          // ichida o'chirish imkonini talab qiladi.
+          // Chiqish ilgari yon menyuda edi. Menyu olib tashlangach u shu
+          // yerga ko'chdi — Telegramda ham u sozlamalar ichida.
           Card(
             child: ListTile(
-              leading: Icon(
-                Icons.delete_forever_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                t('delete_account'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () => _confirmDeleteAccount(context, t),
+              leading: const Icon(Icons.logout_rounded),
+              title: Text(t('logout')),
+              onTap: () => _confirmLogout(context, t),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmLogout(
+    BuildContext context,
+    String Function(String) t,
+  ) async {
+    final auth = context.read<AuthController>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(t('logout_confirm_title')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              t('logout'),
+              style: TextStyle(color: Theme.of(dialogContext).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await auth.logout();
   }
 
   Future<void> _confirmDeleteAccount(
