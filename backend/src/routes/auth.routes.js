@@ -311,6 +311,87 @@ router.post("/login/google", async (req, res) => {
   }
 });
 
+// POST /api/login/phone — Google hisobi yo'q qurilmalar uchun kirish
+//
+// DIQQAT — bu yo'l raqamni TEKSHIRMAYDI. Kim qaysi raqamni yozsa, o'sha
+// raqamli akkauntga kiradi: raqamni bilgan har kim boshqa odamning
+// yozishmalarini ocha oladi. Bu ataylab shunday (mahsulot qarori, SMS
+// tasdiqlash keyinroq qo'shiladi) — kamchilik emas, lekin haqiqiy
+// foydalanuvchilar uchun ochilishidan oldin OTP qo'shilishi kerak.
+router.post("/login/phone", async (req, res) => {
+  console.log(
+    `${new Date().toISOString()} da ${req.url}ga ${req.method} API chaqiruv keldi.`,
+  );
+
+  try {
+    const rawPhone = String(req.body?.phone || "").trim();
+    const fullName = String(req.body?.fullName || "").trim().slice(0, 50);
+    // Klient va server bir xil normallashtirishdan foydalanadi: oxirgi 9
+    // raqam. phone-contacts qidiruvi ham shu qoidada.
+    const digits = rawPhone.replace(/\D/g, "");
+    if (digits.length < 7) {
+      throw createHttpError(400, "Telefon raqami noto'g'ri");
+    }
+
+    const { rows } = await pool.query(
+      `SELECT * FROM ${USERS_TABLE}
+       WHERE phone IS NOT NULL
+         AND RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9)
+           = RIGHT(REGEXP_REPLACE($1, '\\D', '', 'g'), 9)
+       LIMIT 1`,
+      [rawPhone]
+    );
+
+    let user = rows[0];
+
+    if (!user) {
+      if (!fullName) {
+        throw createHttpError(400, "Ism kerak");
+      }
+      const username = await getAvailableUsername(fullName || `user${digits.slice(-6)}`);
+      // Parol ishlatilmaydi, lekin ustun NOT NULL — tasodifiy qiymat
+      // yoziladi va u bilan hech qachon kirib bo'lmaydi.
+      const passwordHash = await argon2.hash(
+        `phone:${digits}:${Date.now()}:${Math.random()}`
+      );
+      const insertResult = await pool.query(
+        `INSERT INTO ${USERS_TABLE}
+           (username, email, password_hash, age, gender, full_name, phone, phone_set_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         RETURNING *`,
+        [
+          username,
+          `${username}@phone.local`,
+          passwordHash,
+          18,
+          true,
+          fullName,
+          rawPhone,
+        ]
+      );
+      user = insertResult.rows[0];
+    } else if (fullName && !user.full_name) {
+      const updated = await pool.query(
+        `UPDATE ${USERS_TABLE} SET full_name = $1 WHERE id = $2 RETURNING *`,
+        [fullName, user.id]
+      );
+      user = updated.rows[0];
+    }
+
+    setSessionCookie(res, user);
+    res.json({
+      message: "Login success",
+      user: formatUser(user),
+    });
+  } catch (err) {
+    console.error("Telefon login xato:", err.message || err);
+    const status = err.status || 500;
+    res.status(status).json({
+      message: err.message || "Telefon login xatoligi",
+    });
+  }
+});
+
 // GET /api/me
 router.get("/me", async (req, res) => {
   const token = req.cookies.access_token;
