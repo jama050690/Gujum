@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/network/api_client.dart';
@@ -32,6 +33,8 @@ class _AuthFlowState extends State<AuthFlow> {
   /// shu yerda — "orqaga" bitta joyda hal qilinsin.
   bool _phoneNameStep = false;
 
+  DateTime? _lastBackPress;
+
   /// Qadamning oldingisi. Birinchi qadamda null — u yerda tizim tugmasi
   /// odatdagidek ishlaydi (ilovadan chiqadi).
   AuthScreen? get _previousScreen => switch (_screen) {
@@ -44,13 +47,13 @@ class _AuthFlowState extends State<AuthFlow> {
   @override
   Widget build(BuildContext context) {
     final previous = _previousScreen;
-    final canLeave = previous == null && !_phoneNameStep;
+    final settings = context.watch<SettingsController>();
     // Qadamlar Navigator marshrutlari emas, oddiy holat — shuning uchun
     // tizimning "orqaga" tugmasi ular haqida bilmaydi va marshrutlar
     // to'plamida bittagina yozuv (home) borligi uchun ilovadan chiqib
     // ketardi. Ekrandagi strelka ishlab, apparat tugmasi ishlamasdi.
     return PopScope(
-      canPop: canLeave,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         // Ism qadamidan avval raqam qadamiga qaytamiz, keyingina ekrandan.
@@ -58,8 +61,27 @@ class _AuthFlowState extends State<AuthFlow> {
           setState(() => _phoneNameStep = false);
           return;
         }
-        if (previous == null) return;
-        setState(() => _screen = previous);
+        if (previous != null) {
+          setState(() => _screen = previous);
+          return;
+        }
+        // Birinchi qadam. Chiqish bitta bosishda emas, ikkitasida — chat
+        // sahifasi va ro'yxatdan o'tish qadamlari ham shunday ishlaydi,
+        // bu yerda esa bitta tasodifiy bosish ilovani yopib qo'yardi.
+        final now = DateTime.now();
+        final last = _lastBackPress;
+        if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(AppStrings.text(settings.localeCode, 'exit_press_again')),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       },
       child: AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
