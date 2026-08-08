@@ -19,21 +19,29 @@ import 'phone_hint_service.dart';
 /// akkauntga kiradi. Bu bilib qilingan vaqtinchalik qaror — barqaror
 /// versiyadan keyin SMS kodi qo'shiladi.
 class PhoneLoginPage extends StatefulWidget {
-  const PhoneLoginPage({super.key, required this.onBack});
+  const PhoneLoginPage({
+    super.key,
+    required this.onBack,
+    required this.nameStep,
+    required this.onNeedsName,
+  });
 
   final VoidCallback onBack;
+
+  /// Qadam AuthFlow da yuritiladi: tizimning "orqaga" tugmasi bitta joyda
+  /// hal qilinishi kerak. Ikkita PopScope bo'lsa (bu yerda ham, AuthFlow da
+  /// ham) bitta bosishda ikkalasi ham ishlab, ikki qadam orqaga qaytardi.
+  final bool nameStep;
+  final VoidCallback onNeedsName;
 
   @override
   State<PhoneLoginPage> createState() => _PhoneLoginPageState();
 }
 
-enum _PhoneLoginStep { phone, name }
-
 class _PhoneLoginPageState extends State<PhoneLoginPage> {
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
   PhoneCountry _country = defaultPhoneCountry;
-  _PhoneLoginStep _step = _PhoneLoginStep.phone;
   bool _submitting = false;
   bool _askingSim = true;
   String? _error;
@@ -105,19 +113,8 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     });
   }
 
-  void _back() {
-    if (_step == _PhoneLoginStep.name) {
-      setState(() {
-        _step = _PhoneLoginStep.phone;
-        _error = null;
-      });
-      return;
-    }
-    widget.onBack();
-  }
-
   Future<void> _submit() async {
-    if (_step == _PhoneLoginStep.phone) {
+    if (!widget.nameStep) {
       final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
       if (digits.length < _country.nationalLength) {
         setState(() => _error = _t('onboarding_phone_incomplete'));
@@ -146,14 +143,10 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
           payload['code'] == 'name_required';
       setState(() {
         _submitting = false;
-        if (needsName) {
-          // Yangi raqam — ism qadamiga o'tamiz.
-          _step = _PhoneLoginStep.name;
-          _error = null;
-        } else {
-          _error = error.message;
-        }
+        if (!needsName) _error = error.message;
       });
+      // Yangi raqam — ism qadamiga o'tamiz.
+      if (needsName) widget.onNeedsName();
       return;
     } catch (error) {
       if (!mounted) return;
@@ -172,11 +165,11 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     final theme = Theme.of(context);
     // Til o'zgarsa matnlar ham yangilanishi kerak.
     context.watch<SettingsController>();
-    final isPhoneStep = _step == _PhoneLoginStep.phone;
+    final isPhoneStep = !widget.nameStep;
 
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(onPressed: _submitting ? null : _back),
+        leading: BackButton(onPressed: _submitting ? null : widget.onBack),
         title: Text(isPhoneStep
             ? _t('other_sign_in_methods')
             : _t('onboarding_name_title')),
