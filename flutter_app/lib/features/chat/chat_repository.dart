@@ -14,6 +14,23 @@ class ChatRepository {
 
   final ApiClient _apiClient;
 
+  /// Qo'ng'iroqlar tarixi — hammasi, faqat oxirgisi emas.
+  ///
+  /// Ilgari Flutter tomonda bu so'rov umuman ishlatilmasdi: "Qo'ng'iroqlar"
+  /// sahifasi inbox ro'yxatini filtrlardi, ya'ni qo'ng'iroq faqat suhbatdagi
+  /// eng oxirgi xabar bo'lsagina ko'rinardi.
+  Future<List<CallHistoryEntry>> fetchCallHistory(String username) async {
+    final response = await _apiClient.getJson(
+      '/api/calls/history',
+      query: {'username': username},
+      authenticated: true,
+    );
+    return (response as List<dynamic>)
+        .map((item) =>
+            CallHistoryEntry.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
   Future<List<InboxItem>> fetchInbox(
     String username, {
     DateTime? before,

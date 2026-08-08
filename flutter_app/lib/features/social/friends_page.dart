@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -35,6 +37,63 @@ class _PhoneContactMatch {
 
   final SimpleUser user;
   final String contactName;
+}
+
+/// Qurilma manzillar kitobidan kerak bo'ladigan yagona ma'lumot: raqam →
+/// ism va raqam → asl yozilishi.
+class _DeviceContactBook {
+  const _DeviceContactBook({required this.names, required this.originals});
+
+  final Map<String, String> names;
+  final Map<String, String> originals;
+}
+
+String _normalizePhoneNumber(String input) {
+  final digits = input.replaceAll(RegExp(r'\D'), '');
+  if (digits.length <= 9) {
+    return digits;
+  }
+  return digits.substring(digits.length - 9);
+}
+
+/// Manzillar kitobini o'qiydi va faqat kerakli ikkita jadvalni qaytaradi.
+///
+/// Bu yerdagi ish UI izolyatida bajarilganda ilova bir zumga qotib qolardi:
+/// getContacts javobi kanal orqali o'sha izolyatda ochiladi, keyin har bir
+/// kontakt Dart obyektiga aylantiriladi. ~1500 kontaktda bu sezilarli vaqt,
+/// va u butunlay bo'linmas — o'rtasida kadr chizib bo'lmaydi. Shuning uchun
+/// hammasi alohida izolyatda ishlaydi va bu yerdan faqat ikkita kichik
+/// Map qaytadi (ular izolyatlar orasida arzon uzatiladi).
+Future<Map<String, Map<String, String>>> _collectDeviceContacts() async {
+  final deviceContacts = await FlutterContacts.getContacts(
+    withProperties: true,
+    withPhoto: false,
+  );
+
+  final names = <String, String>{};
+  final originals = <String, String>{};
+  for (final contact in deviceContacts) {
+    final displayName = contact.displayName.trim();
+    for (final phone in contact.phones) {
+      final normalized = _normalizePhoneNumber(phone.number);
+      if (normalized.length < 7) continue;
+      names.putIfAbsent(
+        normalized,
+        () => displayName.isNotEmpty ? displayName : phone.number,
+      );
+      originals.putIfAbsent(normalized, () => phone.number);
+    }
+  }
+  return {'names': names, 'originals': originals};
+}
+
+/// Fon izolyatida plagin kanallaridan foydalanish uchun bog'lovchi bir marta
+/// ishga tushirilishi kerak — usiz getContacts u yerda ishlamaydi.
+Future<Map<String, Map<String, String>>> _collectDeviceContactsInIsolate(
+  RootIsolateToken token,
+) async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+  return _collectDeviceContacts();
 }
 
 class FriendsPage extends StatefulWidget {
@@ -87,8 +146,35 @@ class _FriendsPageState extends State<FriendsPage> {
   /// Serverga so'rov bunga aloqador emas: u 5 ms da qaytadi.
   static const _cacheKey = 'contacts_cache_v1';
 
+  /// Kesh shu muddatdan yosh bo'lsa sahifa ochilganda yangilanmaydi.
+  ///
+  /// Kesh aylanani yo'qotdi, lekin ishni emas: har ochilishda baribir butun
+  /// manzillar kitobi qayta o'qilardi. getContacts(withProperties: true)
+  /// javobi UI izolyatida ochiladi va shu qurilmada (~1500 kontakt) faqat
+  /// provayderdan o'qishning o'zi ~1.3 s — ro'yxat darhol chizilib, keyin
+  /// ekran qotib qolardi. Manzillar kitobi ikki ochilish orasida deyarli
+  /// o'zgarmaydi, shuning uchun avtomatik yangilash siyrak bo'lgani ma'qul.
+  /// Darhol kerak bo'lsa — yuqoridan pastga tortish (RefreshIndicator).
+  static const _cacheMaxAge = Duration(hours: 6);
+  static DateTime? _cacheSavedAt;
+
   String? _currentUsername() =>
       context.read<AuthController>().user?.username;
+
+  /// Manzillar kitobini UI izolyatidan tashqarida o'qiydi.
+  ///
+  /// Vebda va token bo'lmagan holatlarda izolyat ishlatib bo'lmaydi —
+  /// bunday joyda eskicha, joyida o'qiladi.
+  Future<_DeviceContactBook> _readDeviceContactsOffThread() async {
+    final token = RootIsolateToken.instance;
+    final raw = (kIsWeb || token == null)
+        ? await _collectDeviceContacts()
+        : await Isolate.run(() => _collectDeviceContactsInIsolate(token));
+    return _DeviceContactBook(
+      names: raw['names'] ?? const {},
+      originals: raw['originals'] ?? const {},
+    );
+  }
 
   @override
   void initState() {
@@ -106,12 +192,23 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  /// Avval diskdagi keshni ko'rsatamiz, keyin yangilaymiz. Tartib muhim:
-  /// sinxronizatsiya oldin boshlansa, kesh yetib kelguncha ekranda aylanma
-  /// paydo bo'lib ulguradi.
+  /// Avval diskdagi keshni ko'rsatamiz, keyin — kerak bo'lsa — yangilaymiz.
+  /// Tartib muhim: sinxronizatsiya oldin boshlansa, kesh yetib kelguncha
+  /// ekranda aylanma paydo bo'lib ulguradi.
   Future<void> _bootstrapContacts() async {
     await _restoreCachedContacts();
-    await _loadPhoneContactMatches();
+    if (!_cacheIsFresh) {
+      await _loadPhoneContactMatches();
+    }
+  }
+
+  bool get _cacheIsFresh {
+    final savedAt = _cacheSavedAt;
+    // Ro'yxatning bo'sh emasligi emas, keshning borligi tekshiriladi:
+    // Gujumda hech kimi yo'q odamda ro'yxat qonuniy ravishda bo'sh va u
+    // har ochilishda qayta o'qishga mahkum bo'lib qolardi.
+    if (savedAt == null || _cachedMatches == null) return false;
+    return DateTime.now().difference(savedAt) < _cacheMaxAge;
   }
 
   Future<void> _restoreCachedContacts() async {
@@ -137,6 +234,10 @@ class _FriendsPageState extends State<FriendsPage> {
       _cacheOwner = owner;
       _cachedMatches = matches;
       _cachedInvites = invites;
+      final savedAtMs = data['saved_at'];
+      _cacheSavedAt = savedAtMs is int
+          ? DateTime.fromMillisecondsSinceEpoch(savedAtMs)
+          : null;
       // Sinxronizatsiya allaqachon tugagan bo'lsa uni bosib o'tmaymiz.
       if (!mounted || _phoneMatches.isNotEmpty) return;
       setState(() {
@@ -159,6 +260,7 @@ class _FriendsPageState extends State<FriendsPage> {
         _cacheKey,
         jsonEncode({
           'owner': owner,
+          'saved_at': DateTime.now().millisecondsSinceEpoch,
           'matches': matches.map(_matchToJson).toList(),
           'invites': invites.map(_inviteToJson).toList(),
         }),
@@ -237,13 +339,10 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  String _normalizePhone(String input) {
-    final digits = input.replaceAll(RegExp(r'\D'), '');
-    if (digits.length <= 9) {
-      return digits;
-    }
-    return digits.substring(digits.length - 9);
-  }
+  // Bitta qoida: izolyatdagi o'qish ham, bu yerdagi taqqoslash ham aynan shu
+  // funksiyadan foydalanadi. Ikki nusxa bo'lsa ular vaqt o'tib ajralib
+  // ketardi va raqamlar jimgina mos kelmay qo'yardi.
+  String _normalizePhone(String input) => _normalizePhoneNumber(input);
 
   /// Manzillar kitobini o'qish qimmat native amal: minglab kontaktda u yuzlab
   /// megabaytgacha xotira oladi. Ikki sinxronizatsiya bir vaqtda ketsa,
@@ -292,27 +391,13 @@ class _FriendsPageState extends State<FriendsPage> {
         return;
       }
 
-      final deviceContacts = await FlutterContacts.getContacts(
-        withProperties: true,
-        withPhoto: false,
-      );
-
-      final phoneToName = <String, String>{};
+      // Manzillar kitobi alohida izolyatda o'qiladi — batafsili
+      // [_readDeviceContacts] izohida.
+      final book = await _readDeviceContactsOffThread();
+      final phoneToName = book.names;
       // Taklif SMS i uchun raqamning asl ko'rinishi kerak — normallashtirilgan
       // oxirgi 9 raqamga SMS yuborib bo'lmaydi.
-      final phoneToOriginal = <String, String>{};
-      for (final contact in deviceContacts) {
-        final displayName = contact.displayName.trim();
-        for (final phone in contact.phones) {
-          final normalized = _normalizePhone(phone.number);
-          if (normalized.length < 7) continue;
-          phoneToName.putIfAbsent(
-            normalized,
-            () => displayName.isNotEmpty ? displayName : phone.number,
-          );
-          phoneToOriginal.putIfAbsent(normalized, () => phone.number);
-        }
-      }
+      final phoneToOriginal = book.originals;
 
       // Faqat takrorlanmas normallashgan raqamlar yuboriladi. Ilgari har bir
       // yozuvning asl ko'rinishi yuborilardi — bitta odam uch xil formatda
@@ -363,6 +448,8 @@ class _FriendsPageState extends State<FriendsPage> {
       _cacheOwner = currentUser?.username;
       _cachedMatches = matches;
       _cachedInvites = inviteList;
+      // Shu seansdagi keyingi ochilishlar ham yangilamasligi uchun.
+      _cacheSavedAt = DateTime.now();
       unawaited(_persistCache());
       if (!mounted) return;
       setState(() {

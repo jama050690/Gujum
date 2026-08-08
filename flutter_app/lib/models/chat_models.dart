@@ -246,3 +246,45 @@ bool isLocationMessage(String? value) {
   }
   return value.trim().startsWith(_locationMessagePrefix);
 }
+
+/// Qo'ng'iroqlar tarixidagi bitta yozuv (/api/calls/history).
+///
+/// Qo'ng'iroqlar xabarlar jadvalida "__CALL:video:missed__" ko'rinishida
+/// saqlanadi, shuning uchun bu yozuv ham sarlavhasi bo'yicha xabar — lekin
+/// tarix uchun kim qo'ng'iroq qilgani ham kerak: chiqqan qo'ng'iroqni
+/// "javobsiz" deb ko'rsatib bo'lmaydi.
+class CallHistoryEntry {
+  const CallHistoryEntry({
+    required this.id,
+    required this.content,
+    required this.caller,
+    required this.peerUsername,
+    required this.peerFullName,
+    required this.peerAvatar,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String content;
+  final String caller;
+  final String peerUsername;
+  final String peerFullName;
+  final String? peerAvatar;
+  final DateTime? createdAt;
+
+  factory CallHistoryEntry.fromJson(Map<String, dynamic> json) {
+    final peer = (json['peerUsername'] ?? '').toString();
+    final createdRaw = json['created_at']?.toString();
+    return CallHistoryEntry(
+      id: (json['id'] ?? '$peer-$createdRaw').toString(),
+      content: (json['content'] ?? '').toString(),
+      caller: (json['caller'] ?? '').toString(),
+      peerUsername: peer,
+      peerFullName: (json['peerFullName'] ?? '').toString().isNotEmpty
+          ? json['peerFullName'].toString()
+          : peer,
+      peerAvatar: json['peerAvatar']?.toString(),
+      createdAt: createdRaw == null ? null : DateTime.tryParse(createdRaw),
+    );
+  }
+}
