@@ -103,13 +103,21 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
     String Function(String) t,
     List<ChatMessage> messages,
   ) async {
+    final me = context.read<AuthController>().user;
+    // O'zi bilan suhbat ro'yxatda o'z ismi bilan turmasligi kerak — u
+    // yuqorida alohida "Saqlangan xabarlar" qatori sifatida ko'rsatiladi.
     final candidates = [...chat.inbox]
+        .where((item) => item.username != me?.username)
+        .toList()
       ..sort((left, right) {
         final leftTime = left.lastMessageAt?.millisecondsSinceEpoch ?? 0;
         final rightTime = right.lastMessageAt?.millisecondsSinceEpoch ?? 0;
         return rightTime.compareTo(leftTime);
       });
-    if (candidates.isEmpty) {
+    // Ilgari bu yerda bo'sh ro'yxat uchun chiqib ketilardi. Endi "Saqlangan
+    // xabarlar" har doim mavjud manzil, shuning uchun faqat u ham
+    // bo'lmagandagina to'xtaymiz.
+    if (candidates.isEmpty && me == null) {
       _showInfoSnackBar(t('empty_inbox'));
       return;
     }
@@ -135,6 +143,30 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
                   ),
                 ),
                 const Divider(height: 1),
+                // Telegramdagi kabi: xabarni o'zingizga saqlash uchun
+                // birinchi qator.
+                if (me != null)
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          Theme.of(sheetContext).colorScheme.primary,
+                      child: const Icon(Icons.bookmark_rounded,
+                          color: Colors.white),
+                    ),
+                    title: Text(t('chat_saved_messages')),
+                    onTap: () => Navigator.of(sheetContext).pop(
+                      InboxItem(
+                        username: me.username,
+                        fullName: t('chat_saved_messages'),
+                        avatar: me.avatar,
+                        lastActive: null,
+                        lastMessage: '',
+                        lastMessageAt: DateTime.now(),
+                        unreadCount: 0,
+                      ),
+                    ),
+                  ),
+                if (me != null) const Divider(height: 1),
                 Expanded(
                   child: ListView.builder(
                     itemCount: candidates.length,
