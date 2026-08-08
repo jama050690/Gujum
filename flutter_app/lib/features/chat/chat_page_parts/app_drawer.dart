@@ -20,7 +20,16 @@ class _AppDrawer extends StatelessWidget {
   final VoidCallback onOpenSettings;
 
   void _handleTap(BuildContext context, VoidCallback action) {
-    Navigator.of(context).pop();
+    // Yon menyuni Navigator.pop() bilan yopib bo'lmaydi: ChatPage butun
+    // sahifani PopScope(canPop: false) ga o'rab qo'ygan, u esa menyuning
+    // ichki "orqaga" yozuvidan (LocalHistoryEntry) ustun turadi. Natijada
+    // pop to'xtatilar va uning o'rniga ChatPage ning ishlovchisi ishlab
+    // ketardi: ochiq suhbat yopilib ketardi yoki "chiqish uchun yana bir
+    // marta bosing" chiqardi — menyu esa ochiqligicha qolardi.
+    //
+    // closeDrawer() to'g'ridan-to'g'ri Scaffold ga aytadi va marshrutlar
+    // tizimiga umuman tegmaydi.
+    Scaffold.maybeOf(context)?.closeDrawer();
     action();
   }
 
@@ -168,7 +177,10 @@ class _AppDrawer extends StatelessWidget {
                         if (shouldLogout != true || !context.mounted) {
                           return;
                         }
-                        Navigator.of(context).pop();
+                        // Yuqoridagi _handleTap dagi kabi: bu yerdagi maqsad
+                        // yon menyuni yopish, Navigator.pop() esa ChatPage
+                        // ning PopScope iga tushib qoladi.
+                        Scaffold.maybeOf(context)?.closeDrawer();
                         await context.read<AuthController>().logout();
                       },
                     ),
