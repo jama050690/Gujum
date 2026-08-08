@@ -67,10 +67,10 @@ Future<void> _toggleVoiceRecording(
       if (!mounted) {
         return;
       }
-      setState(() => _recordingSeconds += 1);
+      applyState(() => _recordingSeconds += 1);
     });
 
-    setState(() {
+    applyState(() {
       _isRecordingVoice = true;
       _recordingSeconds = 0;
     });
@@ -85,7 +85,7 @@ Future<void> _cancelVoiceRecording() async {
   if (!mounted) {
     return;
   }
-  setState(() {
+  applyState(() {
     _isRecordingVoice = false;
     _recordingSeconds = 0;
   });
@@ -105,7 +105,7 @@ Future<void> _stopAndSendVoiceRecording(
     }
 
     if (mounted) {
-      setState(() {
+      applyState(() {
         _isRecordingVoice = false;
         _recordingSeconds = 0;
         _uploadingAttachment = true;
@@ -127,7 +127,7 @@ Future<void> _stopAndSendVoiceRecording(
     );
     if (sent) {
       if (_replyingTo != null && mounted) {
-        setState(() => _replyingTo = null);
+        applyState(() => _replyingTo = null);
       }
       _requestScrollToNewest();
       return;
@@ -146,7 +146,7 @@ Future<void> _stopAndSendVoiceRecording(
       await deleteRecordingFile(filePath);
     }
     if (mounted) {
-      setState(() {
+      applyState(() {
         _uploadingAttachment = false;
         _isRecordingVoice = false;
         _recordingSeconds = 0;

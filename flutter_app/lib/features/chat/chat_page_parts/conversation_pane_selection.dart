@@ -77,21 +77,21 @@ void _clearSelection() {
   if (_selectedMessageIds.isEmpty) {
     return;
   }
-  setState(() => _selectedMessageIds = <int>{});
+  applyState(() => _selectedMessageIds = <int>{});
 }
 
 void _clearReply() {
   if (_replyingTo == null) {
     return;
   }
-  setState(() => _replyingTo = null);
+  applyState(() => _replyingTo = null);
 }
 
 void _clearEdit({bool clearText = true}) {
   if (_editingMessage == null) {
     return;
   }
-  setState(() {
+  applyState(() {
     _editingMessage = null;
     if (clearText) {
       _messageController.clear();
@@ -100,7 +100,7 @@ void _clearEdit({bool clearText = true}) {
 }
 
 void _startReply(ChatMessage message) {
-  setState(() {
+  applyState(() {
     _replyingTo = message;
     _selectedMessageIds = <int>{};
     if (_editingMessage != null) {
@@ -119,7 +119,7 @@ void _startEdit(
     return;
   }
 
-  setState(() {
+  applyState(() {
     _editingMessage = message;
     _replyingTo = null;
     _selectedMessageIds = <int>{};
@@ -143,7 +143,7 @@ void _toggleSelectedMessage(ChatMessage message) {
     next.add(messageId);
   }
 
-  setState(() {
+  applyState(() {
     _selectedMessageIds = next;
     _replyingTo = null;
     if (_editingMessage != null) {
@@ -165,7 +165,7 @@ Future<void> _togglePinnedMessage(ChatMessage message) async {
   } else {
     next.add(messageId);
   }
-  setState(() => _pinnedMessageIds = next);
+  applyState(() => _pinnedMessageIds = next);
   await _persistPinnedMessages();
 }
 
@@ -175,7 +175,7 @@ Future<void> _pruneDeletedMessageState(Set<int> ids) async {
   }
 
   var pinnedChanged = false;
-  setState(() {
+  applyState(() {
     _selectedMessageIds.removeAll(ids);
     final previousPinnedCount = _pinnedMessageIds.length;
     _pinnedMessageIds.removeAll(ids);

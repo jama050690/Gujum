@@ -59,7 +59,7 @@ Future<void> _restoreMessagePreferencesForActiveChat() async {
     if (!mounted) {
       return;
     }
-    setState(() {
+    applyState(() {
       _messagePreferenceOwnerKey = null;
       _pinnedMessageIds = <int>{};
     });
@@ -82,7 +82,7 @@ Future<void> _restoreMessagePreferencesForActiveChat() async {
     return;
   }
 
-  setState(() {
+  applyState(() {
     _messagePreferenceOwnerKey = conversationKey;
     _pinnedMessageIds = ids;
   });

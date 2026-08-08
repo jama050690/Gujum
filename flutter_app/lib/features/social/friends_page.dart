@@ -119,7 +119,7 @@ class _FriendsPageState extends State<FriendsPage> {
   /// SMS orqali taklif. Ilova do'koni havolasi hali yo'q, shuning uchun
   /// matnda faqat ilova nomi bor — havola paydo bo'lganda shu yerga qo'shiladi.
   Future<void> _invite(_InviteCandidate candidate) async {
-    final t = (String key) => AppStrings.text(
+    String t(String key) => AppStrings.text(
         context.read<SettingsController>().localeCode, key);
     final body = Uri.encodeComponent(t('invite_message'));
     final uri = Uri.parse('sms:${candidate.phone}?body=$body');
@@ -320,7 +320,7 @@ class _FriendsPageState extends State<FriendsPage> {
   /// ro'yxatdan o'tgan bo'lsa chat ochiladi, aks holda SMS taklif taklif
   /// qilinadi. Ilgari bu tugma faqat qidiruv maydonini ochardi.
   Future<void> _openNewContactSheet() async {
-    final t = (String key) => AppStrings.text(
+    String t(String key) => AppStrings.text(
         context.read<SettingsController>().localeCode, key);
     final firstName = TextEditingController();
     final lastName = TextEditingController();
@@ -569,7 +569,7 @@ class _FriendsPageState extends State<FriendsPage> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
       appBar: AppBar(
@@ -656,7 +656,7 @@ class _SearchTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     return Column(
       children: [
         if (showPhoneContactsSection)
@@ -806,7 +806,7 @@ class _SearchTab extends StatelessWidget {
                   ? Center(child: Text(t('friend_search_hint')))
                   : ListView.separated(
                       itemCount: results.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final user = results[index];
                         final imageUrl = AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
@@ -845,14 +845,14 @@ class _InviteFriendsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     return Scaffold(
       appBar: AppBar(title: Text(t('invite_friends'))),
       body: candidates.isEmpty
           ? Center(child: Text(t('contacts_empty_gujum')))
           : ListView.separated(
               itemCount: candidates.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final candidate = candidates[index];
                 return ListTile(

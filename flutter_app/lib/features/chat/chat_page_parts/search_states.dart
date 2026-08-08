@@ -107,7 +107,7 @@ class _ArchiveEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 56, 32, 32),

@@ -28,7 +28,7 @@ class _InboxTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final isDark = settings.isDarkMode;
     final activeColor =
         isDark ? const Color(0xFF253444) : const Color(0xFFE8F2FD);
@@ -243,7 +243,7 @@ class _CallMessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final color = info.isMissed
         ? const Color(0xFFD95555)
         : const Color(0xFF3FA66A);

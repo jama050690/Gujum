@@ -233,7 +233,7 @@ class _ProfilePageState extends State<ProfilePage> {
   /// ochiladi, shuning uchun avval manbani so'raymiz.
   Future<void> _pickAvatar() async {
     final settings = context.read<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (context) => SafeArea(
@@ -289,7 +289,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     final auth = context.watch<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final imageUrl = AppConfig.resolveMediaUrl(auth.user?.avatar, settings.baseUrl);
 
     return Scaffold(

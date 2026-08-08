@@ -94,7 +94,7 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
       }
     }
     if (!mounted) return;
-    setState(() => _selectedMessageIds = <int>{});
+    applyState(() => _selectedMessageIds = <int>{});
     _showInfoSnackBar(t('done'));
   }
 
