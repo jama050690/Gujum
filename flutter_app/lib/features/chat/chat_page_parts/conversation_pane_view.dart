@@ -48,6 +48,8 @@ extension _ConversationPaneView on _ConversationPaneState {
               title: headerTitle,
               subtitle: headerSubtitle,
               label: activeChat.fullName,
+              // O'zi bilan suhbatda rasm o'rniga xatcho'p belgisi.
+              isSaved: chat.showSavedMessages,
               imageUrl: AppConfig.resolveMediaUrl(
                 activeChat.avatar,
                 widget.settings.baseUrl,
