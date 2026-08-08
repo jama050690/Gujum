@@ -2,10 +2,18 @@ name: 🔎 Flutter check
 
 run-name: 🔎 Flutter · ${{ inputs.action || 'analyze' }} · ${{ github.ref_name }} · @${{ github.actor }}
 
-# Manual only, like the other workflows here. Checks run when someone asks for
-# them, not on every push — a branch normally sees many commits before it is
-# worth spending a runner on.
+# main ga har tushgan o'zgarish (birlashtirish ham) o'z-o'zidan tekshiriladi:
+# bu ~2-3 daqiqa va Android toolchain talab qilmaydi. Shoxobchalarda esa
+# qo'lda — bitta shoxobcha birlashtirilgunga qadar ko'p marta o'zgaradi va
+# har safar runner sarflash shart emas.
+#
+# APK yig'ish (build-apk.yml) faqat qo'lda ishga tushadi.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/flutter-check.yml'
   workflow_dispatch:
     inputs:
       action:
