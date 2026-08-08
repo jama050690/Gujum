@@ -348,6 +348,19 @@ class ChatController extends ChangeNotifier {
     // Avval xotiradagi, keyin diskdagi nusxa — ikkalasi ham bo'lmasa spinner.
     var cached = _messageCache[item.username];
     if (cached == null || cached.isEmpty) {
+      // Xotirada yo'q — diskka borishimiz kerak, ya'ni bir necha await.
+      // Ilgari birinchi notifyListeners() shulardan KEYIN edi: suhbat
+      // bosilgandan so'ng ekranda hech narsa o'zgarmasdi va ilova
+      // qotgandek tuyulardi. MessageStore birinchi marta yaratilganda
+      // hujjatlar papkasi ham so'raladi (platforma kanali), shuning uchun
+      // kechikish sezilarli. Endi ekran darhol ochiladi.
+      _messages = const [];
+      _loadingMessages = true;
+      _messagesLoadFailed = false;
+      _messagesErrorDetail = null;
+      _hasMoreOlder = true;
+      notifyListeners();
+
       final store = await _ensureStore();
       final stored = await store?.load(item.username) ?? const <ChatMessage>[];
       if (stored.isNotEmpty) {
