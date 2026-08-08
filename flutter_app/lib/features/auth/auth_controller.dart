@@ -114,6 +114,21 @@ class AuthController extends ChangeNotifier {
     });
   }
 
+  Future<void> loginWithPhone({
+    required String phone,
+    required String fullName,
+  }) async {
+    await _runGuarded(() async {
+      final user = await _authRepository.loginWithPhone(
+        phone: phone,
+        fullName: fullName,
+      );
+      _user = user;
+      await _sessionStore.saveUser(user.toJson());
+      await _sessionStore.saveLastLoginUsername(user.username);
+    });
+  }
+
   Future<void> loginWithGoogle({
     required String credential,
   }) async {

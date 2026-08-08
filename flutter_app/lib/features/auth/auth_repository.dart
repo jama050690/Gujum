@@ -25,6 +25,27 @@ class AuthRepository {
     return SessionUser.fromJson(userJson);
   }
 
+  /// Google hisobi yo'q qurilmalar uchun: raqam + ism.
+  ///
+  /// Raqam tasdiqlanmaydi — server ham shu holatda ishlaydi. Bu vaqtinchalik
+  /// yechim, SMS kodi keyinroq qo'shiladi.
+  Future<SessionUser> loginWithPhone({
+    required String phone,
+    required String fullName,
+  }) async {
+    final response = await _apiClient.postJson(
+      '/api/login/phone',
+      body: {
+        'phone': phone,
+        'fullName': fullName,
+      },
+    );
+
+    final userJson =
+        (response as Map<String, dynamic>)['user'] as Map<String, dynamic>;
+    return SessionUser.fromJson(userJson);
+  }
+
   Future<SessionUser> loginWithGoogle({
     required String credential,
   }) async {
