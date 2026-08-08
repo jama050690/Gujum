@@ -301,7 +301,6 @@ class LanguagePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final settings = context.watch<SettingsController>();
     String t(String key) => AppStrings.text(settings.localeCode, key);
 
@@ -371,14 +370,15 @@ class LanguagePage extends StatelessWidget {
 class _GujumLogo extends StatelessWidget {
   const _GujumLogo({
     required this.size,
-    this.radius = 22,
-    this.padding = 10,
     this.withShadow = false,
   });
 
+  // radius va padding sozlanadigan edi, lekin ularni hech kim bermasdi —
+  // ular ishlatilgan sahifalar olib tashlangan.
+  static const _radius = 22.0;
+  static const _padding = 10.0;
+
   final double size;
-  final double radius;
-  final double padding;
   final bool withShadow;
 
   @override
@@ -386,10 +386,10 @@ class _GujumLogo extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      padding: EdgeInsets.all(padding),
+      padding: const EdgeInsets.all(_padding),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(_radius),
         boxShadow: withShadow
             ? const [
                 BoxShadow(
@@ -413,31 +413,19 @@ class _GoogleSignInButton extends StatelessWidget {
     required this.loading,
     required this.label,
     required this.onPressed,
-    this.darkStyle = false,
-    this.compact = false,
   });
 
   final bool loading;
   final String label;
   final VoidCallback? onPressed;
-  final bool darkStyle;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        backgroundColor: darkStyle ? const Color(0xFF1B2540) : null,
-        foregroundColor: darkStyle ? Colors.white : null,
-        side: BorderSide(
-          color:
-              darkStyle ? const Color(0xFF1B2540) : const Color(0xFFD7E3F2),
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: compact ? 11 : 14,
-        ),
+        side: const BorderSide(color: Color(0xFFD7E3F2)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
         ),
