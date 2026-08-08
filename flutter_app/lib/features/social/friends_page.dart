@@ -87,6 +87,18 @@ class _FriendsPageState extends State<FriendsPage> {
   /// Serverga so'rov bunga aloqador emas: u 5 ms da qaytadi.
   static const _cacheKey = 'contacts_cache_v1';
 
+  /// Kesh shu muddatdan yosh bo'lsa sahifa ochilganda yangilanmaydi.
+  ///
+  /// Kesh aylanani yo'qotdi, lekin ishni emas: har ochilishda baribir butun
+  /// manzillar kitobi qayta o'qilardi. getContacts(withProperties: true)
+  /// javobi UI izolyatida ochiladi va shu qurilmada (~1500 kontakt) faqat
+  /// provayderdan o'qishning o'zi ~1.3 s — ro'yxat darhol chizilib, keyin
+  /// ekran qotib qolardi. Manzillar kitobi ikki ochilish orasida deyarli
+  /// o'zgarmaydi, shuning uchun avtomatik yangilash siyrak bo'lgani ma'qul.
+  /// Darhol kerak bo'lsa — yuqoridan pastga tortish (RefreshIndicator).
+  static const _cacheMaxAge = Duration(hours: 6);
+  static DateTime? _cacheSavedAt;
+
   String? _currentUsername() =>
       context.read<AuthController>().user?.username;
 
@@ -106,12 +118,23 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  /// Avval diskdagi keshni ko'rsatamiz, keyin yangilaymiz. Tartib muhim:
-  /// sinxronizatsiya oldin boshlansa, kesh yetib kelguncha ekranda aylanma
-  /// paydo bo'lib ulguradi.
+  /// Avval diskdagi keshni ko'rsatamiz, keyin — kerak bo'lsa — yangilaymiz.
+  /// Tartib muhim: sinxronizatsiya oldin boshlansa, kesh yetib kelguncha
+  /// ekranda aylanma paydo bo'lib ulguradi.
   Future<void> _bootstrapContacts() async {
     await _restoreCachedContacts();
-    await _loadPhoneContactMatches();
+    if (!_cacheIsFresh) {
+      await _loadPhoneContactMatches();
+    }
+  }
+
+  bool get _cacheIsFresh {
+    final savedAt = _cacheSavedAt;
+    // Ro'yxatning bo'sh emasligi emas, keshning borligi tekshiriladi:
+    // Gujumda hech kimi yo'q odamda ro'yxat qonuniy ravishda bo'sh va u
+    // har ochilishda qayta o'qishga mahkum bo'lib qolardi.
+    if (savedAt == null || _cachedMatches == null) return false;
+    return DateTime.now().difference(savedAt) < _cacheMaxAge;
   }
 
   Future<void> _restoreCachedContacts() async {
@@ -137,6 +160,10 @@ class _FriendsPageState extends State<FriendsPage> {
       _cacheOwner = owner;
       _cachedMatches = matches;
       _cachedInvites = invites;
+      final savedAtMs = data['saved_at'];
+      _cacheSavedAt = savedAtMs is int
+          ? DateTime.fromMillisecondsSinceEpoch(savedAtMs)
+          : null;
       // Sinxronizatsiya allaqachon tugagan bo'lsa uni bosib o'tmaymiz.
       if (!mounted || _phoneMatches.isNotEmpty) return;
       setState(() {
@@ -159,6 +186,7 @@ class _FriendsPageState extends State<FriendsPage> {
         _cacheKey,
         jsonEncode({
           'owner': owner,
+          'saved_at': DateTime.now().millisecondsSinceEpoch,
           'matches': matches.map(_matchToJson).toList(),
           'invites': invites.map(_inviteToJson).toList(),
         }),
@@ -363,6 +391,8 @@ class _FriendsPageState extends State<FriendsPage> {
       _cacheOwner = currentUser?.username;
       _cachedMatches = matches;
       _cachedInvites = inviteList;
+      // Shu seansdagi keyingi ochilishlar ham yangilamasligi uchun.
+      _cacheSavedAt = DateTime.now();
       unawaited(_persistCache());
       if (!mounted) return;
       setState(() {
