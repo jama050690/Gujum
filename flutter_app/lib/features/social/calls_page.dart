@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
-import '../app/home_shell_scope.dart';
 import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../chat/chat_controller.dart';
@@ -19,7 +18,16 @@ import '../settings/settings_controller.dart';
 /// chiqmasdi. Server /api/calls/history da hammasini beradi — veb ilova
 /// allaqachon o'shani ishlatadi.
 class CallsPage extends StatefulWidget {
-  const CallsPage({super.key});
+  const CallsPage({super.key, this.onChatOpened});
+
+  /// Suhbat ochilgandan keyin chaqiriladi — odatda Suhbatlar bo'limiga
+  /// o'tish uchun.
+  ///
+  /// Bu sahifa Navigator.push bilan ochiladi, ya'ni u HomeShell ning
+  /// ostida emas, yonida turadi: HomeShellScope.of(context) bu yerda
+  /// har doim null qaytaradi. Shuning uchun bo'limni almashtirishni
+  /// ochgan tomon (Kontaktlar) o'zi beradi.
+  final VoidCallback? onChatOpened;
 
   @override
   State<CallsPage> createState() => _CallsPageState();
@@ -102,9 +110,6 @@ class _CallsPageState extends State<CallsPage> {
                   settings: settings,
                   isOutgoing: entry.caller == me,
                   onTap: () async {
-                    // Qobiq pop dan oldin olinadi: sahifa yopilgach bu
-                    // context ishlamaydi.
-                    final shell = HomeShellScope.of(context);
                     await chat.openChat(InboxItem(
                       username: entry.peerUsername,
                       fullName: entry.peerFullName,
@@ -118,7 +123,7 @@ class _CallsPageState extends State<CallsPage> {
                       Navigator.of(context).pop();
                       // Suhbat Suhbatlar bo'limida ochiladi — o'sha yerga
                       // o'tamiz, aks holda ekranda Kontaktlar qolardi.
-                      shell?.selectTab(HomeTab.chats);
+                      widget.onChatOpened?.call();
                     }
                   },
                 ),

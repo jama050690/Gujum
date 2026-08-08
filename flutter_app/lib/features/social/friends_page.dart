@@ -896,9 +896,20 @@ class _SearchTab extends StatelessWidget {
                       child: Icon(Icons.call_rounded, color: Colors.white),
                     ),
                     title: Text(t('recent_calls')),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CallsPage()),
-                    ),
+                    onTap: () {
+                      // Qobiq shu yerda olinadi: Kontaktlar bo'limi uning
+                      // ostida, ochiladigan sahifa esa yonida turadi va
+                      // u yerdan HomeShellScope ko'rinmaydi.
+                      final shell = HomeShellScope.of(context);
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CallsPage(
+                            onChatOpened: () =>
+                                shell?.selectTab(HomeTab.chats),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 24),
                   // Qidiruv natijalari shu yerda — maydonning o'zi sarlavha
