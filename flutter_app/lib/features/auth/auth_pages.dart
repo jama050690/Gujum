@@ -8,7 +8,7 @@ import 'auth_controller.dart';
 import 'google_auth_service.dart';
 import 'phone_login_page.dart';
 
-enum AuthScreen { welcome, phoneLogin }
+enum AuthScreen { welcome, language, signIn, phoneLogin }
 
 class AuthFlow extends StatefulWidget {
   const AuthFlow({super.key});
@@ -18,10 +18,14 @@ class AuthFlow extends StatefulWidget {
 }
 
 class _AuthFlowState extends State<AuthFlow> {
-  // Kirish Google tugmasidan boshlanadi. Google hisobi bo'lmagan
-  // qurilmalar uchun ikkinchi yo'l — raqam va ism (PhoneLoginPage).
-  // Username/parol formasi va "parolni unutdim" olib tashlandi: yangi
-  // akkauntlarda parol umuman yo'q.
+  // Qadamlar: salomlashish → til → kirish usuli. Raqam va ism kirgandan
+  // keyin so'raladi (OnboardingFlow), Google orqali kirganda ism u yerda
+  // o'tkazib yuboriladi.
+  //
+  // Til aynan shu yerda so'raladi: sozlamalar kirishdan keyin ochiladi,
+  // ya'ni ilovani birinchi marta ochgan odam boshqa joyda tilini tanlay
+  // olmasdi. Username/parol formasi va "parolni unutdim" olib tashlandi:
+  // yangi akkauntlarda parol umuman yo'q.
   AuthScreen _screen = AuthScreen.welcome;
 
   @override
@@ -31,32 +35,47 @@ class _AuthFlowState extends State<AuthFlow> {
       child: switch (_screen) {
         AuthScreen.welcome => WelcomePage(
             key: const ValueKey('welcome'),
-            onOpenOtherMethods: () =>
+            onContinue: () => setState(() => _screen = AuthScreen.language),
+          ),
+        AuthScreen.language => LanguagePage(
+            key: const ValueKey('language'),
+            onContinue: () => setState(() => _screen = AuthScreen.signIn),
+            onBack: () => setState(() => _screen = AuthScreen.welcome),
+          ),
+        AuthScreen.signIn => SignInPage(
+            key: const ValueKey('sign_in'),
+            onOpenPhoneLogin: () =>
                 setState(() => _screen = AuthScreen.phoneLogin),
+            onBack: () => setState(() => _screen = AuthScreen.language),
           ),
         AuthScreen.phoneLogin => PhoneLoginPage(
             key: const ValueKey('phone_login'),
-            onBack: () => setState(() => _screen = AuthScreen.welcome),
+            onBack: () => setState(() => _screen = AuthScreen.signIn),
           ),
       },
     );
   }
 }
 
-/// Birinchi ekran: bitta katta "Google bilan davom etish" tugmasi.
+/// Kirish usuli: Google yoki telefon raqami.
 ///
 /// Raqam, ism va kontaktlar keyingi qadamlarda so'raladi (OnboardingFlow),
 /// shuning uchun bu yerda hech qanday maydon yo'q.
-class WelcomePage extends StatefulWidget {
-  const WelcomePage({super.key, required this.onOpenOtherMethods});
+class SignInPage extends StatefulWidget {
+  const SignInPage({
+    super.key,
+    required this.onOpenPhoneLogin,
+    required this.onBack,
+  });
 
-  final VoidCallback onOpenOtherMethods;
+  final VoidCallback onOpenPhoneLogin;
+  final VoidCallback onBack;
 
   @override
-  State<WelcomePage> createState() => _WelcomePageState();
+  State<SignInPage> createState() => _SignInPageState();
 }
 
-class _WelcomePageState extends State<WelcomePage> {
+class _SignInPageState extends State<SignInPage> {
   bool _loading = false;
   String? _error;
 
@@ -109,14 +128,6 @@ class _WelcomePageState extends State<WelcomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Til tanlash faqat sozlamalarda edi, ular esa kirishdan keyin
-              // ochiladi — ilovani birinchi marta ochgan odam o'z tilini
-              // tanlay olmasdi. Ilgari bu tanlagich eski kirish formasida
-              // turardi va uz/en/ru dan boshqasini ko'rsatmasdi.
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: _LocaleMenu(settings: settings),
-              ),
               const Spacer(flex: 2),
               const Center(child: _GujumLogo(size: 96, withShadow: true)),
               const SizedBox(height: 28),
@@ -149,11 +160,144 @@ class _WelcomePageState extends State<WelcomePage> {
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _loading ? null : widget.onOpenOtherMethods,
+                onPressed: _loading ? null : widget.onOpenPhoneLogin,
                 child: Text(t('other_sign_in_methods')),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 1-qadam: salomlashish. Hech narsa so'ramaydi.
+class WelcomePage extends StatelessWidget {
+  const WelcomePage({super.key, required this.onContinue});
+
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = context.watch<SettingsController>();
+    String t(String key) => AppStrings.text(settings.localeCode, key);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 2),
+              const Center(child: _GujumLogo(size: 96, withShadow: true)),
+              const SizedBox(height: 28),
+              Text(
+                'Gujum',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                t('auth_tagline'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const Spacer(flex: 3),
+              FilledButton(
+                onPressed: onContinue,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: Text(t('onboarding_continue')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 2-qadam: til. Sozlamalar kirishdan keyin ochilgani uchun til aynan shu
+/// yerda so'raladi — aks holda ilovani birinchi ochgan odam uni umuman
+/// o'zgartira olmaydi.
+class LanguagePage extends StatelessWidget {
+  const LanguagePage({
+    super.key,
+    required this.onContinue,
+    required this.onBack,
+  });
+
+  final VoidCallback onContinue;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = context.watch<SettingsController>();
+    String t(String key) => AppStrings.text(settings.localeCode, key);
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(onPressed: onBack),
+        title: Text(t('language')),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              // Flutter 3.32 dan keyin tanlov holati RadioGroup da yuritiladi;
+              // RadioListTile.groupValue/onChanged eskirgan.
+              child: RadioGroup<String>(
+                groupValue: settings.localeCode,
+                onChanged: (value) {
+                  if (value != null) settings.setLocaleCode(value);
+                },
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    for (final code in AppStrings.supportedLocales)
+                      RadioListTile<String>(
+                        value: code,
+                        // Sozlamalardagi bilan bir xil ko'rinish: kod va
+                        // yonida tilning o'z tilidagi nomi.
+                        title: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              code.toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(AppStrings.languageNames[code] ?? code),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: onContinue,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text(t('onboarding_continue')),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -196,38 +340,6 @@ class _GujumLogo extends StatelessWidget {
         'assets/images/gujum_logo.png',
         fit: BoxFit.contain,
       ),
-    );
-  }
-}
-
-class _LocaleMenu extends StatelessWidget {
-  const _LocaleMenu({required this.settings});
-
-  final SettingsController settings;
-
-  @override
-  Widget build(BuildContext context) {
-    // Ro'yxat AppStrings dan olinadi. Ilgari bu yerda uz/en/ru qo'lda
-    // yozilgan edi va arabcha yoki koreyscha tanlangan foydalanuvchi kirish
-    // ekraniga qaytsa DropdownButton yiqilardi: uning qiymati ro'yxatda
-    // yo'q edi ("There should be exactly one item with the value").
-    return DropdownButton<String>(
-      value: AppStrings.supportedLocales.contains(settings.localeCode)
-          ? settings.localeCode
-          : AppStrings.supportedLocales.first,
-      underline: const SizedBox.shrink(),
-      items: [
-        for (final code in AppStrings.supportedLocales)
-          DropdownMenuItem(
-            value: code,
-            child: Text(AppStrings.languageNames[code] ?? code.toUpperCase()),
-          ),
-      ],
-      onChanged: (value) {
-        if (value != null) {
-          settings.setLocaleCode(value);
-        }
-      },
     );
   }
 }

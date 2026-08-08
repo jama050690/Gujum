@@ -346,7 +346,13 @@ router.post("/login/phone", async (req, res) => {
 
     if (!user) {
       if (!fullName) {
-        throw createHttpError(400, "Ism kerak");
+        // Raqam hali ro'yxatda yo'q — klient ism qadamini ko'rsatishi kerak.
+        // Qaytib kelgan foydalanuvchidan ism so'ralmaydi, shuning uchun uni
+        // oldindan emas, aynan shu javobdan keyin so'raymiz.
+        return res.status(422).json({
+          code: "name_required",
+          message: "Ism kerak",
+        });
       }
       const username = await getAvailableUsername(fullName || `user${digits.slice(-6)}`);
       // Parol ishlatilmaydi, lekin ustun NOT NULL — tasodifiy qiymat

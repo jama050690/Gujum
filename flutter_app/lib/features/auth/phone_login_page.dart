@@ -8,10 +8,12 @@ import 'auth_controller.dart';
 import 'phone_countries.dart';
 import 'phone_hint_service.dart';
 
-/// Google hisobi yo'q qurilmalar uchun kirish: raqam va ism, tamom.
+/// Google hisobi yo'q qurilmalar uchun kirish: raqam, keyin — kerak bo'lsa —
+/// ism.
 ///
-/// Ilgari bu yerda username/parol formasi turardi — u ancha oldin
-/// ishlatilmay qo'yilgan edi va yangi foydalanuvchida umuman paroli yo'q.
+/// Ism faqat raqam hali ro'yxatda bo'lmaganda so'raladi: server 422
+/// "name_required" qaytaradi. Qaytib kelgan foydalanuvchidan hech narsa
+/// so'ralmaydi, chunki uning ismi allaqachon bor.
 ///
 /// DIQQAT: raqam tasdiqlanmaydi. Kim qaysi raqamni yozsa, o'sha raqamli
 /// akkauntga kiradi. Bu bilib qilingan vaqtinchalik qaror — barqaror
@@ -25,10 +27,13 @@ class PhoneLoginPage extends StatefulWidget {
   State<PhoneLoginPage> createState() => _PhoneLoginPageState();
 }
 
+enum _PhoneLoginStep { phone, name }
+
 class _PhoneLoginPageState extends State<PhoneLoginPage> {
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
   PhoneCountry _country = defaultPhoneCountry;
+  _PhoneLoginStep _step = _PhoneLoginStep.phone;
   bool _submitting = false;
   bool _askingSim = true;
   String? _error;
@@ -40,7 +45,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
   void initState() {
     super.initState();
     // SIM dagi raqamni taklif qilamiz — foydalanuvchi hech narsa yozmasligi
-    // ham mumkin. Onboarding dagi qadam ham shunday ishlaydi.
+    // ham mumkin. Onboarding dagi raqam qadami ham shunday ishlaydi.
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromSim());
   }
 
@@ -61,8 +66,8 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
       final digits = number.replaceAll(RegExp(r'\D'), '');
       if (matched != null) {
         _country = matched;
-        _phoneController.text = matched
-            .format(digits.substring(matched.dialCode.replaceAll('+', '').length));
+        _phoneController.text = matched.format(
+            digits.substring(matched.dialCode.replaceAll('+', '').length));
       } else {
         _phoneController.text = digits;
       }
@@ -100,14 +105,25 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     });
   }
 
-  Future<void> _submit() async {
-    final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < _country.nationalLength) {
-      setState(() => _error = _t('onboarding_phone_incomplete'));
+  void _back() {
+    if (_step == _PhoneLoginStep.name) {
+      setState(() {
+        _step = _PhoneLoginStep.phone;
+        _error = null;
+      });
       return;
     }
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
+    widget.onBack();
+  }
+
+  Future<void> _submit() async {
+    if (_step == _PhoneLoginStep.phone) {
+      final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length < _country.nationalLength) {
+        setState(() => _error = _t('onboarding_phone_incomplete'));
+        return;
+      }
+    } else if (_nameController.text.trim().isEmpty) {
       setState(() => _error = _t('onboarding_name_required'));
       return;
     }
@@ -116,15 +132,27 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
       _submitting = true;
       _error = null;
     });
+
     try {
-      await context
-          .read<AuthController>()
-          .loginWithPhone(phone: _e164, fullName: name);
+      await context.read<AuthController>().loginWithPhone(
+            phone: _e164,
+            fullName: _nameController.text.trim(),
+          );
     } on ApiException catch (error) {
       if (!mounted) return;
+      final payload = error.payload;
+      final needsName = error.statusCode == 422 &&
+          payload is Map &&
+          payload['code'] == 'name_required';
       setState(() {
         _submitting = false;
-        _error = error.message;
+        if (needsName) {
+          // Yangi raqam — ism qadamiga o'tamiz.
+          _step = _PhoneLoginStep.name;
+          _error = null;
+        } else {
+          _error = error.message;
+        }
       });
       return;
     } catch (error) {
@@ -144,11 +172,14 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     final theme = Theme.of(context);
     // Til o'zgarsa matnlar ham yangilanishi kerak.
     context.watch<SettingsController>();
+    final isPhoneStep = _step == _PhoneLoginStep.phone;
 
     return Scaffold(
       appBar: AppBar(
-        leading: BackButton(onPressed: _submitting ? null : widget.onBack),
-        title: Text(_t('other_sign_in_methods')),
+        leading: BackButton(onPressed: _submitting ? null : _back),
+        title: Text(isPhoneStep
+            ? _t('other_sign_in_methods')
+            : _t('onboarding_name_title')),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -156,87 +187,98 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.smartphone_rounded,
-                  size: 56, color: theme.colorScheme.primary),
+              Icon(
+                isPhoneStep ? Icons.smartphone_rounded : Icons.person_rounded,
+                size: 56,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(height: 20),
               Text(
-                _t('onboarding_phone_title'),
+                isPhoneStep
+                    ? _t('onboarding_phone_title')
+                    : _t('onboarding_name_title'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Text(
-                _t('onboarding_phone_body'),
+                isPhoneStep
+                    ? _t('onboarding_phone_body')
+                    : _t('onboarding_name_body'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 28),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: _submitting ? null : _pickCountry,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 18),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.dividerColor),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_country.flag,
-                              style: const TextStyle(fontSize: 22)),
-                          const SizedBox(width: 6),
-                          Text(
-                            _country.dialCode,
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w600),
-                          ),
-                          const Icon(Icons.arrow_drop_down_rounded),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: const TextStyle(fontSize: 20, letterSpacing: 1.1),
-                      inputFormatters: [PhoneNumberFormatter(_country)],
-                      onChanged: (_) {
-                        if (_error != null) setState(() => _error = null);
-                      },
-                      decoration: InputDecoration(
-                        hintText: _country.hint,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(
+              if (isPhoneStep)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: _submitting ? null : _pickCountry,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 18),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: theme.dividerColor),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_country.flag,
+                                style: const TextStyle(fontSize: 22)),
+                            const SizedBox(width: 6),
+                            Text(
+                              _country.dialCode,
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w600),
+                            ),
+                            const Icon(Icons.arrow_drop_down_rounded),
+                          ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        style:
+                            const TextStyle(fontSize: 20, letterSpacing: 1.1),
+                        inputFormatters: [PhoneNumberFormatter(_country)],
+                        onChanged: (_) {
+                          if (_error != null) setState(() => _error = null);
+                        },
+                        decoration: InputDecoration(
+                          hintText: _country.hint,
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                TextField(
+                  controller: _nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  decoration: InputDecoration(
+                    hintText: _t('onboarding_name_hint'),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 18),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
-                onChanged: (_) {
-                  if (_error != null) setState(() => _error = null);
-                },
-                decoration: InputDecoration(
-                  labelText: _t('onboarding_name_title'),
-                  hintText: _t('onboarding_name_hint'),
-                  border: const OutlineInputBorder(),
                 ),
-              ),
               const SizedBox(height: 12),
-              if (_askingSim)
+              if (isPhoneStep && _askingSim)
                 const Center(
                   child: SizedBox(
                     height: 20,
