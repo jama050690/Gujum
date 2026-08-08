@@ -25,7 +25,7 @@ Future<void> _restoreChatPreferences() async {
     return;
   }
 
-  setState(() {
+  applyState(() {
     _archiveOwner = username;
     _archivedChats = archived.toSet();
     _pinnedChats = pinned.toSet();
@@ -79,21 +79,21 @@ void _handleSearchChanged(ChatController chat, String value) {
 
   final query = value.trim();
   if (query.length < 2) {
-    setState(() {
+    applyState(() {
       _loadingGlobalSearch = false;
       _globalResults = const [];
     });
     return;
   }
 
-  setState(() => _loadingGlobalSearch = true);
+  applyState(() => _loadingGlobalSearch = true);
   _searchDebounce = Timer(const Duration(milliseconds: 320), () async {
     try {
       final results = await chat.searchUsers(query);
       if (!mounted || _searchController.text.trim() != query) {
         return;
       }
-      setState(() {
+      applyState(() {
         _loadingGlobalSearch = false;
         _globalResults = results;
       });
@@ -101,7 +101,7 @@ void _handleSearchChanged(ChatController chat, String value) {
       if (!mounted || _searchController.text.trim() != query) {
         return;
       }
-      setState(() {
+      applyState(() {
         _loadingGlobalSearch = false;
         _globalResults = const [];
       });
@@ -111,26 +111,26 @@ void _handleSearchChanged(ChatController chat, String value) {
 
 Future<void> _openInboxChat(ChatController chat, InboxItem item) async {
   if (_showSavedMessages) {
-    setState(() => _showSavedMessages = false);
+    applyState(() => _showSavedMessages = false);
   }
   await chat.openChat(item);
 }
 
 Future<void> _openChatFromSearch(ChatController chat, SearchUser user) async {
   if (_showSavedMessages) {
-    setState(() => _showSavedMessages = false);
+    applyState(() => _showSavedMessages = false);
   }
   await chat.startChatWith(user);
 }
 
 void _openSavedMessages(ChatController chat) {
   chat.closeChat();
-  setState(() => _showSavedMessages = true);
+  applyState(() => _showSavedMessages = true);
 }
 
 void _closeConversation(ChatController chat) {
   if (_showSavedMessages) {
-    setState(() => _showSavedMessages = false);
+    applyState(() => _showSavedMessages = false);
     return;
   }
   chat.closeChat();
@@ -147,7 +147,7 @@ Future<void> _toggleArchive(ChatController chat, InboxItem item) async {
     }
   }
 
-  setState(() => _archivedChats = next);
+  applyState(() => _archivedChats = next);
   await _persistArchivedChats();
 }
 
@@ -158,7 +158,7 @@ Future<void> _togglePin(InboxItem item) async {
   } else {
     next.add(item.username);
   }
-  setState(() => _pinnedChats = next);
+  applyState(() => _pinnedChats = next);
   await _persistPinnedChats();
 }
 
@@ -169,13 +169,13 @@ Future<void> _toggleMute(InboxItem item) async {
   } else {
     next.add(item.username);
   }
-  setState(() => _mutedChats = next);
+  applyState(() => _mutedChats = next);
   await _persistMutedChats();
 }
 
 Future<void> _removeChatPreferences(String username) async {
   if (!mounted) return;
-  setState(() {
+  applyState(() {
     _archivedChats.remove(username);
     _pinnedChats.remove(username);
     _mutedChats.remove(username);

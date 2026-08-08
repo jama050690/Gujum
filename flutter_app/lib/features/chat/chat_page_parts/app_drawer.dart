@@ -26,7 +26,7 @@ class _AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final appTitle = t('app_title');
     final headerColor =
         settings.isDarkMode ? const Color(0xFF242F3D) : const Color(0xFF517DA2);

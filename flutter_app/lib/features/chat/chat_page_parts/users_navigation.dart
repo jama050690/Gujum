@@ -17,7 +17,7 @@ class _UsersBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final surfaceColor = settings.isDarkMode
         ? const Color(0xFF1D2A39)
         : Colors.white;

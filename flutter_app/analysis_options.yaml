@@ -1,1 +1,15 @@
 include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Bo'sh catch bloklari bu yerda ataylab: qo'ng'iroqni to'xtatish, ovoz
+    # oqimini yopish, bildirishnoma kanalini ro'yxatdan o'tkazish kabi
+    # amallar "iloji bo'lsa bajarilsin" toifasidan. Ular xato bersa ham
+    # foydalanuvchiga ko'rsatiladigan hech narsa yo'q va oqim to'xtamasligi
+    # kerak. Qoida yoqilgan holda 27 ta joyda bir xil "ataylab e'tiborsiz"
+    # izohi turishi kerak bo'lardi — bu signal emas, shovqin.
+    #
+    # Diqqat: qoida o'chirilgani uchun endi haqiqatan ham noto'g'ri yutilgan
+    # xatolar ham ko'rinmaydi. Yangi bo'sh catch yozilganda uni ko'z bilan
+    # tekshirish kerak.
+    empty_catches: false

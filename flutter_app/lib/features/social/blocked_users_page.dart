@@ -66,7 +66,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
       appBar: AppBar(title: Text(t('blocked_users'))),
@@ -87,7 +87,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                 : ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _blocked.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final user = _blocked[index];
                       final imageUrl = AppConfig.resolveMediaUrl(

@@ -24,7 +24,7 @@ class ConnectionBanner extends StatelessWidget {
 
     if (status == ConnectionStatus.connected) return child;
 
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final offline = status == ConnectionStatus.offline;
     final theme = Theme.of(context);
 

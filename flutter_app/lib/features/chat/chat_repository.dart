@@ -149,7 +149,7 @@ class ChatRepository {
             'username': replyTo['username'],
             'content': replyTo['content'],
           },
-        if (clientMsgId != null) 'clientMsgId': clientMsgId,
+        'clientMsgId': ?clientMsgId,
       },
       authenticated: true,
     );

@@ -84,7 +84,7 @@ Future<void> _onHeaderMenuSelected(String action, String Function(String) t) asy
       _startCall(video: false);
       break;
     case 'search':
-      setState(() => _chatSearchActive = true);
+      applyState(() => _chatSearchActive = true);
       break;
     case 'clear':
       if (peer == null) return;
@@ -170,7 +170,7 @@ void _startCall({required bool video}) {
 /// filtrlanadi.
 void _closeChatSearch() {
   _chatSearchController.clear();
-  setState(() {
+  applyState(() {
     _chatSearchQuery = '';
     _chatSearchActive = false;
   });

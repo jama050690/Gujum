@@ -15,7 +15,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
       appBar: AppBar(title: Text(t('settings'))),

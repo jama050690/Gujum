@@ -83,7 +83,7 @@ class _SignInPageState extends State<SignInPage> {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
     final googleAuth = context.read<GoogleAuthService>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     setState(() {
       _error = null;
@@ -119,7 +119,7 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
       body: SafeArea(

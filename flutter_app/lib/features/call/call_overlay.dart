@@ -220,7 +220,7 @@ class _IncomingCallSheetState extends State<_IncomingCallSheet>
     final settings = context.watch<SettingsController>();
     final avatar = AppConfig.resolveMediaUrl(incoming.caller.avatar, settings.baseUrl);
     final initials = _initials(incoming.caller.displayName);
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final typeLabel = t(incoming.isVideo ? 'call_video' : 'call_voice');
 
     return Material(
@@ -303,7 +303,7 @@ class _PulsingAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
-      builder: (_, __) {
+      builder: (_, _) {
         final t = Curves.easeInOut.transform(animation.value);
         return SizedBox(
           width: 220,
@@ -442,7 +442,7 @@ class _MinimizedCallBarState extends State<_MinimizedCallBar> {
     final peerName = peer?.displayName.trim() ?? '';
     final title = peerName.isNotEmpty ? peerName : (peer?.username ?? '');
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final returnLabel = t('call_return');
 
     return Material(
