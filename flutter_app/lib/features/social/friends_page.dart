@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_config.dart';
@@ -78,6 +80,13 @@ class _FriendsPageState extends State<FriendsPage> {
   static List<_PhoneContactMatch>? _cachedMatches;
   static List<_InviteCandidate>? _cachedInvites;
 
+  /// Kesh diskda ham saqlanadi. Xotiradagi nusxa faqat ilova ishlab turgan
+  /// vaqtda yashaydi, ya'ni har ishga tushirishdan keyin birinchi ochilishda
+  /// yana butun manzillar kitobi o'qilardi — bu qurilmada ~1500 kontakt
+  /// uchun bir necha soniya, va shu vaqt davomida ekranda aylanma turardi.
+  /// Serverga so'rov bunga aloqador emas: u 5 ms da qaytadi.
+  static const _cacheKey = 'contacts_cache_v1';
+
   String? _currentUsername() =>
       context.read<AuthController>().user?.username;
 
@@ -93,9 +102,102 @@ class _FriendsPageState extends State<FriendsPage> {
         _cachedMatches = null;
         _cachedInvites = null;
       }
-      _loadPhoneContactMatches();
+      unawaited(_bootstrapContacts());
     }
   }
+
+  /// Avval diskdagi keshni ko'rsatamiz, keyin yangilaymiz. Tartib muhim:
+  /// sinxronizatsiya oldin boshlansa, kesh yetib kelguncha ekranda aylanma
+  /// paydo bo'lib ulguradi.
+  Future<void> _bootstrapContacts() async {
+    await _restoreCachedContacts();
+    await _loadPhoneContactMatches();
+  }
+
+  Future<void> _restoreCachedContacts() async {
+    if (_cachedMatches != null) return; // xotiradagi nusxa yangiroq
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      if (!mounted) return;
+      final owner = _currentUsername();
+      // Boshqa akkauntning ro'yxati ko'rinmasligi kerak — o'chirib yuboramiz.
+      if (owner == null || data['owner'] != owner) {
+        await prefs.remove(_cacheKey);
+        return;
+      }
+      final matches = (data['matches'] as List<dynamic>? ?? const [])
+          .map((item) => _matchFromJson(item as Map<String, dynamic>))
+          .toList(growable: false);
+      final invites = (data['invites'] as List<dynamic>? ?? const [])
+          .map((item) => _inviteFromJson(item as Map<String, dynamic>))
+          .toList(growable: false);
+      _cacheOwner = owner;
+      _cachedMatches = matches;
+      _cachedInvites = invites;
+      // Sinxronizatsiya allaqachon tugagan bo'lsa uni bosib o'tmaymiz.
+      if (!mounted || _phoneMatches.isNotEmpty) return;
+      setState(() {
+        _phoneMatches = matches;
+        _inviteCandidates = invites;
+      });
+    } catch (error) {
+      debugPrint('Kontakt keshi o\'qilmadi: $error');
+    }
+  }
+
+  Future<void> _persistCache() async {
+    final owner = _cacheOwner;
+    if (owner == null) return;
+    final matches = _cachedMatches ?? const <_PhoneContactMatch>[];
+    final invites = _cachedInvites ?? const <_InviteCandidate>[];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _cacheKey,
+        jsonEncode({
+          'owner': owner,
+          'matches': matches.map(_matchToJson).toList(),
+          'invites': invites.map(_inviteToJson).toList(),
+        }),
+      );
+    } catch (error) {
+      debugPrint('Kontakt keshi saqlanmadi: $error');
+    }
+  }
+
+  static Map<String, dynamic> _matchToJson(_PhoneContactMatch match) => {
+        'username': match.user.username,
+        'full_name': match.user.fullName,
+        'avatar': match.user.avatar,
+        'matched_phone': match.user.matchedPhone,
+        'contact_name': match.contactName,
+      };
+
+  static _PhoneContactMatch _matchFromJson(Map<String, dynamic> json) {
+    final user = SimpleUser.fromJson(json);
+    final name = (json['contact_name'] ?? '').toString();
+    return _PhoneContactMatch(
+      user: user,
+      // Bo'sh nom qatorda bosh harf olishda xatoga olib keladi.
+      contactName: name.isNotEmpty
+          ? name
+          : (user.fullName.isNotEmpty ? user.fullName : user.username),
+    );
+  }
+
+  static Map<String, dynamic> _inviteToJson(_InviteCandidate candidate) => {
+        'name': candidate.name,
+        'phone': candidate.phone,
+      };
+
+  static _InviteCandidate _inviteFromJson(Map<String, dynamic> json) =>
+      _InviteCandidate(
+        name: (json['name'] ?? '').toString(),
+        phone: (json['phone'] ?? '').toString(),
+      );
 
   @override
   void dispose() {
@@ -261,6 +363,7 @@ class _FriendsPageState extends State<FriendsPage> {
       _cacheOwner = currentUser?.username;
       _cachedMatches = matches;
       _cachedInvites = inviteList;
+      unawaited(_persistCache());
       if (!mounted) return;
       setState(() {
         _phoneMatches = matches;
@@ -520,6 +623,7 @@ class _FriendsPageState extends State<FriendsPage> {
     final updated = [..._phoneMatches, match];
     _cacheOwner = _currentUsername();
     _cachedMatches = updated;
+    unawaited(_persistCache());
     if (_syncInFlight) _syncQueued = true;
     setState(() => _phoneMatches = updated);
   }
@@ -534,6 +638,7 @@ class _FriendsPageState extends State<FriendsPage> {
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     _cacheOwner = _currentUsername();
     _cachedInvites = updated;
+    unawaited(_persistCache());
     if (_syncInFlight) _syncQueued = true;
     setState(() => _inviteCandidates = updated);
   }
