@@ -2,6 +2,9 @@ name: 📱 Build Gujum APK
 
 run-name: 📱 Gujum ${{ inputs.build_mode || 'release' }} · @${{ github.actor }}
 
+# Faqat qo'lda. Ilgari bu yerda main ga push trigger ham bor edi va har
+# birlashtirishdan keyin ~10 daqiqalik APK yig'ish o'z-o'zidan boshlanardi.
+# Reliz qachon kerakligini odam hal qiladi; har birlashtirishda emas.
 on:
   workflow_dispatch:
     inputs:
@@ -23,11 +26,6 @@ on:
           - minor
           - major
           - none
-  push:
-    branches: [main]
-    paths:
-      - 'flutter_app/**'
-      - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
