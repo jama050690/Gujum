@@ -6,7 +6,7 @@ import '../../core/network/session_store.dart';
 import '../../l10n/app_strings.dart';
 import '../settings/settings_controller.dart';
 import 'auth_controller.dart';
-import '../chat/chat_page.dart';
+import '../app/home_shell.dart';
 import 'contacts_setup_page.dart';
 import 'name_setup_page.dart';
 import 'phone_setup_page.dart';
@@ -107,7 +107,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       // ChangeNotifier emas, shuning uchun GujumApp qayta qurilmaydi va
       // OnboardingFlow ekranda qolaveradi. Avval bu holat SizedBox.shrink()
       // qaytarardi — ya'ni kontaktlar so'ralgandan keyin ekran bo'sh qolardi.
-      return const ChatPage();
+      return const HomeShell();
     }
 
     // Qadamlar Navigator marshrutlari emas — tizimning "orqaga" tugmasi ular
@@ -136,7 +136,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               if (mounted) setState(() {});
             },
           ),
-        _OnboardingStep.done => const ChatPage(),
+        _OnboardingStep.done => const HomeShell(),
       },
     );
   }

@@ -31,6 +31,7 @@ import '../social/calls_page.dart';
 import '../social/friends_page.dart';
 import '../social/contact_profile_page.dart';
 import '../social/profile_page.dart';
+import '../app/home_shell_scope.dart';
 import '../social/settings_page.dart';
 import '../social/social_repository.dart';
 import 'chat_controller.dart';
@@ -71,7 +72,15 @@ part 'chat_page_parts/inline_video.dart';
 part 'chat_page_parts/avatar_time.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  const ChatPage({super.key, this.active = true});
+
+  /// Pastdagi navigatsiya panelida shu bo'lim ochiqmi.
+  ///
+  /// Bo'limlar IndexedStack da yonma-yon turadi, ya'ni ChatPage boshqa
+  /// bo'lim ochiq bo'lganda ham qurilgan holida qoladi va uning PopScope i
+  /// ham ro'yxatda bo'ladi. Bayroqsiz "orqaga" tugmasi Sozlamalar
+  /// bo'limida ham suhbatni yopib yuborardi.
+  final bool active;
 
   @override
   State<ChatPage> createState() => _ChatPageState();

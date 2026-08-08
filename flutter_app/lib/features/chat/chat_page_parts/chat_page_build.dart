@@ -1,6 +1,19 @@
 part of '../chat_page.dart';
 
 extension _ChatPageStateBuild on _ChatPageState {
+  void _openTabOrPage(
+    BuildContext context,
+    int tab,
+    Widget Function() fallback,
+  ) {
+    final shell = HomeShellScope.of(context);
+    if (shell != null) {
+      shell.selectTab(tab);
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => fallback()));
+  }
+
   Widget _buildChatPageScaffold(
     BuildContext context,
     SettingsController settings,
@@ -11,6 +24,8 @@ extension _ChatPageStateBuild on _ChatPageState {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        // Boshqa bo'lim ochiq — "orqaga" ni qobiq (HomeShell) hal qiladi.
+        if (!widget.active) return;
         // Conversation ochiq bo'lsa — yopamiz, chiqmaymiz
         if (_hasConversation(chat)) {
           _closeConversation(chat);
@@ -50,29 +65,12 @@ extension _ChatPageStateBuild on _ChatPageState {
       drawer: _AppDrawer(
         settings: settings,
         user: auth.user,
-        onOpenProfile: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ProfilePage()),
-          );
-        },
-        onOpenContacts: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const FriendsPage(titleKey: 'contacts'),
-            ),
-          );
-        },
         onOpenCalls: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const CallsPage()),
           );
         },
         onOpenSavedMessages: () => _openSavedMessages(chat),
-        onOpenSettings: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsPage()),
-          );
-        },
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -98,23 +96,24 @@ extension _ChatPageStateBuild on _ChatPageState {
             onOpenSearchResult: (user) => _openChatFromSearch(chat, user),
             onShowChatActions: (item) =>
                 _showChatActions(context, chat, item, settings),
-            onOpenContacts: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const FriendsPage(titleKey: 'contacts'),
-                ),
-              );
-            },
-            onOpenSettings: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
-            onOpenProfile: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ProfilePage()),
-              );
-            },
+            // Bo'limga o'tamiz, yangi sahifa ochmaymiz: ochilgan sahifa
+            // pastdagi panelni qoplab qo'yardi. Qobiq bo'lmasa (ChatPage
+            // alohida ishlatilsa) eskicha sahifa ochiladi.
+            onOpenContacts: () => _openTabOrPage(
+              context,
+              HomeTab.contacts,
+              () => const FriendsPage(titleKey: 'contacts'),
+            ),
+            onOpenSettings: () => _openTabOrPage(
+              context,
+              HomeTab.settings,
+              () => const SettingsPage(),
+            ),
+            onOpenProfile: () => _openTabOrPage(
+              context,
+              HomeTab.profile,
+              () => const ProfilePage(),
+            ),
           );
 
           final conversation = _ConversationPane(
