@@ -265,6 +265,26 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   bool get hasExternalAudioRoute => _hasBluetoothAudio || _hasHeadsetAudio;
   bool get hasSession => _state != null && _incomingCall == null;
   bool get hasIncomingCall => _incomingCall != null;
+
+  /// Qo'ng'iroq bilan bog'liq biror narsa ketayotganmi (kiruvchi ham,
+  /// davom etayotgani ham). Ilovadan chiqishda shu tekshiriladi.
+  bool get isCallActive => hasSession || hasIncomingCall;
+
+  /// Ilovani fonga o'tkazadi (aktivlikni tugatmasdan).
+  ///
+  /// SystemNavigator.pop() aktivlikni tugatadi va u bilan birga Flutter
+  /// dvigateli ham yo'q bo'ladi: WebRTC oqimlari uziladi, qo'ng'iroq o'ladi,
+  /// lekin foreground service bildirishnomasi ekranda qolib ketadi. Uni
+  /// bosgan odam ilovani qaytadan ochadi — va u yerda hech qanday qo'ng'iroq
+  /// bo'lmaydi.
+  Future<void> moveAppToBackground() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _callServiceChannel.invokeMethod('moveToBackground');
+    } catch (e) {
+      // Qo'llab-quvvatlanmasa hech narsa qilmaymiz — chiqmagan ma'qul.
+    }
+  }
   DateTime? get connectedAt => _connectedAt;
   int get remoteStreamVersion => _remoteStreamVersion;
   int get localStreamVersion => _localStreamVersion;
@@ -1582,7 +1602,14 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _subscription.cancel();
     _callKitSub.cancel();
-    unawaited(_resetSession());
+    // Suhbatdoshga xabar beramiz. Ilgari bu yerda notifyRemote berilmasdi
+    // (standarti false), shuning uchun biz yo'q bo'lganda u tomonda
+    // qo'ng'iroq "ulanmoqda" holatida abadiy osilib qolardi.
+    //
+    // Sabab ataylab 'hangup': qabul qiluvchi tomon "javobsiz qo'ng'iroq"
+    // xabarini faqat shu va 'disconnect_timeout' uchun ko'rsatadi. Yangi
+    // satr yuborilsa, javob berilmagan qo'ng'iroq jimgina yo'qolardi.
+    unawaited(_resetSession(notifyRemote: true));
     _audioPlayer.dispose();
     super.dispose();
   }

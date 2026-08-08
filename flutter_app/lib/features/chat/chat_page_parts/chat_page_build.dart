@@ -20,6 +20,17 @@ extension _ChatPageStateBuild on _ChatPageState {
         final now = DateTime.now();
         final last = _lastBackPress;
         if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+          // Qo'ng'iroq ketayotgan bo'lsa ilovani o'ldirmaymiz. Ilgari shu
+          // yerda SystemNavigator.pop() chaqirilardi va u aktivlikni
+          // tugatardi: Flutter dvigateli bilan birga WebRTC ham o'lardi,
+          // suhbatdoshga CALL_END yuborilmasdi, foreground service
+          // bildirishnomasi esa ekranda qolib ketardi — uni bosgan odam
+          // ilovani ochardi, lekin qo'ng'iroq allaqachon yo'q edi.
+          final call = context.read<CallController?>();
+          if (call != null && call.isCallActive) {
+            unawaited(call.moveAppToBackground());
+            return;
+          }
           SystemNavigator.pop();
           return;
         }
