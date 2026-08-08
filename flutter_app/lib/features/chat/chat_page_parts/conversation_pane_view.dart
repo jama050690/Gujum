@@ -4,7 +4,7 @@ extension _ConversationPaneView on _ConversationPaneState {
   Widget _buildConversationPane(BuildContext context) {
     final chat = widget.chat;
     final activeChat = chat.activeChat;
-    final t = (String key) => AppStrings.text(widget.settings.localeCode, key);
+    String t(String key) => AppStrings.text(widget.settings.localeCode, key);
     final currentUser = context.read<AuthController>().user;
     final appTitle = t('app_title');
 
@@ -69,7 +69,7 @@ extension _ConversationPaneView on _ConversationPaneState {
                       controller: _chatSearchController,
                       hintText: t('search_hint'),
                       onChanged: (value) =>
-                          setState(() => _chatSearchQuery = value),
+                          applyState(() => _chatSearchQuery = value),
                       onClose: _closeChatSearch,
                     )
                   : null,

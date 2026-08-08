@@ -13,7 +13,7 @@ Future<void> _uploadAndSendAttachment(
   }
 
   String uploadedPath;
-  setState(() => _uploadingAttachment = true);
+  applyState(() => _uploadingAttachment = true);
   try {
     switch (type) {
       case _AttachmentType.audio:
@@ -101,7 +101,7 @@ Future<void> _uploadAndSendAttachment(
         _messageController.clear();
       }
       if (_replyingTo != null) {
-        setState(() => _replyingTo = null);
+        applyState(() => _replyingTo = null);
       }
       _requestScrollToNewest();
       return;
@@ -112,7 +112,7 @@ Future<void> _uploadAndSendAttachment(
     _showInfoSnackBar(t('message_send_failed'));
   } finally {
     if (mounted) {
-      setState(() => _uploadingAttachment = false);
+      applyState(() => _uploadingAttachment = false);
     }
   }
 }
@@ -125,7 +125,7 @@ Future<void> _sendLocation(
     return;
   }
 
-  setState(() => _locatingLocation = true);
+  applyState(() => _locatingLocation = true);
   try {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -165,7 +165,7 @@ Future<void> _sendLocation(
 
     if (sent) {
       if (_replyingTo != null) {
-        setState(() => _replyingTo = null);
+        applyState(() => _replyingTo = null);
       }
       _messageController.clear();
       _requestScrollToNewest();
@@ -176,7 +176,7 @@ Future<void> _sendLocation(
     _showInfoSnackBar(t('chat_location_failed'));
   } finally {
     if (mounted) {
-      setState(() => _locatingLocation = false);
+      applyState(() => _locatingLocation = false);
     }
   }
 }

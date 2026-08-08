@@ -178,7 +178,7 @@ class FcmService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
-          if (token != null) 'token': token,
+          'token': ?token,
         }),
       );
     } catch (e) {

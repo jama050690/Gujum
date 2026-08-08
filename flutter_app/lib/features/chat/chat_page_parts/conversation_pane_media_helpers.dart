@@ -85,7 +85,7 @@ Widget _buildImageAttachment(
                     // Thumbnail is capped at 260pt wide — decode at ~2x for
                     // retina instead of holding the full-size bitmap in RAM.
                     memCacheWidth: 520,
-                    placeholder: (_, __) {
+                    placeholder: (_, _) {
                       return Container(
                         color: Colors.black.withAlpha(12),
                         alignment: Alignment.center,
@@ -96,7 +96,7 @@ Widget _buildImageAttachment(
                         ),
                       );
                     },
-                    errorWidget: (_, __, ___) {
+                    errorWidget: (_, _, _) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,

@@ -78,6 +78,18 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  /// setState o'rniga part fayllardagi kengaytmalar shu metodni chaqiradi.
+  ///
+  /// setState himoyalangan (protected) va faqat State ning o'z ichida
+  /// ishlatilishi mumkin — kengaytma esa sinfning ichida emas, shuning uchun
+  /// analizator har bir chaqiruvni ogohlantirish bilan belgilardi. Bu yerda u
+  /// bir marta oshkor qilinadi. mounted tekshiruvi qo'shimcha foyda: bu
+  /// chaqiruvlarning ko'pi await dan keyin keladi.
+  void applyState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
 
@@ -145,6 +157,12 @@ enum _AttachmentType {
 
 class _ConversationPaneState extends State<_ConversationPane>
     with WidgetsBindingObserver {
+  /// Izohi uchun [_ChatPageState.applyState] ga qarang.
+  void applyState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
   final _messageController = TextEditingController();
   final ScrollController _messagesScrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();

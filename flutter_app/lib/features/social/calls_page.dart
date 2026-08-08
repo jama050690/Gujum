@@ -15,7 +15,7 @@ class CallsPage extends StatelessWidget {
     final settings = context.watch<SettingsController>();
     final chat = context.watch<ChatController>();
     final call = context.watch<CallController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final history = chat.inbox
         .where((item) => _CallPreview.tryParse(item.lastMessage) != null)
         .toList(growable: false);
@@ -106,7 +106,7 @@ class _CallHistoryTile extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final subtitle = info.isMissed
         ? t('call_missed')
         : '${t(info.isVideo ? 'call_video' : 'call_audio')} • ${info.formattedDuration}';

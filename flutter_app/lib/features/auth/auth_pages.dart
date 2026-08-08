@@ -71,7 +71,7 @@ class _WelcomePageState extends State<WelcomePage> {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
     final googleAuth = context.read<GoogleAuthService>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     setState(() {
       _error = null;
@@ -107,7 +107,7 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Scaffold(
       body: SafeArea(
@@ -243,7 +243,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     final auth = context.watch<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final compact = MediaQuery.sizeOf(context).height < 900;
     final showSavedUsernameSuggestion = _shouldShowSavedUsernameSuggestion();
     final suggestionPrompt = t('auth_use_saved_username');
@@ -382,7 +382,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _submit(BuildContext context) async {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     if (_usernameController.text.trim().isEmpty ||
         _passwordController.text.isEmpty) {
@@ -406,7 +406,7 @@ class _LoginPageState extends State<LoginPage> {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
     final googleAuth = context.read<GoogleAuthService>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     setState(() {
       _error = null;
@@ -536,7 +536,7 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final compact = MediaQuery.sizeOf(context).height < 900;
 
     return _AuthScaffold(
@@ -705,7 +705,7 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> _sendOtp(BuildContext context) async {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     final age = int.tryParse(_ageController.text.trim());
 
     if (_fullNameController.text.trim().isEmpty ||
@@ -758,7 +758,7 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> _verifyOtp(BuildContext context) async {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     if (_otpController.text.trim().isEmpty) {
       setState(() => _error = t('error_required'));
@@ -816,7 +816,7 @@ class _SignupPageState extends State<SignupPage> {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
     final googleAuth = context.read<GoogleAuthService>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     setState(() {
       _error = null;
@@ -891,7 +891,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return _AuthScaffold(
       title: t('app_title'),
@@ -1020,7 +1020,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> _resetPassword(BuildContext context) async {
     final settings = context.read<SettingsController>();
     final auth = context.read<AuthController>();
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
     setState(() {
       _loading = true;
       _error = null;

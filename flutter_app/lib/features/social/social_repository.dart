@@ -54,7 +54,7 @@ class SocialRepository {
       '/api/account',
       authenticated: true,
       body: {
-        if (reason != null) 'reason': reason,
+        'reason': ?reason,
         if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
       },
     );

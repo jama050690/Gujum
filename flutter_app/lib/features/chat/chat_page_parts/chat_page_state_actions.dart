@@ -7,7 +7,7 @@ Future<void> _showChatActions(
   InboxItem item,
   SettingsController settings,
 ) async {
-  final t = (String key) => AppStrings.text(settings.localeCode, key);
+  String t(String key) => AppStrings.text(settings.localeCode, key);
   final isArchived = _archivedChats.contains(item.username);
   final isPinned = _pinnedChats.contains(item.username);
   final isMuted = _mutedChats.contains(item.username);

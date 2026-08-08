@@ -13,7 +13,7 @@ class _SavedMessagesPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (String key) => AppStrings.text(settings.localeCode, key);
+    String t(String key) => AppStrings.text(settings.localeCode, key);
 
     return Column(
       children: [
