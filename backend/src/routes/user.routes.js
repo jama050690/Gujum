@@ -6,6 +6,7 @@ import {
   MESSAGES_TABLE,
 } from "../config/database.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { setSessionCookie, formatUser } from "./auth.routes.js";
 import { emitToUser } from "../socket/handler.js";
 import { upload } from "../config/upload.js";
 
@@ -118,6 +119,64 @@ router.put("/profile", authMiddleware, upload.single("avatar"), async (req, res)
         [userId, String(phone)]
       );
       if (taken.rowCount > 0) {
+        // Raqam boshqa akkauntda — uni egasiga bog'laymiz.
+        //
+        // Bu odatda shunday paydo bo'ladi: odam avval raqam bilan kirgan
+        // (akkaunt A), keyin Google bilan kirgan va yangi akkaunt (B)
+        // yaratilgan, chunki Google faqat pochtani beradi va raqamni A ga
+        // ulash uchun ma'lumot yo'q edi. Endi raqam ma'lum bo'ldi: B ning
+        // Google pochtasi A ga ko'chiriladi va sessiya A ga o'tadi, ya'ni
+        // keyingi safar Google bilan kirilganda ham aynan A ochiladi.
+        //
+        // DIQQAT: raqam tasdiqlanmaydi, shuning uchun bu yerda kim qaysi
+        // raqamni yozsa, o'sha akkauntga kirib oladi. Bu bilib qilingan
+        // vaqtinchalik qaror — SMS kodi qo'shilgunga qadar shunday.
+        const targetId = taken.rows[0].id;
+        if (targetId !== userId) {
+          const [meRes, targetRes] = await Promise.all([
+            pool.query(`SELECT * FROM ${USERS_TABLE} WHERE id = $1`, [userId]),
+            pool.query(`SELECT * FROM ${USERS_TABLE} WHERE id = $1`, [targetId]),
+          ]);
+          const me = meRes.rows[0];
+          let target = targetRes.rows[0];
+          if (me && target) {
+            const myEmail = String(me.email || "");
+            // Telefon orqali yaratilgan akkauntning pochtasi o'rinbosar
+            // ("...@phone.local"), haqiqiy Google pochtasi esa emas.
+            const iHaveRealEmail = myEmail && !myEmail.endsWith("@phone.local");
+            const targetEmail = String(target.email || "");
+            const targetNeedsEmail =
+              !targetEmail || targetEmail.endsWith("@phone.local");
+
+            if (iHaveRealEmail && targetNeedsEmail) {
+              // Pochta yagona bo'lishi kerak, shuning uchun avval B dan
+              // olib tashlaymiz. B ning yozishmalari o'chirilmaydi, lekin
+              // unga kirish yo'li qolmaydi — bu qadamga kelgan akkaunt
+              // deyarli har doim endigina yaratilgan va bo'sh bo'ladi.
+              await pool.query(
+                `UPDATE ${USERS_TABLE} SET email = $1 WHERE id = $2`,
+                [`merged-${me.id}@merged.local`, me.id]
+              );
+              const updated = await pool.query(
+                `UPDATE ${USERS_TABLE}
+                 SET email = $1,
+                     full_name = COALESCE(NULLIF(full_name, ''), $2),
+                     avatar = COALESCE(avatar, $3)
+                 WHERE id = $4
+                 RETURNING *`,
+                [myEmail, me.full_name, me.avatar, target.id]
+              );
+              target = updated.rows[0];
+            }
+            setSessionCookie(res, target);
+            return res.json({
+              updated: true,
+              linked: true,
+              avatar: target.avatar,
+              user: formatUser(target),
+            });
+          }
+        }
         return res
           .status(409)
           .json({ message: "Bu telefon raqami boshqa akkauntga biriktirilgan" });

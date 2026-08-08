@@ -86,8 +86,20 @@ class _PhoneSetupPageState extends State<PhoneSetupPage> {
       _error = null;
     });
     try {
-      await context.read<SocialRepository>().savePhone(_e164, fromSim: _fromSim);
+      final linked = await context
+          .read<SocialRepository>()
+          .savePhone(_e164, fromSim: _fromSim);
       if (!mounted) return;
+      if (linked) {
+        // Server bizni raqam egasi bo'lgan akkauntga o'tkazdi — mahalliy
+        // nusxa endi boshqa odamniki. Yangi sessiya cookie si bilan
+        // profilni qaytadan olamiz.
+        await context.read<AuthController>().replaceSessionUser();
+        if (!mounted) return;
+        setState(() => _saving = false);
+        widget.onDone?.call();
+        return;
+      }
       // Raqam saqlandi — keyingi qadamga o'tish uchun serverdan profilni
       // qayta so'rashning hojati yo'q. Avval refreshSession() kutilardi va
       // aynan shu yerda ekran qotib qolardi: ikkinchi so'rov sekin bo'lsa
