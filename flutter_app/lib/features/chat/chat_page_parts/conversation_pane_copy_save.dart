@@ -114,102 +114,259 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
         final rightTime = right.lastMessageAt?.millisecondsSinceEpoch ?? 0;
         return rightTime.compareTo(leftTime);
       });
-    // Ilgari bu yerda bo'sh ro'yxat uchun chiqib ketilardi. Endi "Saqlangan
-    // xabarlar" har doim mavjud manzil, shuning uchun faqat u ham
-    // bo'lmagandagina to'xtaymiz.
-    if (candidates.isEmpty && me == null) {
-      _showInfoSnackBar(t('empty_inbox'));
-      return;
-    }
 
     final target = await showModalBottomSheet<InboxItem>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).cardColor,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: SizedBox(
-            height: 420,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
-                  child: Text(
-                    t('message_forward_to'),
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const Divider(height: 1),
-                // Telegramdagi kabi: xabarni o'zingizga saqlash uchun
-                // birinchi qator.
-                if (me != null)
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(sheetContext).colorScheme.primary,
-                      child: const Icon(Icons.bookmark_rounded,
-                          color: Colors.white),
-                    ),
-                    title: Text(t('chat_saved_messages')),
-                    onTap: () => Navigator.of(sheetContext).pop(
-                      InboxItem(
-                        username: me.username,
-                        fullName: t('chat_saved_messages'),
-                        avatar: me.avatar,
-                        lastActive: null,
-                        lastMessage: '',
-                        lastMessageAt: DateTime.now(),
-                        unreadCount: 0,
-                      ),
-                    ),
-                  ),
-                if (me != null) const Divider(height: 1),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: candidates.length,
-                    itemBuilder: (context, index) {
-                      final item = candidates[index];
-                      final avatarUrl = AppConfig.resolveMediaUrl(
-                        item.avatar,
-                        widget.settings.baseUrl,
-                      );
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: item.avatar == null ||
-                                  item.avatar!.trim().isEmpty
-                              ? null
-                              : avatarImage(avatarUrl),
-                          child: item.avatar == null ||
-                                  item.avatar!.trim().isEmpty
-                              ? Text(item.fullName.trim().isEmpty
-                                  ? '?'
-                                  : item.fullName.trim()[0].toUpperCase())
-                              : null,
-                        ),
-                        title: Text(item.fullName),
-                        subtitle: item.lastMessage.trim().isEmpty
-                            ? null
-                            : Text(
-                                item.lastMessage,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                        onTap: () => Navigator.of(sheetContext).pop(item),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (sheetContext) => _ForwardPicker(
+        settings: widget.settings,
+        chat: chat,
+        me: me,
+        candidates: candidates,
+        t: t,
+      ),
     );
 
     if (target == null || !mounted) return;
     await _forwardMessagesToChat(chat, target, messages, t);
+  }
+}
+
+/// Xabarni kimga uzatish — qidiruv bilan.
+///
+/// Ilgari bu yerda faqat mavjud suhbatlar ro'yxati turardi: hali yozishmagan
+/// odamga xabar uzatib bo'lmasdi. Telegramda esa istalgan suhbat yoki
+/// kontaktni qidirib topish mumkin, shuning uchun bu yerda ham qidiruv bor.
+class _ForwardPicker extends StatefulWidget {
+  const _ForwardPicker({
+    required this.settings,
+    required this.chat,
+    required this.me,
+    required this.candidates,
+    required this.t,
+  });
+
+  final SettingsController settings;
+  final ChatController chat;
+  final SessionUser? me;
+  final List<InboxItem> candidates;
+  final String Function(String) t;
+
+  @override
+  State<_ForwardPicker> createState() => _ForwardPickerState();
+}
+
+class _ForwardPickerState extends State<_ForwardPicker> {
+  final _controller = TextEditingController();
+  Timer? _debounce;
+  List<SearchUser> _found = const [];
+  bool _searching = false;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    final query = value.trim();
+    setState(() => _query = query);
+    if (query.isEmpty) {
+      setState(() {
+        _found = const [];
+        _searching = false;
+      });
+      return;
+    }
+    // Har harf uchun so'rov yubormaymiz — suhbatlar qidiruvidagi kabi.
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      setState(() => _searching = true);
+      try {
+        final result = await widget.chat.searchUsers(query);
+        if (!mounted) return;
+        setState(() {
+          _found = result
+              .where((user) => user.username != widget.me?.username)
+              .toList(growable: false);
+          _searching = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _searching = false);
+      }
+    });
+  }
+
+  InboxItem _itemFor(SearchUser user) => InboxItem(
+        username: user.username,
+        fullName: user.fullName,
+        avatar: user.avatar,
+        lastActive: null,
+        lastMessage: '',
+        lastMessageAt: DateTime.now(),
+        unreadCount: 0,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.t;
+    final me = widget.me;
+    final query = _query.toLowerCase();
+
+    // Mavjud suhbatlar ham qidiruvga bo'ysunadi.
+    final chats = query.isEmpty
+        ? widget.candidates
+        : widget.candidates
+            .where((item) =>
+                '${item.fullName} ${item.username}'
+                    .toLowerCase()
+                    .contains(query))
+            .toList(growable: false);
+
+    // Suhbatlarda bor odam qidiruv natijalarida takrorlanmasin.
+    final known = chats.map((item) => item.username).toSet();
+    final extra =
+        _found.where((user) => !known.contains(user.username)).toList();
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                child: Text(
+                  t('message_forward_to'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: TextField(
+                  controller: _controller,
+                  onChanged: _onChanged,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    hintText: t('search_hint'),
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  children: [
+                    // Telegramdagi kabi: xabarni o'zingizga saqlash uchun
+                    // birinchi qator. Qidiruvda ham qoladi.
+                    if (me != null && (query.isEmpty ||
+                        t('chat_saved_messages').toLowerCase().contains(query)))
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          child: const Icon(Icons.bookmark_rounded,
+                              color: Colors.white),
+                        ),
+                        title: Text(t('chat_saved_messages')),
+                        onTap: () => Navigator.of(context).pop(
+                          InboxItem(
+                            username: me.username,
+                            fullName: t('chat_saved_messages'),
+                            avatar: me.avatar,
+                            lastActive: null,
+                            lastMessage: '',
+                            lastMessageAt: DateTime.now(),
+                            unreadCount: 0,
+                          ),
+                        ),
+                      ),
+                    for (final item in chats)
+                      _ForwardTile(
+                        settings: widget.settings,
+                        avatar: item.avatar,
+                        title: item.fullName,
+                        subtitle: item.lastMessage,
+                        onTap: () => Navigator.of(context).pop(item),
+                      ),
+                    if (_searching)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    // Hali yozishmagan odamlar — server qidiruvidan.
+                    for (final user in extra)
+                      _ForwardTile(
+                        settings: widget.settings,
+                        avatar: user.avatar,
+                        title: user.fullName,
+                        subtitle: '@${user.username}',
+                        onTap: () =>
+                            Navigator.of(context).pop(_itemFor(user)),
+                      ),
+                    if (!_searching &&
+                        chats.isEmpty &&
+                        extra.isEmpty &&
+                        query.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(child: Text(t('friend_search_hint'))),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForwardTile extends StatelessWidget {
+  const _ForwardTile({
+    required this.settings,
+    required this.avatar,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final SettingsController settings;
+  final String? avatar;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = AppConfig.resolveMediaUrl(avatar, settings.baseUrl);
+    final hasAvatar = url.isNotEmpty;
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: hasAvatar ? avatarImage(url) : null,
+        child: hasAvatar
+            ? null
+            : Text(title.trim().isEmpty ? '?' : title.trim()[0].toUpperCase()),
+      ),
+      title: Text(title),
+      subtitle: subtitle.trim().isEmpty
+          ? null
+          : Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      onTap: onTap,
+    );
   }
 }
