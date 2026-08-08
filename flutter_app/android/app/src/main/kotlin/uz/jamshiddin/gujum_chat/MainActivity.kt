@@ -174,7 +174,10 @@ class MainActivity : FlutterActivity() {
     ) {
         try {
             val intent = Intent(Intent.ACTION_INSERT).apply {
-                type = ContactsContract.RawContacts.CONTENT_TYPE
+                // Hujjatlarda ko'rsatilgan tur shu. RawContacts.CONTENT_TYPE
+                // ba'zi ishlab chiqaruvchilarning kontakt ilovalarida
+                // ro'yxatdan o'tmagan va ular oynani ochmasdi.
+                type = ContactsContract.Contacts.CONTENT_TYPE
                 putExtra(ContactsContract.Intents.Insert.NAME, name)
                 putExtra(ContactsContract.Intents.Insert.PHONE, phone)
             }

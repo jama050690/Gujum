@@ -68,15 +68,31 @@ class _FriendsPageState extends State<FriendsPage> {
   // qurilma kitobini o'qish + serverga so'rov bir necha soniya ketardi va
   // shu vaqt davomida ekran bo'sh spinner bo'lib turardi. Endi eski ro'yxat
   // darhol ko'rsatiladi, yangilanish esa fonda ketadi.
+  //
+  // Kesh kimga tegishli ekani ham saqlanadi: aks holda bir qurilmada A chiqib
+  // B kirganda B ning ekranida A ning kontaktlari va ular orasidagi telefon
+  // raqamlari ko'rinib qolardi. Egasini tekshirish chiqishdagi tozalashdan
+  // ishonchliroq — logout ni chetlab o'tadigan yo'llar ham bor (sessiya
+  // eskirishi, akkauntni o'chirish).
+  static String? _cacheOwner;
   static List<_PhoneContactMatch>? _cachedMatches;
   static List<_InviteCandidate>? _cachedInvites;
+
+  String? _currentUsername() =>
+      context.read<AuthController>().user?.username;
 
   @override
   void initState() {
     super.initState();
     if (_showPhoneContactsSection) {
-      _phoneMatches = _cachedMatches ?? const [];
-      _inviteCandidates = _cachedInvites ?? const [];
+      if (_cacheOwner != null && _cacheOwner == _currentUsername()) {
+        _phoneMatches = _cachedMatches ?? const [];
+        _inviteCandidates = _cachedInvites ?? const [];
+      } else {
+        _cacheOwner = null;
+        _cachedMatches = null;
+        _cachedInvites = null;
+      }
       _loadPhoneContactMatches();
     }
   }
@@ -242,6 +258,7 @@ class _FriendsPageState extends State<FriendsPage> {
       final inviteList = invites.values.toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
+      _cacheOwner = currentUser?.username;
       _cachedMatches = matches;
       _cachedInvites = inviteList;
       if (!mounted) return;
@@ -428,27 +445,38 @@ class _FriendsPageState extends State<FriendsPage> {
     }
 
     if (!mounted) return;
-    // Ro'yxatdan o'tmagan — taklif taklif qilamiz.
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(t('contact_not_registered')),
-        action: SnackBarAction(
-          label: t('invite'),
-          onPressed: () => unawaited(
-            _invite(_InviteCandidate(
-              name: name.isNotEmpty ? name : phone,
-              phone: phone,
-            )),
-          ),
-        ),
-      ),
-    );
-    _addInviteLocally(_InviteCandidate(
+    // Ro'yxatdan o'tmagan — taklif qilamiz.
+    final candidate = _InviteCandidate(
       name: name.isNotEmpty ? name : phone,
       phone: phone,
-    ));
+    );
+    _addInviteLocally(candidate);
     await _openDeviceContactInsert(name: name, phone: phone, t: t);
+
+    if (!mounted) return;
+    // Bu yerda SnackBar ishlamaydi: uning ustiga darhol tizimning kontakt
+    // oynasi ochiladi va foydalanuvchi qaytguncha SnackBar o'z vaqtini
+    // to'ldirib yo'qoladi — "Taklif qilish" tugmasi hech qachon bosilmasdi.
+    // Dialog esa qaytganda joyida turadi.
+    final wantsInvite = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(t('contact_not_registered')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(t('invite')),
+          ),
+        ],
+      ),
+    );
+    if (wantsInvite == true) {
+      await _invite(candidate);
+    }
   }
 
   /// Raqamni qurilma kitobiga yozish uchun tizimning "yangi kontakt" oynasini
@@ -477,25 +505,36 @@ class _FriendsPageState extends State<FriendsPage> {
 
   /// Yangi saqlangan kontaktni ro'yxatga qo'shadi. Kitobni qayta o'qimaydi —
   /// bitta qator uchun minglab kontaktni o'qish ilovani sekinlashtiradi.
+  ///
+  /// Qo'shish paytida sinxronizatsiya ketayotgan bo'lsa, u eski ro'yxat bilan
+  /// tugaydi va yangi qator jimgina yo'qoladi. Shuning uchun bunday holatda
+  /// tugagach yana bir marta yangilanadi — endi qurilma kitobida yangi kontakt
+  /// ham bor.
   void _addMatchLocally(_PhoneContactMatch match) {
+    // _currentUsername() context ga tegadi — vidjet yo'q bo'lsa umuman
+    // kirishmaymiz.
+    if (!mounted) return;
     if (_phoneMatches.any((item) => item.user.username == match.user.username)) {
       return;
     }
     final updated = [..._phoneMatches, match];
+    _cacheOwner = _currentUsername();
     _cachedMatches = updated;
-    if (!mounted) return;
+    if (_syncInFlight) _syncQueued = true;
     setState(() => _phoneMatches = updated);
   }
 
   void _addInviteLocally(_InviteCandidate candidate) {
+    if (!mounted) return;
     final key = _normalizePhone(candidate.phone);
     if (_inviteCandidates.any((item) => _normalizePhone(item.phone) == key)) {
       return;
     }
     final updated = [..._inviteCandidates, candidate]
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    _cacheOwner = _currentUsername();
     _cachedInvites = updated;
-    if (!mounted) return;
+    if (_syncInFlight) _syncQueued = true;
     setState(() => _inviteCandidates = updated);
   }
 
