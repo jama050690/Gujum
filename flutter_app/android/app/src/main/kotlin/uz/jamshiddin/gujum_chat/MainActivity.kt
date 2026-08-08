@@ -128,6 +128,16 @@ class MainActivity : FlutterActivity() {
                     CallForegroundService.stop(applicationContext)
                     result.success(null)
                 }
+                // Qo'ng'iroq davomida "chiqish" ilovani o'ldirmasligi kerak:
+                // aktivlik tugatilsa Flutter dvigateli ham yo'q qilinadi,
+                // WebRTC oqimlari uziladi va qo'ng'iroq o'lik bo'lib qoladi.
+                // moveTaskToBack esa jarayonni tirik qoldiradi — foreground
+                // service ishlashda davom etadi va bildirishnoma orqali
+                // qo'ng'iroqqa qaytish mumkin.
+                "moveToBackground" -> {
+                    moveTaskToBack(true)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
