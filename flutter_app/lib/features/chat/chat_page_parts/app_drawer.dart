@@ -4,23 +4,28 @@ class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
     required this.settings,
     required this.user,
-    required this.onOpenProfile,
-    required this.onOpenContacts,
     required this.onOpenCalls,
     required this.onOpenSavedMessages,
-    required this.onOpenSettings,
   });
 
   final SettingsController settings;
   final SessionUser? user;
-  final VoidCallback onOpenProfile;
-  final VoidCallback onOpenContacts;
+  // Profil, Kontaktlar va Sozlamalar endi pastdagi panelda — bu yerda
+  // takrorlanmaydi. Menyuda faqat panelga sig'magani qoladi.
   final VoidCallback onOpenCalls;
   final VoidCallback onOpenSavedMessages;
-  final VoidCallback onOpenSettings;
 
   void _handleTap(BuildContext context, VoidCallback action) {
-    Navigator.of(context).pop();
+    // Yon menyuni Navigator.pop() bilan yopib bo'lmaydi: ChatPage butun
+    // sahifani PopScope(canPop: false) ga o'rab qo'ygan, u esa menyuning
+    // ichki "orqaga" yozuvidan (LocalHistoryEntry) ustun turadi. Natijada
+    // pop to'xtatilar va uning o'rniga ChatPage ning ishlovchisi ishlab
+    // ketardi: ochiq suhbat yopilib ketardi yoki "chiqish uchun yana bir
+    // marta bosing" chiqardi — menyu esa ochiqligicha qolardi.
+    //
+    // closeDrawer() to'g'ridan-to'g'ri Scaffold ga aytadi va marshrutlar
+    // tizimiga umuman tegmaydi.
+    Scaffold.maybeOf(context)?.closeDrawer();
     action();
   }
 
@@ -94,16 +99,6 @@ class _AppDrawer extends StatelessWidget {
                       ),
                     ),
                     _DrawerMenuTile(
-                      icon: Icons.person_outline_rounded,
-                      label: t('profile_my'),
-                      onTap: () => _handleTap(context, onOpenProfile),
-                    ),
-                    _DrawerMenuTile(
-                      icon: Icons.contact_page_outlined,
-                      label: t('contacts'),
-                      onTap: () => _handleTap(context, onOpenContacts),
-                    ),
-                    _DrawerMenuTile(
                       icon: Icons.call_outlined,
                       label: t('calls'),
                       onTap: () => _handleTap(context, onOpenCalls),
@@ -112,11 +107,6 @@ class _AppDrawer extends StatelessWidget {
                       icon: Icons.bookmark_border_rounded,
                       label: t('chat_saved_messages'),
                       onTap: () => _handleTap(context, onOpenSavedMessages),
-                    ),
-                    _DrawerMenuTile(
-                      icon: Icons.settings_outlined,
-                      label: t('settings'),
-                      onTap: () => _handleTap(context, onOpenSettings),
                     ),
                     const Divider(height: 1),
                     SwitchListTile(
@@ -168,7 +158,10 @@ class _AppDrawer extends StatelessWidget {
                         if (shouldLogout != true || !context.mounted) {
                           return;
                         }
-                        Navigator.of(context).pop();
+                        // Yuqoridagi _handleTap dagi kabi: bu yerdagi maqsad
+                        // yon menyuni yopish, Navigator.pop() esa ChatPage
+                        // ning PopScope iga tushib qoladi.
+                        Scaffold.maybeOf(context)?.closeDrawer();
                         await context.read<AuthController>().logout();
                       },
                     ),

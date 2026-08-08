@@ -9,7 +9,7 @@ import '../../l10n/app_strings.dart';
 import '../auth/auth_pages.dart';
 import '../auth/onboarding_flow.dart';
 import '../call/call_overlay.dart';
-import '../chat/chat_page.dart';
+import 'home_shell.dart';
 import 'connection_banner.dart';
 import '../settings/settings_controller.dart';
 
@@ -44,7 +44,7 @@ class GujumApp extends StatelessWidget {
               ? const AuthFlow()
               : OnboardingFlow.isNeeded(auth, context.read<SessionStore>())
                   ? const OnboardingFlow()
-                  : const ChatPage(),
+                  : const HomeShell(),
         ),
       ),
     );
