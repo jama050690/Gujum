@@ -15,8 +15,7 @@ import '../settings/settings_controller.dart';
 /// Ilgari bu sahifa inbox ro'yxatini filtrlardi, ya'ni faqat suhbatdagi eng
 /// oxirgi xabar qo'ng'iroq bo'lsagina ko'rinardi: qo'ng'iroqdan keyin bitta
 /// xabar yozilsa u ro'yxatdan yo'qolardi, eski qo'ng'iroqlar esa umuman
-/// chiqmasdi. Server /api/calls/history da hammasini beradi — veb ilova
-/// allaqachon o'shani ishlatadi.
+/// chiqmasdi. Endi /api/calls/history dan oxirgi 200 tasi olinadi.
 class CallsPage extends StatefulWidget {
   const CallsPage({super.key, this.onChatOpened});
 

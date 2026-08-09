@@ -35,18 +35,24 @@ class _HomeShellState extends State<HomeShell> {
   /// o'qishni, Profil esa serverdan yuklashni boshlab yuborardi — hatto siz
   /// u bo'limlarga kirmasangiz ham. Endi bo'lim birinchi ochilgandagina
   /// quriladi, keyin esa holati saqlanib qoladi.
-  final Set<int> _visited = <int>{0};
+  final Set<int> _visited = <int>{HomeTab.chats};
 
-  /// Bo'limlar tarixi: "orqaga" avvalgi bo'limga qaytaradi.
+  /// Qayerdan kelinganini eslaydigan bitta qadam.
   ///
-  /// Masalan Sozlamalar → "Saqlangan xabarlar" (Suhbatlar bo'limi) →
-  /// "orqaga" endi Sozlamalarga qaytaradi, ilgari esa suhbatlar
-  /// ro'yxatida qolib ketilardi.
-  final List<int> _tabHistory = <int>[];
+  /// To'liq tarix emas: ro'yxat sifatida yig'ilganda Suhbatlar ↔ Kontaktlar
+  /// o'rtasida besh marta yurgan odam ilovadan chiqish uchun besh marta
+  /// "orqaga" bosishi kerak bo'lardi va ro'yxat cheksiz o'sardi. Bir qadam
+  /// yetadi: "Sozlamalardan Saqlangan xabarlarga kirdim — orqaga bosdim —
+  /// Sozlamalarga qaytdim", keyingisi esa odatdagi chiqish.
+  int? _returnTab;
 
   bool _popTab() {
-    if (_tabHistory.isEmpty) return false;
-    setState(() => _index = _tabHistory.removeLast());
+    final target = _returnTab;
+    if (target == null || target == _index) return false;
+    setState(() {
+      _returnTab = null;
+      _index = target;
+    });
     return true;
   }
 
@@ -61,7 +67,7 @@ class _HomeShellState extends State<HomeShell> {
       context.read<ChatController>().closeChat();
     }
     setState(() {
-      _tabHistory.add(_index);
+      _returnTab = _index;
       _visited.add(value);
       _index = value;
     });

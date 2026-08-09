@@ -15,15 +15,22 @@ extension _ChatPageStateBuild on _ChatPageState {
         if (!widget.active) return;
         // Suhbat ichida avval qidiruv/tanlash yopiladi, keyingina suhbat.
         if (_hasConversation(chat)) {
+          // Har bir "yutilgan" bosish taymerni ham tozalaydi: aks holda
+          // bir marta ogohlantirish ko'rsatilgach, oradagi bosishlar
+          // hisobga olinmay, ikki soniya ichidagi keyingi bosish ilovani
+          // ogohlantirishsiz yopib yuborardi.
+          _lastBackPress = null;
           if (conversationBackHandler?.call() == true) return;
           _closeConversation(chat);
           return;
         }
         // Qidiruv ochiq — avval uni tozalaymiz. Ekrandagi "x" allaqachon
         // shunday qilardi, tizim tugmasi esa yo'q.
-        if (_searchController.text.trim().isNotEmpty) {
-          _searchController.clear();
-          _handleSearchChanged(chat, '');
+        // Qidiruv ochiq bo'lsa — avval o'shani yopamiz. Maydon matnsiz
+        // ham ochiq turishi mumkin, shuning uchun holatni panelning o'zi
+        // aytadi; u matnni ham, maydonni ham yopadi.
+        if (closeInboxSearch?.call() == true) {
+          _lastBackPress = null;
           return;
         }
         // Arxiv ro'yxati ochiq — oddiy ro'yxatga qaytamiz. Ilgari bu
@@ -31,12 +38,16 @@ extension _ChatPageStateBuild on _ChatPageState {
         // uchun yana bir marta bosing" ga olib borardi.
         if (_showArchived) {
           applyState(() => _showArchived = false);
+          _lastBackPress = null;
           return;
         }
         // Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
         // Masalan Sozlamalar → "Saqlangan xabarlar": suhbat yopilgach
         // ro'yxatda qolib ketmasdan Sozlamalarga qaytadi.
-        if (HomeShellScope.of(context)?.popTab() == true) return;
+        if (HomeShellScope.of(context)?.popTab() == true) {
+          _lastBackPress = null;
+          return;
+        }
         // Chat ro'yxatida — ikki marta bosish kerak
         final now = DateTime.now();
         final last = _lastBackPress;

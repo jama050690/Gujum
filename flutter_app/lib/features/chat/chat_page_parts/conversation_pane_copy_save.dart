@@ -218,7 +218,16 @@ class _ForwardPickerState extends State<_ForwardPicker> {
     // Har harf uchun so'rov yubormaymiz — suhbatlar qidiruvidagi kabi.
     _debounce = Timer(AppConfig.searchDebounce, () async {
       if (!mounted) return;
-      if (query.length < AppConfig.minGlobalSearchChars) return;
+      if (query.length < AppConfig.minGlobalSearchChars) {
+        // Eski natijalarni tozalamasdan chiqib ketib bo'lmaydi: ular
+        // ekranda qolib, yozilgan so'zga mos kelmaydigan odamni tanlash
+        // mumkin bo'lardi. Suhbatlar qidiruvi ham shunday tozalaydi.
+        setState(() {
+          _found = const [];
+          _searching = false;
+        });
+        return;
+      }
       setState(() => _searching = true);
       try {
         final result = await widget.chat.searchUsers(query);

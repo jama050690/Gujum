@@ -14,7 +14,7 @@ class ChatRepository {
 
   final ApiClient _apiClient;
 
-  /// Qo'ng'iroqlar tarixi — hammasi, faqat oxirgisi emas.
+  /// Qo'ng'iroqlar tarixi — oxirgi 200 tasi (server chegarasi).
   ///
   /// Ilgari Flutter tomonda bu so'rov umuman ishlatilmasdi: "Qo'ng'iroqlar"
   /// sahifasi inbox ro'yxatini filtrlardi, ya'ni qo'ng'iroq faqat suhbatdagi

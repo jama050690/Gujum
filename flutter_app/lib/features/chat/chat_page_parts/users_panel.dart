@@ -218,7 +218,10 @@ class _UsersPanel extends StatelessWidget {
                         // Qatorlar bu yerda emas, quyida indeks bo'yicha
                         // quriladi — izohi ListView.builder yonida.
                         _rowsMarker,
-                      if (query.length >= 2) ...[
+                      // Ko'rsatish chegarasi so'rov chegarasi bilan bir xil
+                      // bo'lishi kerak: aks holda so'rov yuborilib,
+                      // natijasi ko'rsatilmay qolardi.
+                      if (query.length >= AppConfig.minGlobalSearchChars) ...[
                         if (loadingGlobalSearch)
                           const Padding(
                             padding: EdgeInsets.all(16),

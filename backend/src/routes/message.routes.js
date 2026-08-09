@@ -16,22 +16,24 @@ const router = express.Router();
 // sekinlashardi: sahifa ochilishi serverni kutib turardi.
 const CALL_HISTORY_LIMIT = 200;
 
-router.get("/calls/history", async (req, res) => {
-  const { username } = req.query;
-  if (!username) return res.status(400).json({ message: "username kerak" });
+// Qo'ng'iroq yozuvini aniqlash sharti. LIKE ishlatib bo'lmaydi: unda '_'
+// bitta ixtiyoriy belgini almashtiradi, ya'ni "__CALL:%__" oddiy matnga
+// ham tushib qolardi ("reCALL: keyin"). Chegara qo'yilgach bunday
+// qatorlar haqiqiy qo'ng'iroqlarning o'rnini egallab, ro'yxatni bo'sh
+// ko'rsatib qo'yishi mumkin. retention.js da ham xuddi shu sabab bilan
+// regexp ishlatilgan — shart o'sha yerdagi bilan bir xil bo'lishi kerak.
+const CALL_LOG_MATCH =
+  "m.content ~ '^__CALL:(audio|video):(missed|[0-9]+)__$'";
+
+router.get("/calls/history", authMiddleware, async (req, res) => {
+  // Ilgari bu yerda authMiddleware yo'q edi va foydalanuvchi so'rovdagi
+  // ?username= dan olinardi — ya'ni istalgan odam istalgan akkauntning
+  // qo'ng'iroqlar tarixini (kim bilan, qachon, qancha davom etgan) hech
+  // qanday tekshiruvsiz o'qiy olardi. Endi faqat o'z tarixi, sessiyadan.
+  const userId = req.user?.id;
+  if (!userId) return res.sendStatus(401);
 
   try {
-    const userResult = await pool.query(
-      `SELECT id FROM ${USERS_TABLE} WHERE username = $1`,
-      [username],
-    );
-
-    if (userResult.rowCount === 0) {
-      return res.json([]);
-    }
-
-    const userId = userResult.rows[0].id;
-
     const { rows } = await pool.query(
       `
       SELECT
@@ -50,7 +52,7 @@ router.get("/calls/history", async (req, res) => {
         ELSE c.user1_id
       END
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
-        AND m.content LIKE '__CALL:%__'
+        AND ${CALL_LOG_MATCH}
       ORDER BY m.created_at DESC
       LIMIT $2
       `,
@@ -64,7 +66,6 @@ router.get("/calls/history", async (req, res) => {
   }
 });
 
-// GET /api/messages
 router.get("/messages", async (req, res) => {
   const { user1, user2, before } = req.query;
   // Kursorli sahifalash: OFFSET emas. OFFSET 5000 da Postgres avval 5000

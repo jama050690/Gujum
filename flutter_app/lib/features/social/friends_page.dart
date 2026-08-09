@@ -984,8 +984,14 @@ class _SearchTab extends StatelessWidget {
                     )
                   else if (visibleMatches.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(t('contacts_empty_gujum')),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      // Qidiruvda hech narsa topilmasligi "kontaktlaringiz
+                      // orasida Gujum foydalanuvchisi yo'q" degani emas —
+                      // ikkalasiga bir xil matn chiqarib bo'lmaydi.
+                      child: Text(query.isEmpty
+                          ? t('contacts_empty_gujum')
+                          : t('friend_search_hint')),
                     ),
                 ];
                 return ListView.builder(

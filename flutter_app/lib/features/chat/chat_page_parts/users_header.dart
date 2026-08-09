@@ -38,6 +38,25 @@ class _UsersHeaderState extends State<_UsersHeader> {
       _explicitlyOpen || widget.searchController.text.trim().isNotEmpty;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Tizimning "orqaga" tugmasi sahifada hal qilinadi, qidiruvning ochiq
+    // ekani esa shu yerda. Matnni tozalash kifoya emas edi: bayroq shu
+    // yerda qolib, maydon ochiq turaverardi. Sahifa shu ilgak orqali uni
+    // ham yopadi.
+    context.findAncestorStateOfType<_ChatPageState>()?.closeInboxSearch =
+        _close;
+  }
+
+  bool _close() {
+    final wasOpen = _searchOpen;
+    widget.searchController.clear();
+    widget.onChanged('');
+    if (mounted) setState(() => _explicitlyOpen = false);
+    return wasOpen;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.paddingOf(context).top + 14;
     final avatarLabel = widget.currentUser?.displayName ?? 'Gujum';
@@ -96,14 +115,15 @@ class _UsersHeaderState extends State<_UsersHeader> {
                     // Telegram uslubi: maydon sarlavha o'rnida.
                     ? AppSearchField(
                         controller: widget.searchController,
+                        // Faqat foydalanuvchi ochganda fokus olsin. Panel
+                        // qaytadan qurilganda (suhbatdan qaytish) maydon
+                        // matn tufayli ochiq bo'ladi va autofocus
+                        // klaviaturani o'z-o'zidan ochib yuborardi.
+                        autofocus: _explicitlyOpen,
                         hintText: AppStrings.text(
                             widget.settings.localeCode, 'search'),
                         onChanged: widget.onChanged,
-                        onClose: () {
-                          widget.searchController.clear();
-                          widget.onChanged('');
-                          setState(() => _explicitlyOpen = false);
-                        },
+                        onClose: _close,
                       )
                     : Text(
                         widget.showArchived ? (widget.title ?? '') : 'Gujum',
