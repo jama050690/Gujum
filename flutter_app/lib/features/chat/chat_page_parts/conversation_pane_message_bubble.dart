@@ -26,7 +26,8 @@ extension _ConversationPaneMessageBubble on _ConversationPaneState {
         (hasVideo || imageIsMedia);
     final timeLabel = _formatClock(message.createdAt);
     final isSelected =
-        message.id != null && _selectedMessageIds.contains(message.id);
+        message.id != null &&
+            widget.chat.selectedMessageIds.contains(message.id);
     final bubbleColor = isMine
         ? (widget.settings.isDarkMode
             ? const Color(0xFF1D3A52)

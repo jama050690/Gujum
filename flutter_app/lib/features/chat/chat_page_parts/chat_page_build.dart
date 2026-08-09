@@ -7,81 +7,8 @@ extension _ChatPageStateBuild on _ChatPageState {
     AuthController auth,
     ChatController chat,
   ) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        // Boshqa bo'lim ochiq — "orqaga" ni qobiq (HomeShell) hal qiladi.
-        if (!widget.active) return;
-        // Qo'ng'iroq oynasi bosishni o'zi ishlatadi (kichrayadi yoki javob
-        // kutadi). Flutter bitta bosishda ro'yxatdagi BARCHA PopScope larni
-        // chaqiradi, shuning uchun bu yerda to'xtamasak, qo'ng'iroq
-        // kichrayishi bilan birga orqadagi suhbat ham yopilib ketardi.
-        if (context.read<CallController?>()?.consumesBackPress == true) return;
-        // Suhbat ichida avval qidiruv/tanlash yopiladi, keyingina suhbat.
-        if (_hasConversation(chat)) {
-          // Har bir "yutilgan" bosish taymerni ham tozalaydi: aks holda
-          // bir marta ogohlantirish ko'rsatilgach, oradagi bosishlar
-          // hisobga olinmay, ikki soniya ichidagi keyingi bosish ilovani
-          // ogohlantirishsiz yopib yuborardi.
-          _lastBackPress = null;
-          if (conversationBackHandler?.call() == true) return;
-          _closeConversation(chat);
-          return;
-        }
-        // Qidiruv ochiq — avval uni tozalaymiz. Ekrandagi "x" allaqachon
-        // shunday qilardi, tizim tugmasi esa yo'q.
-        // Qidiruv ochiq bo'lsa — avval o'shani yopamiz. Maydon matnsiz
-        // ham ochiq turishi mumkin, shuning uchun holatni panelning o'zi
-        // aytadi; u matnni ham, maydonni ham yopadi.
-        if (closeInboxSearch?.call() == true) {
-          _lastBackPress = null;
-          return;
-        }
-        // Arxiv ro'yxati ochiq — oddiy ro'yxatga qaytamiz. Ilgari bu
-        // tekshirilmasdi va arxivda "orqaga" to'g'ridan-to'g'ri "chiqish
-        // uchun yana bir marta bosing" ga olib borardi.
-        if (_showArchived) {
-          applyState(() => _showArchived = false);
-          _lastBackPress = null;
-          return;
-        }
-        // Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
-        // Masalan Sozlamalar → "Saqlangan xabarlar": suhbat yopilgach
-        // ro'yxatda qolib ketmasdan Sozlamalarga qaytadi.
-        if (HomeShellScope.of(context)?.popTab() == true) {
-          _lastBackPress = null;
-          return;
-        }
-        // Chat ro'yxatida — ikki marta bosish kerak
-        final now = DateTime.now();
-        final last = _lastBackPress;
-        if (last != null && now.difference(last) < const Duration(seconds: 2)) {
-          // Qo'ng'iroq ketayotgan bo'lsa ilovani o'ldirmaymiz. Ilgari shu
-          // yerda SystemNavigator.pop() chaqirilardi va u aktivlikni
-          // tugatardi: Flutter dvigateli bilan birga WebRTC ham o'lardi,
-          // suhbatdoshga CALL_END yuborilmasdi, foreground service
-          // bildirishnomasi esa ekranda qolib ketardi — uni bosgan odam
-          // ilovani ochardi, lekin qo'ng'iroq allaqachon yo'q edi.
-          final call = context.read<CallController?>();
-          if (call != null && call.isCallActive) {
-            unawaited(call.moveAppToBackground());
-            return;
-          }
-          SystemNavigator.pop();
-          return;
-        }
-        _lastBackPress = now;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppStrings.text(
-                context.read<SettingsController>().localeCode,
-                'exit_press_again')),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Scaffold(
+    return Scaffold(
+
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 960;
@@ -90,7 +17,7 @@ extension _ChatPageStateBuild on _ChatPageState {
             chat: chat,
             currentUser: auth.user,
             searchController: _searchController,
-            showArchived: _showArchived,
+            showArchived: chat.showArchived,
             archivedChats: _archivedChats,
             pinnedChats: _pinnedChats,
             mutedChats: _mutedChats,
@@ -98,8 +25,8 @@ extension _ChatPageStateBuild on _ChatPageState {
             globalResults: _globalResults,
             loadingGlobalSearch: _loadingGlobalSearch,
             onSearchChanged: (value) => _handleSearchChanged(chat, value),
-            onShowArchived: () => applyState(() => _showArchived = true),
-            onHideArchived: () => applyState(() => _showArchived = false),
+            onShowArchived: chat.openArchive,
+            onHideArchived: chat.closeArchive,
             onOpenSavedMessages: () => _openSavedMessages(chat),
             onOpenChat: (item) => _openInboxChat(chat, item),
             onOpenSearchResult: (user) => _openChatFromSearch(chat, user),
@@ -145,7 +72,6 @@ extension _ChatPageStateBuild on _ChatPageState {
           return inboxPanel;
         },
       ),
-    ),
     );
   }
 }

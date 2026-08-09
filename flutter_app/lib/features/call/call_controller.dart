@@ -286,14 +286,6 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  /// Qo'ng'iroq oynasi "orqaga" bosishini o'zi ishlatadimi.
-  ///
-  /// Kiruvchi qo'ng'iroqda — javob berish yoki rad etish kerak; ochiq
-  /// qo'ng'iroqda — bosish uni kichraytiradi. Ikkalasida ham orqadagi
-  /// ekran tegilmasligi kerak.
-  bool get consumesBackPress =>
-      hasIncomingCall || (hasSession && !_uiMinimized);
-
   /// Ilovani fonga o'tkazadi (aktivlikni tugatmasdan).
   ///
   /// SystemNavigator.pop() aktivlikni tugatadi va u bilan birga Flutter

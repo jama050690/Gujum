@@ -118,6 +118,93 @@ class ChatController extends ChangeNotifier {
     ));
   }
 
+  /// Suhbat ichidagi tanlash va qidiruv holati.
+  ///
+  /// Ilgari bular suhbat panelining State ida edi, "orqaga" tugmasi esa
+  /// sahifaga tushardi — shuning uchun panel o'z ishlovchisini sahifaga
+  /// findAncestorStateOfType orqali ro'yxatdan o'tkazishi kerak bo'lardi
+  /// va uni dispose da tozalashni unutmaslik kerak edi. Holat shu yerda
+  /// bo'lsa, "orqaga" ni hal qiladigan joy uni to'g'ridan-to'g'ri o'qiydi.
+  Set<int> _selectedMessageIds = <int>{};
+  bool _chatSearchActive = false;
+  String _chatSearchQuery = '';
+
+  Set<int> get selectedMessageIds => _selectedMessageIds;
+  bool get hasMessageSelection => _selectedMessageIds.isNotEmpty;
+  bool get chatSearchActive => _chatSearchActive;
+  String get chatSearchQuery => _chatSearchQuery;
+
+  /// "Orqaga" suhbat ichida nimadir yopadimi. true bo'lsa — suhbatning
+  /// o'zi yopilmaydi.
+  bool get conversationConsumesBack => hasMessageSelection || _chatSearchActive;
+
+  void setMessageSelection(Set<int> ids) {
+    _selectedMessageIds = ids;
+    notifyListeners();
+  }
+
+  void clearMessageSelection() {
+    if (_selectedMessageIds.isEmpty) return;
+    _selectedMessageIds = <int>{};
+    notifyListeners();
+  }
+
+  /// Suhbatlar ro'yxatidagi qidiruv maydoni ochiqmi.
+  ///
+  /// Matn sahifadagi TextEditingController da, ochiqlik esa shu yerda:
+  /// maydon matnsiz ham ochiq turishi mumkin va "orqaga" uni yopishi
+  /// kerak.
+  bool _inboxSearchOpen = false;
+  bool get inboxSearchOpen => _inboxSearchOpen;
+
+  void openInboxSearch() {
+    if (_inboxSearchOpen) return;
+    _inboxSearchOpen = true;
+    notifyListeners();
+  }
+
+  void closeInboxSearch() {
+    if (!_inboxSearchOpen) return;
+    _inboxSearchOpen = false;
+    notifyListeners();
+  }
+
+  /// Arxiv ro'yxati ochiqmi. "Orqaga" ni hal qiladigan joy buni ham
+  /// bilishi kerak, shuning uchun holat shu yerda.
+  bool _showArchived = false;
+  bool get showArchived => _showArchived;
+
+  void openArchive() {
+    if (_showArchived) return;
+    _showArchived = true;
+    notifyListeners();
+  }
+
+  void closeArchive() {
+    if (!_showArchived) return;
+    _showArchived = false;
+    notifyListeners();
+  }
+
+  void openChatSearch() {
+    if (_chatSearchActive) return;
+    _chatSearchActive = true;
+    notifyListeners();
+  }
+
+  void closeChatSearch() {
+    if (!_chatSearchActive && _chatSearchQuery.isEmpty) return;
+    _chatSearchActive = false;
+    _chatSearchQuery = '';
+    notifyListeners();
+  }
+
+  set chatSearchQuery(String value) {
+    if (_chatSearchQuery == value) return;
+    _chatSearchQuery = value;
+    notifyListeners();
+  }
+
   void closeSavedMessages() {
     if (!showSavedMessages) return;
     closeChat();
@@ -290,6 +377,9 @@ class ChatController extends ChangeNotifier {
   }
 
   void closeChat() {
+    _selectedMessageIds = <int>{};
+    _chatSearchActive = false;
+    _chatSearchQuery = '';
     if (_activeChat != null) {
       if (_messages.isNotEmpty) {
         _cacheMessages(_activeChat!.username, _messages);

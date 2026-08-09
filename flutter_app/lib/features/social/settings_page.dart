@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../auth/auth_controller.dart';
-import '../app/home_shell_scope.dart';
+import '../app/navigation_controller.dart';
 import '../chat/chat_controller.dart';
 import '../chat/media_store.dart';
 import '../chat/message_store.dart';
@@ -95,7 +95,7 @@ class SettingsPage extends StatelessWidget {
               context
                   .read<ChatController>()
                   .openSavedMessages(title: t('chat_saved_messages'));
-              HomeShellScope.of(context)?.selectTab(HomeTab.chats);
+              context.read<NavigationController>().selectTab(HomeTab.chats);
             },
           ),
           // Bloklanganlar profil sahifasidan shu yerga ko'chirildi: profilni

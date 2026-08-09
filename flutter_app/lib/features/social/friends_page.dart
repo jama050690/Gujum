@@ -15,7 +15,7 @@ import '../../core/widgets/app_search_field.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../../models/social_models.dart';
-import '../app/home_shell_scope.dart';
+import '../app/navigation_controller.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../settings/settings_controller.dart';
@@ -747,7 +747,7 @@ class _FriendsPageState extends State<FriendsPage> {
     // ekranda Kontaktlar turaverardi va ilova sekin tuyulardi. openChat
     // suhbatni darhol ochib, xabarlarni keyin to'ldiradi, shuning uchun
     // kutishning hojati yo'q.
-    HomeShellScope.of(context)?.selectTab(HomeTab.chats);
+    context.read<NavigationController>().selectTab(HomeTab.chats);
     Navigator.of(context).popUntil((route) => route.isFirst);
     unawaited(context.read<ChatController>().startChatWith(
           SearchUser(
@@ -910,20 +910,9 @@ class _SearchTab extends StatelessWidget {
                       child: Icon(Icons.call_rounded, color: Colors.white),
                     ),
                     title: Text(t('recent_calls')),
-                    onTap: () {
-                      // Qobiq shu yerda olinadi: Kontaktlar bo'limi uning
-                      // ostida, ochiladigan sahifa esa yonida turadi va
-                      // u yerdan HomeShellScope ko'rinmaydi.
-                      final shell = HomeShellScope.of(context);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => CallsPage(
-                            onChatOpened: () =>
-                                shell?.selectTab(HomeTab.chats),
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CallsPage()),
+                    ),
                   ),
                   const Divider(height: 24),
                   // Qidiruv natijalari shu yerda — maydonning o'zi sarlavha

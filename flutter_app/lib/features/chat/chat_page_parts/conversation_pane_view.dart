@@ -54,16 +54,16 @@ extension _ConversationPaneView on _ConversationPaneState {
                 activeChat.avatar,
                 widget.settings.baseUrl,
               ),
-              showBack: _chatSearchActive ? true : widget.showBack,
-              onBack: _chatSearchActive ? _closeChatSearch : widget.onBack,
+              showBack: chat.chatSearchActive ? true : widget.showBack,
+              onBack: chat.chatSearchActive ? _closeChatSearch : widget.onBack,
               // Qidiruv panelning o'zida ochiladi: ism, qo'ng'iroq va menyu
               // tugmalari o'rnini egallaydi (Telegramdagidek).
-              searchField: _chatSearchActive
+              searchField: chat.chatSearchActive
                   ? AppSearchField(
                       controller: _chatSearchController,
                       hintText: t('search_hint'),
                       onChanged: (value) =>
-                          applyState(() => _chatSearchQuery = value),
+                          widget.chat.chatSearchQuery = value,
                       onClose: _closeChatSearch,
                     )
                   : null,
@@ -181,7 +181,7 @@ extension _ConversationPaneView on _ConversationPaneState {
     EdgeInsets messagePadding,
   ) {
     // Qidiruv yoqilgan bo'lsa faqat mos xabarlar ko'rsatiladi.
-    final query = _chatSearchQuery.trim().toLowerCase();
+    final query = widget.chat.chatSearchQuery.trim().toLowerCase();
     final messages = query.isEmpty
         ? chat.messages
         : chat.messages

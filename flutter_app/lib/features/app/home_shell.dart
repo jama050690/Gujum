@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
-import 'home_shell_scope.dart';
+import 'navigation_controller.dart';
 import '../call/call_controller.dart';
 import '../chat/chat_controller.dart';
 import '../chat/chat_page.dart';
@@ -29,106 +29,64 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _index = 0;
+  NavigationController? _nav;
 
-  /// Qaysi bo'limlar ochilgan. IndexedStack barcha bolalarini birdan
-  /// quradi, ya'ni ilova ishga tushishi bilan Kontaktlar manzillar kitobini
-  /// o'qishni, Profil esa serverdan yuklashni boshlab yuborardi — hatto siz
-  /// u bo'limlarga kirmasangiz ham. Endi bo'lim birinchi ochilgandagina
-  /// quriladi, keyin esa holati saqlanib qoladi.
-  final Set<int> _visited = <int>{HomeTab.chats};
-
-  /// Qayerdan kelinganini eslaydigan bitta qadam.
-  ///
-  /// To'liq tarix emas: ro'yxat sifatida yig'ilganda Suhbatlar ↔ Kontaktlar
-  /// o'rtasida besh marta yurgan odam ilovadan chiqish uchun besh marta
-  /// "orqaga" bosishi kerak bo'lardi va ro'yxat cheksiz o'sardi. Bir qadam
-  /// yetadi: "Sozlamalardan Saqlangan xabarlarga kirdim — orqaga bosdim —
-  /// Sozlamalarga qaytdim", keyingisi esa odatdagi chiqish.
-  int? _returnTab;
-
-  bool _popTab() {
-    final target = _returnTab;
-    if (target == null || target == _index) return false;
-    setState(() {
-      _returnTab = null;
-      _index = target;
-    });
-    return true;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = context.read<NavigationController>();
+    if (identical(_nav, next)) return;
+    _nav?.removeListener(_onTabChanged);
+    _nav = next..addListener(_onTabChanged);
   }
 
-  Widget _tab(int index, Widget Function() build) =>
-      _visited.contains(index) ? build() : const SizedBox.shrink();
+  @override
+  void dispose() {
+    _nav?.removeListener(_onTabChanged);
+    super.dispose();
+  }
 
-  void _selectTab(int value) {
-    if (value == _index) return;
-    // Suhbat ochiq bo'lsa yopamiz: aks holda boshqa bo'limdan qaytganda
-    // ro'yxat emas, o'sha suhbat ko'rinardi.
-    if (value != HomeTab.chats && _index == HomeTab.chats) {
-      context.read<ChatController>().closeChat();
-    }
-    setState(() {
-      _returnTab = _index;
-      _visited.add(value);
-      _index = value;
-    });
+  /// Suhbatlar bo'limidan chiqilganda ochiq suhbat yopiladi — aks holda
+  /// qaytib kelganda ro'yxat emas, o'sha suhbat ko'rinardi.
+  void _onTabChanged() {
+    if (_nav?.index == HomeTab.chats) return;
+    final chat = context.read<ChatController>();
+    if (chat.activeChat != null) chat.closeChat();
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
     final chat = context.watch<ChatController>();
+    final call = context.watch<CallController>();
+    final nav = context.watch<NavigationController>();
     String t(String key) => AppStrings.text(settings.localeCode, key);
 
     // Suhbat ochiq bo'lganda panel yashiriladi — Telegramda ham shunday:
     // panel faqat yuqori darajadagi bo'limlarda turadi, suhbat esa uni
-    // butunlay qoplaydi. Aks holda pastda yozish maydoni va panel yonma-yon
-    // turib, ikkalasi ham joy egallardi.
+    // butunlay qoplaydi.
     final inConversation =
-        _index == HomeTab.chats && chat.activeChat != null;
+        nav.index == HomeTab.chats && chat.activeChat != null;
 
-    return PopScope(
-      // ChatPage ham PopScope ishlatadi va u shu marshrutda qoladi. Ikkalasi
-      // ham chaqiriladi, shuning uchun har biri faqat o'z holatida ish
-      // qiladi: bu yerda — boshqa bo'limdan suhbatlarga qaytish, u yerda —
-      // suhbatni yopish va chiqish.
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        // Suhbatlar bo'limida "orqaga" ni ChatPage hal qiladi (suhbat,
-        // qidiruv, arxiv, keyin bo'limlar tarixi).
-        if (didPop || _index == HomeTab.chats) return;
-        // Qo'ng'iroq oynasi bosishni o'zi ishlatsa, bo'lim almashmaydi —
-        // izohi ChatPage dagi shu tekshiruv yonida.
-        if (context.read<CallController?>()?.consumesBackPress == true) return;
-        if (_popTab()) return;
-        setState(() => _index = HomeTab.chats);
-      },
-      child: Scaffold(
-        // Telegramda ro'yxat panel ostidan o'tib ketadi (extendBody: true).
-        // Bu yerda ataylab shunday emas: ro'yxatlarimiz o'z chetlarini
-        // qo'lda beradi, ya'ni MediaQuery dagi pastki bo'shliqni
-        // hisobga olmaydi — oxirgi qator panel ostida ko'rinmay qolar va
-        // uni ko'rish uchun varaqlab ham bo'lmasdi. Panel baribir suzib
-        // turadi, faqat kontent uning ostiga kirmaydi.
-        body: HomeShellScope(
-          selectTab: _selectTab,
-          popTab: _popTab,
-          child: IndexedStack(
-            index: _index,
-            children: [
-              ChatPage(active: _index == HomeTab.chats),
-              _tab(HomeTab.contacts,
-                  () => const FriendsPage(titleKey: 'contacts')),
-              _tab(HomeTab.settings, () => const SettingsPage()),
-              _tab(HomeTab.profile, () => const ProfilePage()),
-            ],
-          ),
+    Widget tab(int index, Widget Function() build) =>
+        nav.isVisited(index) ? build() : const SizedBox.shrink();
+
+    return Scaffold(
+
+        body: IndexedStack(
+          index: nav.index,
+          children: [
+            const ChatPage(),
+            tab(HomeTab.contacts, () => const FriendsPage(titleKey: 'contacts')),
+            tab(HomeTab.settings, () => const SettingsPage()),
+            tab(HomeTab.profile, () => const ProfilePage()),
+          ],
         ),
         bottomNavigationBar: inConversation
             ? null
             : _FloatingNavBar(
-                index: _index,
-                onSelect: _selectTab,
+                index: nav.index,
+                onSelect: nav.selectTab,
                 unreadChats: chat.inbox
                     .fold<int>(0, (sum, item) => sum + item.unreadCount),
                 labels: [
@@ -138,7 +96,6 @@ class _HomeShellState extends State<HomeShell> {
                   t('profile_my'),
                 ],
               ),
-      ),
     );
   }
 }
