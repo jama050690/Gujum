@@ -872,6 +872,17 @@ class _SearchTab extends StatelessWidget {
                     .toLowerCase()
                     .contains(query))
             .toList(growable: false);
+
+    // Serverdan kelgan natijalarda kontaktlaringizda allaqachon bor odam
+    // bo'lsa, u ikki marta ko'rinardi: bir marta qidiruv natijasi
+    // sifatida, bir marta kontaktlar ro'yxatida. Kontaktdagi yozuv
+    // qoldiriladi — u yerda odam telefon kitobingizdagi nomi bilan
+    // turadi. Suhbatlar sahifasi va uzatish oynasi ham shunday qiladi.
+    final shownUsernames =
+        visibleMatches.map((match) => match.user.username).toSet();
+    final extraResults = results
+        .where((user) => !shownUsernames.contains(user.username))
+        .toList(growable: false);
     return Column(
       children: [
         if (showPhoneContactsSection)
@@ -922,14 +933,8 @@ class _SearchTab extends StatelessWidget {
                       padding: EdgeInsets.all(24),
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  else if (results.isEmpty && controller.text.trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Text(t('friend_search_hint')),
-                    )
                   else
-                    ...results.map((user) {
+                    ...extraResults.map((user) {
                       final imageUrl =
                           AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
                       return ListTile(
@@ -971,16 +976,15 @@ class _SearchTab extends StatelessWidget {
                         style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                     )
-                  else if (visibleMatches.isEmpty)
+                  // Faqat haqiqiy bo'sh holat uchun matn: kontaktlar
+                  // orasida Gujum foydalanuvchisi yo'q. Qidiruv natija
+                  // bermasa hech narsa yozilmaydi — ro'yxatning o'zi
+                  // bo'shligi shundoq ham ko'rinib turadi.
+                  else if (visibleMatches.isEmpty && query.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
-                      // Qidiruvda hech narsa topilmasligi "kontaktlaringiz
-                      // orasida Gujum foydalanuvchisi yo'q" degani emas —
-                      // ikkalasiga bir xil matn chiqarib bo'lmaydi.
-                      child: Text(query.isEmpty
-                          ? t('contacts_empty_gujum')
-                          : t('friend_search_hint')),
+                      child: Text(t('contacts_empty_gujum')),
                     ),
                 ];
                 return ListView.builder(
@@ -1024,7 +1028,7 @@ class _SearchTab extends StatelessWidget {
           child: searching
               ? const Center(child: CircularProgressIndicator())
               : results.isEmpty
-                  ? Center(child: Text(t('friend_search_hint')))
+                  ? const SizedBox.shrink()
                   : ListView.separated(
                       itemCount: results.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),
