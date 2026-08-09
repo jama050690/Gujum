@@ -15,6 +15,11 @@ class AppConfig {
   /// Serverdan qidirish uchun eng kam harf soni. Mahalliy ro'yxatlar
   /// birinchi harfdanoq filtrlanadi.
   static const minGlobalSearchChars = 2;
+
+  /// Qo'ng'iroqlar tarixi bir so'rovda shuncha yozuv qaytaradi. Server
+  /// tomondagi CALL_HISTORY_LIMIT bilan bir xil bo'lishi kerak: klient
+  /// "to'liq bo'lak keldi, demak davomi bor" deb shunga qarab hisoblaydi.
+  static const callHistoryPageSize = 200;
   static const defaultPort = 4000;
   static const productionBaseUrl = 'https://gujum.jamshiddin.uz';
   static const androidUsbBaseUrl = 'http://127.0.0.1:4000';

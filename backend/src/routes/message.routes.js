@@ -33,6 +33,11 @@ router.get("/calls/history", authMiddleware, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) return res.sendStatus(401);
 
+  // Kursor: shu vaqtdan oldingilari. /api/messages dagi bilan bir xil
+  // yondashuv — OFFSET emas, chunki u chuqurlashgan sari sekinlashadi.
+  const before = req.query.before ? new Date(String(req.query.before)) : null;
+  const hasBefore = before && !Number.isNaN(before.getTime());
+
   try {
     const { rows } = await pool.query(
       `
@@ -53,10 +58,13 @@ router.get("/calls/history", authMiddleware, async (req, res) => {
       END
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
         AND ${CALL_LOG_MATCH}
+        ${hasBefore ? "AND m.created_at < $3" : ""}
       ORDER BY m.created_at DESC
       LIMIT $2
       `,
-      [userId, CALL_HISTORY_LIMIT],
+      hasBefore
+        ? [userId, CALL_HISTORY_LIMIT, before.toISOString()]
+        : [userId, CALL_HISTORY_LIMIT],
     );
 
     return res.json(rows);

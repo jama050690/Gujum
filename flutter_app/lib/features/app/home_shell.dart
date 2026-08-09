@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
 import 'home_shell_scope.dart';
+import '../call/call_controller.dart';
 import '../chat/chat_controller.dart';
 import '../chat/chat_page.dart';
 import '../settings/settings_controller.dart';
@@ -96,6 +97,9 @@ class _HomeShellState extends State<HomeShell> {
         // Suhbatlar bo'limida "orqaga" ni ChatPage hal qiladi (suhbat,
         // qidiruv, arxiv, keyin bo'limlar tarixi).
         if (didPop || _index == HomeTab.chats) return;
+        // Qo'ng'iroq oynasi bosishni o'zi ishlatsa, bo'lim almashmaydi —
+        // izohi ChatPage dagi shu tekshiruv yonida.
+        if (context.read<CallController?>()?.consumesBackPress == true) return;
         if (_popTab()) return;
         setState(() => _index = HomeTab.chats);
       },

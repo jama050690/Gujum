@@ -13,6 +13,11 @@ extension _ChatPageStateBuild on _ChatPageState {
         if (didPop) return;
         // Boshqa bo'lim ochiq — "orqaga" ni qobiq (HomeShell) hal qiladi.
         if (!widget.active) return;
+        // Qo'ng'iroq oynasi bosishni o'zi ishlatadi (kichrayadi yoki javob
+        // kutadi). Flutter bitta bosishda ro'yxatdagi BARCHA PopScope larni
+        // chaqiradi, shuning uchun bu yerda to'xtamasak, qo'ng'iroq
+        // kichrayishi bilan birga orqadagi suhbat ham yopilib ketardi.
+        if (context.read<CallController?>()?.consumesBackPress == true) return;
         // Suhbat ichida avval qidiruv/tanlash yopiladi, keyingina suhbat.
         if (_hasConversation(chat)) {
           // Har bir "yutilgan" bosish taymerni ham tozalaydi: aks holda

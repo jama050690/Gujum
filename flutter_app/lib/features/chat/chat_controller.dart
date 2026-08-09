@@ -630,10 +630,10 @@ class ChatController extends ChangeNotifier {
 
   /// Qo'ng'iroqlar tarixi. ChatRepository Provider orqali berilmagan,
   /// shuning uchun sahifa uni shu yerdan oladi.
-  Future<List<CallHistoryEntry>> fetchCallHistory() async {
+  Future<List<CallHistoryEntry>> fetchCallHistory({DateTime? before}) async {
     final user = _authController.user;
     if (user == null) return const [];
-    return _chatRepository.fetchCallHistory(user.username);
+    return _chatRepository.fetchCallHistory(user.username, before: before);
   }
 
   // --- INBOX VA SYNC ---

@@ -145,6 +145,28 @@ class _UsersPanel extends StatelessWidget {
                       onBack: onHideArchived,
                       onChanged: onSearchChanged,
                     ),
+                    // Arxivga kirish yo'li. onShowArchived hech qayerdan
+                    // chaqirilmasdi: arxivlangan suhbat ro'yxatdan
+                    // yo'qolar va uni qaytarib ko'rishning iloji yo'q edi.
+                    // Faqat arxivda biror narsa bo'lsa ko'rsatiladi —
+                    // Telegramda ham shunday.
+                    if (!showArchived && query.isEmpty && archivedChats.isNotEmpty)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.archive_outlined,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        title: Text(t('archive_title')),
+                        trailing: Text(
+                          '${archivedChats.length}',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        onTap: onShowArchived,
+                      ),
                     // "Saqlangan xabarlar" ilgari faqat yon menyuda edi.
                     // Menyu olib tashlangach, u Telegramdagi kabi
                     // ro'yxatning tepasida turadi.

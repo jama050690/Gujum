@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../auth/auth_controller.dart';
@@ -35,6 +36,8 @@ class CallsPage extends StatefulWidget {
 class _CallsPageState extends State<CallsPage> {
   List<CallHistoryEntry> _history = const [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
   Object? _error;
 
   @override
@@ -53,6 +56,9 @@ class _CallsPageState extends State<CallsPage> {
       if (!mounted) return;
       setState(() {
         _history = history;
+        // Server bir marta 200 tagacha beradi. To'liq kelgan bo'lsa,
+        // demak davomi ham bo'lishi mumkin.
+        _hasMore = history.length >= AppConfig.callHistoryPageSize;
         _loading = false;
       });
     } catch (error) {
@@ -60,6 +66,31 @@ class _CallsPageState extends State<CallsPage> {
       setState(() {
         _error = error;
         _loading = false;
+      });
+    }
+  }
+
+  /// Ro'yxat oxiriga yetganda keyingi bo'lakni oladi. Ilgari chegara
+  /// qattiq 200 ta edi va undan oldingi qo'ng'iroqlarni ko'rishning
+  /// imkoni yo'q edi.
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _history.isEmpty) return;
+    setState(() => _loadingMore = true);
+    try {
+      final older = await context
+          .read<ChatController>()
+          .fetchCallHistory(before: _history.last.createdAt);
+      if (!mounted) return;
+      setState(() {
+        _history = [..._history, ...older];
+        _hasMore = older.length >= AppConfig.callHistoryPageSize;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasMore = false;
+        _loadingMore = false;
       });
     }
   }
@@ -111,9 +142,21 @@ class _CallsPageState extends State<CallsPage> {
           return ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            itemCount: header.length + entries.length,
+            itemCount: header.length + entries.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
               if (index < header.length) return header[index];
+              if (index == header.length + entries.length) {
+                // Oxiriga yetildi — keyingi bo'lakni so'raymiz. Bu
+                // itemBuilder ning ichida, ya'ni qurilish paytida:
+                // setState ni to'g'ridan-to'g'ri chaqirib bo'lmaydi.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  unawaited(_loadMore());
+                });
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              }
               final entry = entries[index - header.length];
               return _CallHistoryTile(
                 entry: entry,
