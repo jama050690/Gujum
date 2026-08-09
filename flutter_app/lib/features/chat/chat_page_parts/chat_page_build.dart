@@ -13,9 +13,17 @@ extension _ChatPageStateBuild on _ChatPageState {
         if (didPop) return;
         // Boshqa bo'lim ochiq — "orqaga" ni qobiq (HomeShell) hal qiladi.
         if (!widget.active) return;
-        // Conversation ochiq bo'lsa — yopamiz, chiqmaymiz
+        // Suhbat ichida avval qidiruv/tanlash yopiladi, keyingina suhbat.
         if (_hasConversation(chat)) {
+          if (conversationBackHandler?.call() == true) return;
           _closeConversation(chat);
+          return;
+        }
+        // Arxiv ro'yxati ochiq — oddiy ro'yxatga qaytamiz. Ilgari bu
+        // tekshirilmasdi va arxivda "orqaga" to'g'ridan-to'g'ri "chiqish
+        // uchun yana bir marta bosing" ga olib borardi.
+        if (_showArchived) {
+          applyState(() => _showArchived = false);
           return;
         }
         // Chat ro'yxatida — ikki marta bosish kerak

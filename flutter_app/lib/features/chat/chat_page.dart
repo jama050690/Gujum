@@ -102,6 +102,15 @@ class _ChatPageState extends State<ChatPage> {
   List<SearchUser> _globalResults = const [];
   bool _loadingGlobalSearch = false;
   bool _showArchived = false;
+
+  /// Suhbat ichidagi holatni "orqaga" bilan yopish uchun.
+  ///
+  /// Qidiruv va xabar tanlash holati _ConversationPaneState da yashaydi,
+  /// tizimning "orqaga" tugmasi esa shu sahifaning PopScope iga tushadi.
+  /// Ikkinchi PopScope qo'yib bo'lmaydi — bitta bosishda ikkalasi ham
+  /// ishlab ketardi. Shuning uchun panel o'z ishlovchisini shu yerga
+  /// ro'yxatdan o'tkazadi: u true qaytarsa, bosish o'sha yerda tugadi.
+  bool Function()? conversationBackHandler;
   String? _archiveOwner;
   DateTime? _lastBackPress;
 
@@ -276,6 +285,8 @@ class _ConversationPaneState extends State<_ConversationPane>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    context.findAncestorStateOfType<_ChatPageState>()?.conversationBackHandler =
+        _handleSystemBack;
     unawaited(_restoreMessagePreferencesForActiveChat());
   }
 

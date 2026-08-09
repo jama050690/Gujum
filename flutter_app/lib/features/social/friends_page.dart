@@ -627,7 +627,7 @@ class _FriendsPageState extends State<FriendsPage> {
         ));
         await _openDeviceContactInsert(name: name, phone: phone, t: t);
         if (!mounted) return;
-        await _openChat(matched.first);
+        _openChat(matched.first);
         return;
       }
     } catch (error) {
@@ -736,26 +736,23 @@ class _FriendsPageState extends State<FriendsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  Future<void> _openChat(SimpleUser user) async {
-    // Bo'lim qobig'i pop dan oldin olinadi — keyin bu context eskirishi
-    // mumkin.
-    final shell = HomeShellScope.of(context);
-    await context.read<ChatController>().startChatWith(
+  void _openChat(SimpleUser user) {
+    // Bo'limga DARHOL o'tamiz va suhbat ochilishini kutmaymiz.
+    //
+    // Ilgari bu yerda startChatWith kutilardi, u esa ichida serverdan
+    // xabarlarni oladi — ya'ni kontakt bosilgandan keyin javob kelguncha
+    // ekranda Kontaktlar turaverardi va ilova sekin tuyulardi. openChat
+    // suhbatni darhol ochib, xabarlarni keyin to'ldiradi, shuning uchun
+    // kutishning hojati yo'q.
+    HomeShellScope.of(context)?.selectTab(HomeTab.chats);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    unawaited(context.read<ChatController>().startChatWith(
           SearchUser(
             username: user.username,
             fullName: user.fullName,
             avatar: user.avatar,
           ),
-        );
-    if (!mounted) {
-      return;
-    }
-    // Kontaktlar endi alohida sahifa emas, pastdagi paneldagi bo'lim:
-    // popUntil hech narsa yopmaydi va suhbat ochilgani bilan foydalanuvchi
-    // Kontaktlar bo'limida qolib ketardi. Ochilgan suhbatni ko'rsatish
-    // uchun Suhbatlar bo'limiga o'tamiz.
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    shell?.selectTab(HomeTab.chats);
+        ));
   }
 
   void _showError(Object error) {

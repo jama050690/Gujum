@@ -109,8 +109,13 @@ class _CallsPageState extends State<CallsPage> {
                   entry: entry,
                   settings: settings,
                   isOutgoing: entry.caller == me,
-                  onTap: () async {
-                    await chat.openChat(InboxItem(
+                  onTap: () {
+                    // Suhbat ochilishini kutmaymiz — u darhol ochiladi,
+                    // xabarlar esa keyin to'ldiriladi. Kutilsa, tarixdan
+                    // bosilgandan keyin ekran bir zum qotib turardi.
+                    Navigator.of(context).pop();
+                    widget.onChatOpened?.call();
+                    unawaited(chat.openChat(InboxItem(
                       username: entry.peerUsername,
                       fullName: entry.peerFullName,
                       avatar: entry.peerAvatar,
@@ -118,13 +123,7 @@ class _CallsPageState extends State<CallsPage> {
                       lastMessage: '',
                       lastMessageAt: entry.createdAt,
                       unreadCount: 0,
-                    ));
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      // Suhbat Suhbatlar bo'limida ochiladi — o'sha yerga
-                      // o'tamiz, aks holda ekranda Kontaktlar qolardi.
-                      widget.onChatOpened?.call();
-                    }
+                    )));
                   },
                 ),
               ),
