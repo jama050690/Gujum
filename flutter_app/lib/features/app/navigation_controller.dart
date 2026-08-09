@@ -46,6 +46,20 @@ class NavigationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Suhbatlarga qaytaradi va tarixni tozalaydi.
+  ///
+  /// selectTab dan foydalanib bo'lmaydi: u "qayerdan kelindi" ni yozib
+  /// qo'yadi, ya'ni "orqaga" bilan uyga qaytish yangi yozuv yaratardi va
+  /// keyingi bosish yana o'sha bo'limga olib borardi — ikki bo'lim
+  /// o'rtasida cheksiz aylanish. Uy — oxirgi nuqta, undan keyin faqat
+  /// chiqish.
+  void goHome() {
+    _returnTab = null;
+    if (_index == HomeTab.chats) return;
+    _index = HomeTab.chats;
+    notifyListeners();
+  }
+
   /// Avvalgi bo'limga qaytaradi. Qaytadigan joy bo'lmasa false — bunda
   /// "orqaga" odatdagicha davom etadi (chiqish so'raladi).
   bool popTab() {
