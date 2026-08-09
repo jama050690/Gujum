@@ -52,6 +52,14 @@ class GoogleAuthService {
       ].where((value) => value != null && value.trim().isNotEmpty).join(' | ');
 
       final normalized = details.toLowerCase();
+      // Xabar Play xizmatlaridan keladi: "Apps with uid 95xxxxx cannot
+      // masquerade as package ... in uid xxxxx" — 95 klon foydalanuvchi.
+      if (normalized.contains('masquerade')) {
+        throw GoogleAuthException(
+          GoogleAuthErrorCode.clonedApp,
+          details: details,
+        );
+      }
       if (normalized.contains('developer_error') ||
           normalized.contains('apiexception: 10') ||
           normalized.contains(' 10 ') ||
@@ -84,6 +92,15 @@ enum GoogleAuthErrorCode {
   androidClientMismatch,
   cancelled,
   missingIdToken,
+
+  /// Ilova klonlangan muhitda ishlayapti (Samsung "Dual Messenger",
+  /// ikkilamchi foydalanuvchi va h.k.).
+  ///
+  /// Google Play xizmatlari klonga asosiy ilova nomidan token bermaydi:
+  /// "cannot masquerade as package ...". Bu bizning sozlamalarimizga
+  /// bog'liq emas va tuzatib bo'lmaydi — foydalanuvchiga nima qilishini
+  /// aytish kerak.
+  clonedApp,
   failed,
 }
 
