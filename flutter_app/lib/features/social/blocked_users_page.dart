@@ -5,6 +5,7 @@ import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/social_models.dart';
 import '../settings/settings_controller.dart';
+import '../auth/auth_controller.dart';
 import 'social_repository.dart';
 import '../../core/widgets/avatar_image.dart';
 
@@ -22,20 +23,40 @@ class BlockedUsersPage extends StatefulWidget {
 }
 
 class _BlockedUsersPageState extends State<BlockedUsersPage> {
+  /// Oxirgi ro'yxat — sahifa yopilgandan keyin ham qoladi.
+  ///
+  /// Sahifa har ochilganda serverdan so'ralardi va shu vaqt davomida
+  /// faqat aylanma ko'rinardi; serverga bitta so'rov 1-2 soniya ketadi.
+  /// Ro'yxat kimga tegishli ekani ham saqlanadi: boshqa akkaunt kirganda
+  /// eskisi ko'rinib qolmasin.
+  static String? _cacheOwner;
+  static List<SimpleUser>? _cached;
+
   List<SimpleUser> _blocked = const [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    final owner = context.read<AuthController>().user?.username;
+    if (owner != null && owner == _cacheOwner && _cached != null) {
+      _blocked = _cached!;
+      _loading = false;
+    } else {
+      _cacheOwner = null;
+      _cached = null;
+    }
     _load();
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+    // Ko'rsatadigan narsa bo'lsa aylanma chiqmaydi.
+    if (mounted) setState(() => _loading = _blocked.isEmpty);
     try {
       final blocked = await context.read<SocialRepository>().fetchBlockedUsers();
       if (!mounted) return;
+      _cacheOwner = context.read<AuthController>().user?.username;
+      _cached = blocked;
       setState(() {
         _blocked = blocked;
         _loading = false;
@@ -52,10 +73,12 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     try {
       await context.read<SocialRepository>().unblockUser(user.username);
       if (!mounted) return;
-      setState(() {
-        _blocked =
-            _blocked.where((item) => item.username != user.username).toList();
-      });
+      final updated =
+          _blocked.where((item) => item.username != user.username).toList();
+      // Keshni ham yangilaymiz — aks holda sahifa qayta ochilganda
+      // blokdan chiqarilgan odam yana ro'yxatda ko'rinardi.
+      _cached = updated;
+      setState(() => _blocked = updated);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

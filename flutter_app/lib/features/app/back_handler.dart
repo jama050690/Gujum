@@ -60,6 +60,10 @@ class _AppBackHandlerState extends State<AppBackHandler> {
       }
       if (chat.activeChat != null) {
         chat.showSavedMessages ? chat.closeSavedMessages() : chat.closeChat();
+        // Suhbat boshqa bo'limdan ochilgan bo'lsa — o'sha yerga
+        // qaytamiz. Masalan Sozlamalardagi "Saqlangan xabarlar":
+        // yopilgach suhbatlar ro'yxatida qolib ketmaydi.
+        nav.popTab();
         return true;
       }
       // 5-6. Ro'yxat ustidagilar: qidiruv → arxiv.
@@ -76,7 +80,9 @@ class _AppBackHandlerState extends State<AppBackHandler> {
     // 7. Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
     if (nav.popTab()) return true;
     if (nav.index != HomeTab.chats) {
-      nav.selectTab(HomeTab.chats);
+      // Tarix yozilmaydi: aks holda uyga qaytish yangi yozuv yaratib,
+      // keyingi bosish yana orqaga olib borardi (cheksiz aylanish).
+      nav.goHome();
       return true;
     }
 

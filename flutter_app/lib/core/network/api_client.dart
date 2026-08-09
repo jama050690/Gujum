@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import 'http_client_factory.dart';
 import 'session_store.dart';
 import '../../l10n/app_strings.dart';
 
@@ -34,7 +35,9 @@ class ApiClient {
   /// safar yangi klient ochib, yangi TCP ulanish va to'liq TLS qo'l siqishni
   /// bajarardi. Ya'ni har bir API chaqiruviga ikkita ortiqcha borish-kelish
   /// qo'shilardi — ilova sekin ko'rinishining asosiy sabablaridan biri.
-  final http.Client _client = http.Client();
+  /// Ulanish bo'sh turganda ham bir muddat saqlanadi — izohi
+  /// [createHttpClient] da.
+  final http.Client _client = createHttpClient();
 
   void dispose() => _client.close();
 

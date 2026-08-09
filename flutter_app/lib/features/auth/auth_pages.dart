@@ -164,12 +164,18 @@ class _SignInPageState extends State<SignInPage> {
         GoogleAuthErrorCode.androidClientMismatch =>
           t('google_android_client_mismatch'),
         GoogleAuthErrorCode.missingIdToken => t('google_token_missing'),
+        GoogleAuthErrorCode.clonedApp => t('google_cloned_app'),
         GoogleAuthErrorCode.failed => t('google_sign_in_failed'),
         GoogleAuthErrorCode.cancelled => '',
       };
       if (error.details != null && error.details!.trim().isNotEmpty) {
         debugPrint('Google login details: ${error.details}');
-        message = '$message\n${error.details}';
+        // Klon holatida xom matn ("cannot masquerade as package ...")
+        // foydalanuvchiga hech narsa bermaydi — sabab sozlamada emas,
+        // muhitda. Qolgan xatolarda u tashxis uchun foydali.
+        if (error.code != GoogleAuthErrorCode.clonedApp) {
+          message = '$message\n${error.details}';
+        }
       }
       if (mounted) setState(() => _error = message);
     } on ApiException catch (error) {

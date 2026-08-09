@@ -35,12 +35,20 @@ class _CallsPageState extends State<CallsPage> {
   @override
   void initState() {
     super.initState();
+    // Avvalgi ro'yxat bo'lsa — darhol ko'rsatamiz, aylanmasiz.
+    final cached = context.read<ChatController>().callHistory;
+    if (cached.isNotEmpty) {
+      _history = cached;
+      _loading = false;
+    }
     unawaited(_load());
   }
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      // Ko'rsatadigan narsa bo'lsa aylanma chiqmaydi — ro'yxat joyida
+      // qoladi va jimgina yangilanadi.
+      _loading = _history.isEmpty;
       _error = null;
     });
     try {
