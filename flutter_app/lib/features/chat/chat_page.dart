@@ -66,15 +66,7 @@ part 'chat_page_parts/inline_video.dart';
 part 'chat_page_parts/avatar_time.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key, this.active = true});
-
-  /// Pastdagi navigatsiya panelida shu bo'lim ochiqmi.
-  ///
-  /// Bo'limlar IndexedStack da yonma-yon turadi, ya'ni ChatPage boshqa
-  /// bo'lim ochiq bo'lganda ham qurilgan holida qoladi va uning PopScope i
-  /// ham ro'yxatda bo'ladi. Bayroqsiz "orqaga" tugmasi Sozlamalar
-  /// bo'limida ham suhbatni yopib yuborardi.
-  final bool active;
+  const ChatPage({super.key});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -101,10 +93,8 @@ class _ChatPageState extends State<ChatPage> {
   Set<String> _mutedChats = <String>{};
   List<SearchUser> _globalResults = const [];
   bool _loadingGlobalSearch = false;
-  bool _showArchived = false;
 
   String? _archiveOwner;
-  DateTime? _lastBackPress;
 
   @override
   void didChangeDependencies() {

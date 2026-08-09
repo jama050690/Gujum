@@ -71,23 +71,12 @@ class _HomeShellState extends State<HomeShell> {
     Widget tab(int index, Widget Function() build) =>
         nav.isVisited(index) ? build() : const SizedBox.shrink();
 
-    return PopScope(
-      // ChatPage ham PopScope ishlatadi va u shu marshrutda qoladi.
-      // Suhbatlar bo'limida "orqaga" ni o'sha hal qiladi (suhbat, qidiruv,
-      // arxiv, keyin bo'lim), bu yerda esa faqat qolgan bo'limlar.
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop || nav.index == HomeTab.chats) return;
-        // Qo'ng'iroq oynasi bosishni o'zi ishlatsa, bo'lim almashmaydi.
-        if (call.consumesBackPress) return;
-        if (nav.popTab()) return;
-        nav.selectTab(HomeTab.chats);
-      },
-      child: Scaffold(
+    return Scaffold(
+
         body: IndexedStack(
           index: nav.index,
           children: [
-            ChatPage(active: nav.index == HomeTab.chats),
+            const ChatPage(),
             tab(HomeTab.contacts, () => const FriendsPage(titleKey: 'contacts')),
             tab(HomeTab.settings, () => const SettingsPage()),
             tab(HomeTab.profile, () => const ProfilePage()),
@@ -107,7 +96,6 @@ class _HomeShellState extends State<HomeShell> {
                   t('profile_my'),
                 ],
               ),
-      ),
     );
   }
 }

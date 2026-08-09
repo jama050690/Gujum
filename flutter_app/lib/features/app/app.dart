@@ -10,6 +10,7 @@ import '../auth/auth_pages.dart';
 import '../auth/onboarding_flow.dart';
 import '../call/call_overlay.dart';
 import 'home_shell.dart';
+import 'back_handler.dart';
 import 'connection_banner.dart';
 import '../settings/settings_controller.dart';
 
@@ -44,7 +45,12 @@ class GujumApp extends StatelessWidget {
               ? const AuthFlow()
               : OnboardingFlow.isNeeded(auth, context.read<SessionStore>())
                   ? const OnboardingFlow()
-                  : const HomeShell(),
+                  // "Orqaga" asosiy ekran uchun bitta joyda hal qilinadi.
+                  // Kirish va ro'yxatdan o'tish oqimlarining o'z
+                  // qadamlari bor va ular o'zlari hal qiladi — ularni
+                  // ham o'rasak, bitta bosishda ikkalasi ham ishlab
+                  // ketardi.
+                  : const AppBackHandler(child: HomeShell()),
         ),
       ),
     );

@@ -171,16 +171,9 @@ class _CallOverlayHostState extends State<CallOverlayHost>
       );
     }
 
-    return PopScope(
-      canPop: !blocksPop,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (controller != null && controller.hasSession && !_minimized) {
-          _setMinimized(true);
-        }
-      },
-      child: content,
-    );
+    // "Orqaga" endi bitta joyda — AppBackHandler da.
+    return content;
+
   }
 }
 

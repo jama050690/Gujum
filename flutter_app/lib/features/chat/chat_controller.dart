@@ -169,6 +169,23 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Arxiv ro'yxati ochiqmi. "Orqaga" ni hal qiladigan joy buni ham
+  /// bilishi kerak, shuning uchun holat shu yerda.
+  bool _showArchived = false;
+  bool get showArchived => _showArchived;
+
+  void openArchive() {
+    if (_showArchived) return;
+    _showArchived = true;
+    notifyListeners();
+  }
+
+  void closeArchive() {
+    if (!_showArchived) return;
+    _showArchived = false;
+    notifyListeners();
+  }
+
   void openChatSearch() {
     if (_chatSearchActive) return;
     _chatSearchActive = true;
