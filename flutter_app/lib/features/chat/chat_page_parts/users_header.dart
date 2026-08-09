@@ -25,7 +25,17 @@ class _UsersHeader extends StatefulWidget {
 
 class _UsersHeaderState extends State<_UsersHeader> {
   /// Telegram qidiruvni sarlavha o'rnida ochadi — alohida modal oyna emas.
-  bool _searchOpen = false;
+  ///
+  /// Bayroqning o'zi yetarli emas edi: u shu vidjetning holatida yashaydi,
+  /// qidiruv matni va natijalar esa sahifada. Vidjet holati qaytadan
+  /// yaratilsa (masalan, suhbat ochib qaytilganda) bayroq false bo'lib
+  /// qolar, matn va natijalar esa joyida turardi — maydon yo'qolib,
+  /// ro'yxat qidiruv natijalarida qotib qolardi. Endi matn bo'lsa,
+  /// qidiruv har doim ochiq hisoblanadi.
+  bool _explicitlyOpen = false;
+
+  bool get _searchOpen =>
+      _explicitlyOpen || widget.searchController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +102,7 @@ class _UsersHeaderState extends State<_UsersHeader> {
                         onClose: () {
                           widget.searchController.clear();
                           widget.onChanged('');
-                          setState(() => _searchOpen = false);
+                          setState(() => _explicitlyOpen = false);
                         },
                       )
                     : Text(
@@ -106,7 +116,7 @@ class _UsersHeaderState extends State<_UsersHeader> {
               ),
               if (!widget.showArchived && !_searchOpen) ...[
                 IconButton(
-                  onPressed: () => setState(() => _searchOpen = true),
+                  onPressed: () => setState(() => _explicitlyOpen = true),
                   icon: const Icon(Icons.search_rounded),
                   color: titleColor,
                 ),

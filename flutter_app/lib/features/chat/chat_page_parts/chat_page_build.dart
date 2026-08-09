@@ -19,6 +19,13 @@ extension _ChatPageStateBuild on _ChatPageState {
           _closeConversation(chat);
           return;
         }
+        // Qidiruv ochiq — avval uni tozalaymiz. Ekrandagi "x" allaqachon
+        // shunday qilardi, tizim tugmasi esa yo'q.
+        if (_searchController.text.trim().isNotEmpty) {
+          _searchController.clear();
+          _handleSearchChanged(chat, '');
+          return;
+        }
         // Arxiv ro'yxati ochiq — oddiy ro'yxatga qaytamiz. Ilgari bu
         // tekshirilmasdi va arxivda "orqaga" to'g'ridan-to'g'ri "chiqish
         // uchun yana bir marta bosing" ga olib borardi.
