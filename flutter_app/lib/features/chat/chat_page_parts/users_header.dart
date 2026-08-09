@@ -79,8 +79,9 @@ class _UsersHeaderState extends State<_UsersHeader> {
                 // ochiladi.
                 onTap: widget.showArchived
                     ? widget.onBack
-                    : () => HomeShellScope.of(context)
-                        ?.selectTab(HomeTab.profile),
+                    : () => context
+                        .read<NavigationController>()
+                        .selectTab(HomeTab.profile),
                 child: Container(
                   width: 44,
                   height: 44,

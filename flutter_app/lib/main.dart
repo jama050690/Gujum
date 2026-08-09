@@ -9,6 +9,7 @@ import 'core/network/api_client.dart';
 import 'core/network/session_store.dart';
 import 'core/network/socket_service.dart';
 import 'features/app/app.dart';
+import 'features/app/navigation_controller.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/google_auth_service.dart';
 import 'features/auth/auth_repository.dart';
@@ -101,6 +102,9 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: authController),
         ChangeNotifierProvider.value(value: callController),
         ChangeNotifierProvider.value(value: chatController),
+        // MaterialApp dan yuqorida: Navigator.push bilan ochilgan
+        // sahifalar ham bo'limni almashtira olsin.
+        ChangeNotifierProvider(create: (_) => NavigationController()),
       ],
       child: const GujumApp(),
     ),

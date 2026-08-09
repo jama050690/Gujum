@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
+import '../app/navigation_controller.dart';
 import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../chat/chat_controller.dart';
@@ -18,16 +19,7 @@ import '../settings/settings_controller.dart';
 /// xabar yozilsa u ro'yxatdan yo'qolardi, eski qo'ng'iroqlar esa umuman
 /// chiqmasdi. Endi /api/calls/history dan oxirgi 200 tasi olinadi.
 class CallsPage extends StatefulWidget {
-  const CallsPage({super.key, this.onChatOpened});
-
-  /// Suhbat ochilgandan keyin chaqiriladi — odatda Suhbatlar bo'limiga
-  /// o'tish uchun.
-  ///
-  /// Bu sahifa Navigator.push bilan ochiladi, ya'ni u HomeShell ning
-  /// ostida emas, yonida turadi: HomeShellScope.of(context) bu yerda
-  /// har doim null qaytaradi. Shuning uchun bo'limni almashtirishni
-  /// ochgan tomon (Kontaktlar) o'zi beradi.
-  final VoidCallback? onChatOpened;
+  const CallsPage({super.key});
 
   @override
   State<CallsPage> createState() => _CallsPageState();
@@ -165,8 +157,13 @@ class _CallsPageState extends State<CallsPage> {
                 onTap: () {
                   // Suhbat ochilishini kutmaymiz — u darhol ochiladi,
                   // xabarlar esa keyin to'ldiriladi.
+                  // Bo'lim holati MaterialApp dan yuqorida turadi, ya'ni
+                  // bu sahifa (u Navigator.push bilan ochilgan bo'lsa ham)
+                  // uni to'g'ridan-to'g'ri o'zgartira oladi.
+                  context.read<NavigationController>().selectTab(
+                        HomeTab.chats,
+                      );
                   Navigator.of(context).pop();
-                  widget.onChatOpened?.call();
                   unawaited(chat.openChat(InboxItem(
                     username: entry.peerUsername,
                     fullName: entry.peerFullName,

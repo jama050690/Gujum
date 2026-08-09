@@ -49,7 +49,7 @@ extension _ChatPageStateBuild on _ChatPageState {
         // Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
         // Masalan Sozlamalar → "Saqlangan xabarlar": suhbat yopilgach
         // ro'yxatda qolib ketmasdan Sozlamalarga qaytadi.
-        if (HomeShellScope.of(context)?.popTab() == true) {
+        if (context.read<NavigationController>().popTab()) {
           _lastBackPress = null;
           return;
         }

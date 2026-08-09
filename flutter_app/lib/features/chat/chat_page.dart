@@ -28,7 +28,7 @@ import '../auth/auth_controller.dart';
 import '../call/call_controller.dart';
 import '../settings/settings_controller.dart';
 import '../social/contact_profile_page.dart';
-import '../app/home_shell_scope.dart';
+import '../app/navigation_controller.dart';
 import '../social/social_repository.dart';
 import 'chat_controller.dart';
 import 'media_viewer_page.dart';
