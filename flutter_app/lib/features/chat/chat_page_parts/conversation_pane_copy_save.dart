@@ -109,7 +109,7 @@ extension _ConversationPaneCopySave on _ConversationPaneState {
       }
     }
     if (!mounted) return;
-    applyState(() => _selectedMessageIds = <int>{});
+    widget.chat.clearMessageSelection();
     _showInfoSnackBar(t('done'));
   }
 

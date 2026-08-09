@@ -32,28 +32,17 @@ class _UsersHeaderState extends State<_UsersHeader> {
   /// qolar, matn va natijalar esa joyida turardi — maydon yo'qolib,
   /// ro'yxat qidiruv natijalarida qotib qolardi. Endi matn bo'lsa,
   /// qidiruv har doim ochiq hisoblanadi.
-  bool _explicitlyOpen = false;
-
+  /// Ochiqlik ChatController da: "orqaga" ni hal qiladigan joy ham shu
+  /// bayroqni ko'radi. Matn bo'sh bo'lsa ham maydon ochiq turishi mumkin,
+  /// shuning uchun faqat matnga qarab bo'lmaydi.
   bool get _searchOpen =>
-      _explicitlyOpen || widget.searchController.text.trim().isNotEmpty;
+      context.read<ChatController>().inboxSearchOpen ||
+      widget.searchController.text.trim().isNotEmpty;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Tizimning "orqaga" tugmasi sahifada hal qilinadi, qidiruvning ochiq
-    // ekani esa shu yerda. Matnni tozalash kifoya emas edi: bayroq shu
-    // yerda qolib, maydon ochiq turaverardi. Sahifa shu ilgak orqali uni
-    // ham yopadi.
-    context.findAncestorStateOfType<_ChatPageState>()?.closeInboxSearch =
-        _close;
-  }
-
-  bool _close() {
-    final wasOpen = _searchOpen;
+  void _close() {
     widget.searchController.clear();
     widget.onChanged('');
-    if (mounted) setState(() => _explicitlyOpen = false);
-    return wasOpen;
+    context.read<ChatController>().closeInboxSearch();
   }
 
   @override
@@ -120,7 +109,10 @@ class _UsersHeaderState extends State<_UsersHeader> {
                         // qaytadan qurilganda (suhbatdan qaytish) maydon
                         // matn tufayli ochiq bo'ladi va autofocus
                         // klaviaturani o'z-o'zidan ochib yuborardi.
-                        autofocus: _explicitlyOpen,
+                        // Faqat foydalanuvchi ochganda fokus olsin: matn
+                        // tufayli ochilganda (suhbatdan qaytish)
+                        // klaviatura o'z-o'zidan chiqmasin.
+                        autofocus: context.read<ChatController>().inboxSearchOpen,
                         hintText: AppStrings.text(
                             widget.settings.localeCode, 'search'),
                         onChanged: widget.onChanged,
@@ -137,7 +129,8 @@ class _UsersHeaderState extends State<_UsersHeader> {
               ),
               if (!widget.showArchived && !_searchOpen) ...[
                 IconButton(
-                  onPressed: () => setState(() => _explicitlyOpen = true),
+                  onPressed: () =>
+                      context.read<ChatController>().openInboxSearch(),
                   icon: const Icon(Icons.search_rounded),
                   color: titleColor,
                 ),

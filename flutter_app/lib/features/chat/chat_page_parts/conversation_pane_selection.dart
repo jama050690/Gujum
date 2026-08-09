@@ -68,32 +68,17 @@ List<ChatMessage> _selectedMessages(List<ChatMessage> messages) {
   return messages
       .where(
         (message) =>
-            message.id != null && _selectedMessageIds.contains(message.id),
+            message.id != null &&
+            widget.chat.selectedMessageIds.contains(message.id),
       )
       .toList(growable: false);
 }
 
-/// Tizimning "orqaga" tugmasi suhbat ichida bosilganda.
-///
-/// true qaytarsa — bosish shu yerda ishlatildi va suhbat yopilmaydi.
-/// Ekrandagi strelka ham xuddi shu tartibda ishlaydi.
-bool _handleSystemBack() {
-  if (_selectedMessageIds.isNotEmpty) {
-    _clearSelection();
-    return true;
-  }
-  if (_chatSearchActive) {
-    _closeChatSearch();
-    return true;
-  }
-  return false;
-}
-
 void _clearSelection() {
-  if (_selectedMessageIds.isEmpty) {
+  if (!widget.chat.hasMessageSelection) {
     return;
   }
-  applyState(() => _selectedMessageIds = <int>{});
+  widget.chat.clearMessageSelection();
 }
 
 void _clearReply() {
@@ -116,9 +101,9 @@ void _clearEdit({bool clearText = true}) {
 }
 
 void _startReply(ChatMessage message) {
+  widget.chat.clearMessageSelection();
   applyState(() {
     _replyingTo = message;
-    _selectedMessageIds = <int>{};
     if (_editingMessage != null) {
       _editingMessage = null;
       _messageController.clear();
@@ -135,10 +120,10 @@ void _startEdit(
     return;
   }
 
+  widget.chat.clearMessageSelection();
   applyState(() {
     _editingMessage = message;
     _replyingTo = null;
-    _selectedMessageIds = <int>{};
   });
   _messageController.value = TextEditingValue(
     text: message.content,
@@ -152,15 +137,15 @@ void _toggleSelectedMessage(ChatMessage message) {
     return;
   }
 
-  final next = <int>{..._selectedMessageIds};
+  final next = <int>{...widget.chat.selectedMessageIds};
   if (next.contains(messageId)) {
     next.remove(messageId);
   } else {
     next.add(messageId);
   }
 
+  widget.chat.setMessageSelection(next);
   applyState(() {
-    _selectedMessageIds = next;
     _replyingTo = null;
     if (_editingMessage != null) {
       _editingMessage = null;
@@ -191,8 +176,10 @@ Future<void> _pruneDeletedMessageState(Set<int> ids) async {
   }
 
   var pinnedChanged = false;
+  widget.chat.setMessageSelection(
+    <int>{...widget.chat.selectedMessageIds}..removeAll(ids),
+  );
   applyState(() {
-    _selectedMessageIds.removeAll(ids);
     final previousPinnedCount = _pinnedMessageIds.length;
     _pinnedMessageIds.removeAll(ids);
     pinnedChanged = previousPinnedCount != _pinnedMessageIds.length;

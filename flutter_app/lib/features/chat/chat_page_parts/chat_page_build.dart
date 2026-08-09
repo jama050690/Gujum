@@ -25,16 +25,28 @@ extension _ChatPageStateBuild on _ChatPageState {
           // hisobga olinmay, ikki soniya ichidagi keyingi bosish ilovani
           // ogohlantirishsiz yopib yuborardi.
           _lastBackPress = null;
-          if (conversationBackHandler?.call() == true) return;
+          // Tanlash va suhbat ichidagi qidiruv holati ChatController da —
+          // panel o'z ishlovchisini sahifaga ro'yxatdan o'tkazishi va uni
+          // dispose da tozalashi kerak emas.
+          if (chat.hasMessageSelection) {
+            chat.clearMessageSelection();
+            return;
+          }
+          if (chat.chatSearchActive) {
+            chat.closeChatSearch();
+            return;
+          }
           _closeConversation(chat);
           return;
         }
         // Qidiruv ochiq — avval uni tozalaymiz. Ekrandagi "x" allaqachon
         // shunday qilardi, tizim tugmasi esa yo'q.
         // Qidiruv ochiq bo'lsa — avval o'shani yopamiz. Maydon matnsiz
-        // ham ochiq turishi mumkin, shuning uchun holatni panelning o'zi
-        // aytadi; u matnni ham, maydonni ham yopadi.
-        if (closeInboxSearch?.call() == true) {
+        // ham ochiq turishi mumkin, shuning uchun bayroq ham tekshiriladi.
+        if (chat.inboxSearchOpen || _searchController.text.trim().isNotEmpty) {
+          _searchController.clear();
+          _handleSearchChanged(chat, '');
+          chat.closeInboxSearch();
           _lastBackPress = null;
           return;
         }
