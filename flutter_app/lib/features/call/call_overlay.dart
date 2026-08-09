@@ -28,7 +28,8 @@ class _CallOverlayHostState extends State<CallOverlayHost>
   /// ekran kichrayadi va foydalanuvchi ilovadan bemalol foydalanaveradi,
   /// qo'ng'iroq esa davom etadi. Yuqoridagi tasmani bosib to'liq ekranga
   /// qaytiladi.
-  bool _minimized = false;
+  /// Holat CallController da — izohi [CallController.isCallUiMinimized] da.
+  bool get _minimized => _controller?.isCallUiMinimized ?? false;
 
   @override
   void initState() {
@@ -68,7 +69,8 @@ class _CallOverlayHostState extends State<CallOverlayHost>
 
   void _setMinimized(bool value) {
     if (_minimized == value) return;
-    setState(() => _minimized = value);
+    _controller?.isCallUiMinimized = value;
+    if (mounted) setState(() {});
     _callOverlayEntry?.markNeedsBuild();
   }
 
@@ -77,7 +79,7 @@ class _CallOverlayHostState extends State<CallOverlayHost>
     final ctrl = _controller;
     final shouldShow = ctrl != null && (ctrl.hasIncomingCall || ctrl.hasSession);
     if (!shouldShow && _minimized) {
-      _minimized = false;
+      _controller?.isCallUiMinimized = false;
     }
     if (shouldShow && _callOverlayEntry == null) {
       _showCallOverlay();

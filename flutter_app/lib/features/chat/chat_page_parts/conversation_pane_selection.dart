@@ -73,6 +73,22 @@ List<ChatMessage> _selectedMessages(List<ChatMessage> messages) {
       .toList(growable: false);
 }
 
+/// Tizimning "orqaga" tugmasi suhbat ichida bosilganda.
+///
+/// true qaytarsa — bosish shu yerda ishlatildi va suhbat yopilmaydi.
+/// Ekrandagi strelka ham xuddi shu tartibda ishlaydi.
+bool _handleSystemBack() {
+  if (_selectedMessageIds.isNotEmpty) {
+    _clearSelection();
+    return true;
+  }
+  if (_chatSearchActive) {
+    _closeChatSearch();
+    return true;
+  }
+  return false;
+}
+
 void _clearSelection() {
   if (_selectedMessageIds.isEmpty) {
     return;

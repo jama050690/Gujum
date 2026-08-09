@@ -3,6 +3,23 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   static const defaultSocketPath = '/api/bootchat/socket.io/';
   static const defaultLocale = 'uz';
+
+  /// Qidiruv hamma joyda bir xil ishlashi uchun.
+  ///
+  /// Ilgari har bir ekran o'zicha edi: suhbatlarda 320 ms va serverga
+  /// so'rov uchun kamida 2 harf, kontaktlarda 350 ms va bitta harfdan,
+  /// uzatish oynasida yana boshqacha. Natijada bir xil so'z bir joyda
+  /// topilib, boshqasida topilmasdi.
+  static const searchDebounce = Duration(milliseconds: 320);
+
+  /// Serverdan qidirish uchun eng kam harf soni. Mahalliy ro'yxatlar
+  /// birinchi harfdanoq filtrlanadi.
+  static const minGlobalSearchChars = 2;
+
+  /// Qo'ng'iroqlar tarixi bir so'rovda shuncha yozuv qaytaradi. Server
+  /// tomondagi CALL_HISTORY_LIMIT bilan bir xil bo'lishi kerak: klient
+  /// "to'liq bo'lak keldi, demak davomi bor" deb shunga qarab hisoblaydi.
+  static const callHistoryPageSize = 200;
   static const defaultPort = 4000;
   static const productionBaseUrl = 'https://gujum.jamshiddin.uz';
   static const androidUsbBaseUrl = 'http://127.0.0.1:4000';

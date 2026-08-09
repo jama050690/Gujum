@@ -270,6 +270,30 @@ class CallController extends ChangeNotifier with WidgetsBindingObserver {
   /// davom etayotgani ham). Ilovadan chiqishda shu tekshiriladi.
   bool get isCallActive => hasSession || hasIncomingCall;
 
+  /// Qo'ng'iroq oynasi kichraytirilganmi.
+  ///
+  /// Bayroq ilgari overlay vidjetining ichida edi. Lekin "orqaga" tugmasi
+  /// bir marta bosilganda ro'yxatdagi BARCHA PopScope lar ishlaydi, ya'ni
+  /// qo'ng'iroq oynasi kichrayishi bilan birga orqadagi suhbat ham
+  /// yopilib ketardi. Boshqa ishlovchilar bosishni qo'ng'iroq
+  /// "yeyayotgani"ni bilishi uchun holat shu yerda.
+  bool _uiMinimized = false;
+  bool get isCallUiMinimized => _uiMinimized;
+
+  set isCallUiMinimized(bool value) {
+    if (_uiMinimized == value) return;
+    _uiMinimized = value;
+    notifyListeners();
+  }
+
+  /// Qo'ng'iroq oynasi "orqaga" bosishini o'zi ishlatadimi.
+  ///
+  /// Kiruvchi qo'ng'iroqda — javob berish yoki rad etish kerak; ochiq
+  /// qo'ng'iroqda — bosish uni kichraytiradi. Ikkalasida ham orqadagi
+  /// ekran tegilmasligi kerak.
+  bool get consumesBackPress =>
+      hasIncomingCall || (hasSession && !_uiMinimized);
+
   /// Ilovani fonga o'tkazadi (aktivlikni tugatmasdan).
   ///
   /// SystemNavigator.pop() aktivlikni tugatadi va u bilan birga Flutter

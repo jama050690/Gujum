@@ -13,9 +13,44 @@ extension _ChatPageStateBuild on _ChatPageState {
         if (didPop) return;
         // Boshqa bo'lim ochiq — "orqaga" ni qobiq (HomeShell) hal qiladi.
         if (!widget.active) return;
-        // Conversation ochiq bo'lsa — yopamiz, chiqmaymiz
+        // Qo'ng'iroq oynasi bosishni o'zi ishlatadi (kichrayadi yoki javob
+        // kutadi). Flutter bitta bosishda ro'yxatdagi BARCHA PopScope larni
+        // chaqiradi, shuning uchun bu yerda to'xtamasak, qo'ng'iroq
+        // kichrayishi bilan birga orqadagi suhbat ham yopilib ketardi.
+        if (context.read<CallController?>()?.consumesBackPress == true) return;
+        // Suhbat ichida avval qidiruv/tanlash yopiladi, keyingina suhbat.
         if (_hasConversation(chat)) {
+          // Har bir "yutilgan" bosish taymerni ham tozalaydi: aks holda
+          // bir marta ogohlantirish ko'rsatilgach, oradagi bosishlar
+          // hisobga olinmay, ikki soniya ichidagi keyingi bosish ilovani
+          // ogohlantirishsiz yopib yuborardi.
+          _lastBackPress = null;
+          if (conversationBackHandler?.call() == true) return;
           _closeConversation(chat);
+          return;
+        }
+        // Qidiruv ochiq — avval uni tozalaymiz. Ekrandagi "x" allaqachon
+        // shunday qilardi, tizim tugmasi esa yo'q.
+        // Qidiruv ochiq bo'lsa — avval o'shani yopamiz. Maydon matnsiz
+        // ham ochiq turishi mumkin, shuning uchun holatni panelning o'zi
+        // aytadi; u matnni ham, maydonni ham yopadi.
+        if (closeInboxSearch?.call() == true) {
+          _lastBackPress = null;
+          return;
+        }
+        // Arxiv ro'yxati ochiq — oddiy ro'yxatga qaytamiz. Ilgari bu
+        // tekshirilmasdi va arxivda "orqaga" to'g'ridan-to'g'ri "chiqish
+        // uchun yana bir marta bosing" ga olib borardi.
+        if (_showArchived) {
+          applyState(() => _showArchived = false);
+          _lastBackPress = null;
+          return;
+        }
+        // Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
+        // Masalan Sozlamalar → "Saqlangan xabarlar": suhbat yopilgach
+        // ro'yxatda qolib ketmasdan Sozlamalarga qaytadi.
+        if (HomeShellScope.of(context)?.popTab() == true) {
+          _lastBackPress = null;
           return;
         }
         // Chat ro'yxatida — ikki marta bosish kerak

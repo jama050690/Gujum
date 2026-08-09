@@ -25,7 +25,36 @@ class _UsersHeader extends StatefulWidget {
 
 class _UsersHeaderState extends State<_UsersHeader> {
   /// Telegram qidiruvni sarlavha o'rnida ochadi — alohida modal oyna emas.
-  bool _searchOpen = false;
+  ///
+  /// Bayroqning o'zi yetarli emas edi: u shu vidjetning holatida yashaydi,
+  /// qidiruv matni va natijalar esa sahifada. Vidjet holati qaytadan
+  /// yaratilsa (masalan, suhbat ochib qaytilganda) bayroq false bo'lib
+  /// qolar, matn va natijalar esa joyida turardi — maydon yo'qolib,
+  /// ro'yxat qidiruv natijalarida qotib qolardi. Endi matn bo'lsa,
+  /// qidiruv har doim ochiq hisoblanadi.
+  bool _explicitlyOpen = false;
+
+  bool get _searchOpen =>
+      _explicitlyOpen || widget.searchController.text.trim().isNotEmpty;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Tizimning "orqaga" tugmasi sahifada hal qilinadi, qidiruvning ochiq
+    // ekani esa shu yerda. Matnni tozalash kifoya emas edi: bayroq shu
+    // yerda qolib, maydon ochiq turaverardi. Sahifa shu ilgak orqali uni
+    // ham yopadi.
+    context.findAncestorStateOfType<_ChatPageState>()?.closeInboxSearch =
+        _close;
+  }
+
+  bool _close() {
+    final wasOpen = _searchOpen;
+    widget.searchController.clear();
+    widget.onChanged('');
+    if (mounted) setState(() => _explicitlyOpen = false);
+    return wasOpen;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,14 +115,15 @@ class _UsersHeaderState extends State<_UsersHeader> {
                     // Telegram uslubi: maydon sarlavha o'rnida.
                     ? AppSearchField(
                         controller: widget.searchController,
+                        // Faqat foydalanuvchi ochganda fokus olsin. Panel
+                        // qaytadan qurilganda (suhbatdan qaytish) maydon
+                        // matn tufayli ochiq bo'ladi va autofocus
+                        // klaviaturani o'z-o'zidan ochib yuborardi.
+                        autofocus: _explicitlyOpen,
                         hintText: AppStrings.text(
                             widget.settings.localeCode, 'search'),
                         onChanged: widget.onChanged,
-                        onClose: () {
-                          widget.searchController.clear();
-                          widget.onChanged('');
-                          setState(() => _searchOpen = false);
-                        },
+                        onClose: _close,
                       )
                     : Text(
                         widget.showArchived ? (widget.title ?? '') : 'Gujum',
@@ -106,7 +136,7 @@ class _UsersHeaderState extends State<_UsersHeader> {
               ),
               if (!widget.showArchived && !_searchOpen) ...[
                 IconButton(
-                  onPressed: () => setState(() => _searchOpen = true),
+                  onPressed: () => setState(() => _explicitlyOpen = true),
                   icon: const Icon(Icons.search_rounded),
                   color: titleColor,
                 ),

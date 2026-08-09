@@ -1,5 +1,11 @@
 part of '../chat_page.dart';
 
+/// Ro'yxatdagi suhbatlar shu belgi turgan joyga qo'yiladi.
+///
+/// Sarlavha, banner va qidiruv bo'limlari oldindan quriladi (ular kam va
+/// arzon), suhbat qatorlari esa faqat ekranga tushganda.
+const Widget _rowsMarker = SizedBox.shrink(key: ValueKey('inbox-rows'));
+
 class _UsersPanel extends StatelessWidget {
   const _UsersPanel({
     required this.settings,
@@ -139,6 +145,28 @@ class _UsersPanel extends StatelessWidget {
                       onBack: onHideArchived,
                       onChanged: onSearchChanged,
                     ),
+                    // Arxivga kirish yo'li. onShowArchived hech qayerdan
+                    // chaqirilmasdi: arxivlangan suhbat ro'yxatdan
+                    // yo'qolar va uni qaytarib ko'rishning iloji yo'q edi.
+                    // Faqat arxivda biror narsa bo'lsa ko'rsatiladi —
+                    // Telegramda ham shunday.
+                    if (!showArchived && query.isEmpty && archivedChats.isNotEmpty)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.archive_outlined,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        title: Text(t('archive_title')),
+                        trailing: Text(
+                          '${archivedChats.length}',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        onTap: onShowArchived,
+                      ),
                     // "Saqlangan xabarlar" ilgari faqat yon menyuda edi.
                     // Menyu olib tashlangach, u Telegramdagi kabi
                     // ro'yxatning tepasida turadi.
@@ -187,21 +215,9 @@ class _UsersPanel extends StatelessWidget {
                           title: t('archive_title'),
                         )
                       else
-                        ...filteredItems.map(
-                          (item) => _InboxTile(
-                            currentUsername: currentUsername,
-                            settings: settings,
-                            item: item,
-                            isOnline: chat.onlineUsers.contains(item.username),
-                            lastActive: chat.lastActiveFor(item.username),
-                            isPinned: pinnedChats.contains(item.username),
-                            isMuted: mutedChats.contains(item.username),
-                            isActive:
-                                chat.activeChat?.username == item.username,
-                            onTap: () => onOpenChat(item),
-                            onLongPress: () => onShowChatActions(item),
-                          ),
-                        ),
+                        // Qatorlar bu yerda emas, quyida indeks bo'yicha
+                        // quriladi — izohi ListView.builder yonida.
+                        _rowsMarker,
                     ] else ...[
                       if (filteredItems.isEmpty &&
                           chat.inbox.isEmpty &&
@@ -221,22 +237,13 @@ class _UsersPanel extends StatelessWidget {
                           ),
                         )
                       else
-                        ...filteredItems.map(
-                          (item) => _InboxTile(
-                            currentUsername: currentUsername,
-                            settings: settings,
-                            item: item,
-                            isOnline: chat.onlineUsers.contains(item.username),
-                            lastActive: chat.lastActiveFor(item.username),
-                            isPinned: pinnedChats.contains(item.username),
-                            isMuted: mutedChats.contains(item.username),
-                            isActive:
-                                chat.activeChat?.username == item.username,
-                            onTap: () => onOpenChat(item),
-                            onLongPress: () => onShowChatActions(item),
-                          ),
-                        ),
-                      if (query.length >= 2) ...[
+                        // Qatorlar bu yerda emas, quyida indeks bo'yicha
+                        // quriladi — izohi ListView.builder yonida.
+                        _rowsMarker,
+                      // Ko'rsatish chegarasi so'rov chegarasi bilan bir xil
+                      // bo'lishi kerak: aks holda so'rov yuborilib,
+                      // natijasi ko'rsatilmay qolardi.
+                      if (query.length >= AppConfig.minGlobalSearchChars) ...[
                         if (loadingGlobalSearch)
                           const Padding(
                             padding: EdgeInsets.all(16),
@@ -257,9 +264,42 @@ class _UsersPanel extends StatelessWidget {
                       ],
                     ],
                   ];
+                    // Qatorlar dangasa quriladi. Ilgari `items` ichiga
+                    // barcha suhbatlar birdan solinardi va ListView.builder
+                    // ga tayyor ro'yxat berilardi — ya'ni builder hech
+                    // narsa yutmasdi: har bir qator (tarmoqdan rasm
+                    // oladigan avatar bilan) har qayta chizishda qurilardi.
+                    // Endi belgi turgan joyga suhbatlar indeks bo'yicha
+                    // qo'yiladi.
+                    final markerAt = items.indexOf(_rowsMarker);
+                    final rows =
+                        markerAt == -1 ? const <InboxItem>[] : filteredItems;
+                    final extra = rows.isEmpty ? 0 : rows.length - 1;
                     return ListView.builder(
-                      itemCount: items.length,
-                      itemBuilder: (context, index) => items[index],
+                      itemCount: items.length + extra,
+                      itemBuilder: (context, index) {
+                        if (markerAt == -1 || index < markerAt) {
+                          return items[index];
+                        }
+                        final rowIndex = index - markerAt;
+                        if (rowIndex < rows.length) {
+                          final item = rows[rowIndex];
+                          return _InboxTile(
+                            currentUsername: currentUsername,
+                            settings: settings,
+                            item: item,
+                            isOnline: chat.onlineUsers.contains(item.username),
+                            lastActive: chat.lastActiveFor(item.username),
+                            isPinned: pinnedChats.contains(item.username),
+                            isMuted: mutedChats.contains(item.username),
+                            isActive:
+                                chat.activeChat?.username == item.username,
+                            onTap: () => onOpenChat(item),
+                            onLongPress: () => onShowChatActions(item),
+                          );
+                        }
+                        return items[index - extra];
+                      },
                     );
                   }),
                 ),

@@ -318,7 +318,7 @@ class _FriendsPageState extends State<FriendsPage> {
       setState(() => _searchResults = const []);
       return;
     }
-    _searchDebounce = Timer(const Duration(milliseconds: 350), _runSearch);
+    _searchDebounce = Timer(AppConfig.searchDebounce, _runSearch);
   }
 
   /// SMS orqali taklif. Ilova do'koni havolasi hali yo'q, shuning uchun
@@ -470,7 +470,10 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _runSearch() async {
     final query = _searchController.text.trim();
-    if (query.isEmpty) {
+    // Serverga faqat 2 harfdan boshlab murojaat qilamiz — suhbatlar
+    // qidiruvidagi kabi. Mahalliy ro'yxat esa birinchi harfdanoq
+    // filtrlanadi.
+    if (query.length < AppConfig.minGlobalSearchChars) {
       setState(() {
         _searchResults = const [];
       });
@@ -627,7 +630,7 @@ class _FriendsPageState extends State<FriendsPage> {
         ));
         await _openDeviceContactInsert(name: name, phone: phone, t: t);
         if (!mounted) return;
-        await _openChat(matched.first);
+        _openChat(matched.first);
         return;
       }
     } catch (error) {
@@ -736,26 +739,23 @@ class _FriendsPageState extends State<FriendsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  Future<void> _openChat(SimpleUser user) async {
-    // Bo'lim qobig'i pop dan oldin olinadi — keyin bu context eskirishi
-    // mumkin.
-    final shell = HomeShellScope.of(context);
-    await context.read<ChatController>().startChatWith(
+  void _openChat(SimpleUser user) {
+    // Bo'limga DARHOL o'tamiz va suhbat ochilishini kutmaymiz.
+    //
+    // Ilgari bu yerda startChatWith kutilardi, u esa ichida serverdan
+    // xabarlarni oladi — ya'ni kontakt bosilgandan keyin javob kelguncha
+    // ekranda Kontaktlar turaverardi va ilova sekin tuyulardi. openChat
+    // suhbatni darhol ochib, xabarlarni keyin to'ldiradi, shuning uchun
+    // kutishning hojati yo'q.
+    HomeShellScope.of(context)?.selectTab(HomeTab.chats);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    unawaited(context.read<ChatController>().startChatWith(
           SearchUser(
             username: user.username,
             fullName: user.fullName,
             avatar: user.avatar,
           ),
-        );
-    if (!mounted) {
-      return;
-    }
-    // Kontaktlar endi alohida sahifa emas, pastdagi paneldagi bo'lim:
-    // popUntil hech narsa yopmaydi va suhbat ochilgani bilan foydalanuvchi
-    // Kontaktlar bo'limida qolib ketardi. Ochilgan suhbatni ko'rsatish
-    // uchun Suhbatlar bo'limiga o'tamiz.
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    shell?.selectTab(HomeTab.chats);
+        ));
   }
 
   void _showError(Object error) {
@@ -858,6 +858,20 @@ class _SearchTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String t(String key) => AppStrings.text(settings.localeCode, key);
+    // Ilgari qidiruv faqat serverdan odam izlardi, o'z kontaktlaringiz
+    // ro'yxati esa to'liq holicha turaverardi — ya'ni yozgan so'zingiz
+    // ro'yxatga umuman ta'sir qilmasdi. Suhbatlar sahifasida esa ro'yxat
+    // filtrlanadi. Endi bu yerda ham shunday.
+    final query = controller.text.trim().toLowerCase();
+    final visibleMatches = query.isEmpty
+        ? phoneMatches
+        : phoneMatches
+            .where((match) =>
+                '${match.contactName} ${match.user.fullName} '
+                        '${match.user.username}'
+                    .toLowerCase()
+                    .contains(query))
+            .toList(growable: false);
     return Column(
       children: [
         if (showPhoneContactsSection)
@@ -968,23 +982,29 @@ class _SearchTab extends StatelessWidget {
                         style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                     )
-                  else if (phoneMatches.isEmpty)
+                  else if (visibleMatches.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Text(t('contacts_empty_gujum')),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      // Qidiruvda hech narsa topilmasligi "kontaktlaringiz
+                      // orasida Gujum foydalanuvchisi yo'q" degani emas —
+                      // ikkalasiga bir xil matn chiqarib bo'lmaydi.
+                      child: Text(query.isEmpty
+                          ? t('contacts_empty_gujum')
+                          : t('friend_search_hint')),
                     ),
                 ];
                 return ListView.builder(
                   // Ro'yxat kalta bo'lsa ham yuqoridan tortib yangilash
                   // ishlashi uchun har doim skroll qilinadigan fizika.
                   physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: header.length + phoneMatches.length + 1,
+                  itemCount: header.length + visibleMatches.length + 1,
                   itemBuilder: (context, index) {
                     if (index < header.length) return header[index];
-                    if (index == header.length + phoneMatches.length) {
+                    if (index == header.length + visibleMatches.length) {
                       return const SizedBox(height: 24);
                     }
-                    final match = phoneMatches[index - header.length];
+                    final match = visibleMatches[index - header.length];
                     final user = match.user;
                     final imageUrl =
                         AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);

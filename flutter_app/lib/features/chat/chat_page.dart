@@ -102,6 +102,22 @@ class _ChatPageState extends State<ChatPage> {
   List<SearchUser> _globalResults = const [];
   bool _loadingGlobalSearch = false;
   bool _showArchived = false;
+
+  /// Suhbat ichidagi holatni "orqaga" bilan yopish uchun.
+  ///
+  /// Qidiruv va xabar tanlash holati _ConversationPaneState da yashaydi,
+  /// tizimning "orqaga" tugmasi esa shu sahifaning PopScope iga tushadi.
+  /// Ikkinchi PopScope qo'yib bo'lmaydi — bitta bosishda ikkalasi ham
+  /// ishlab ketardi. Shuning uchun panel o'z ishlovchisini shu yerga
+  /// ro'yxatdan o'tkazadi: u true qaytarsa, bosish o'sha yerda tugadi.
+  bool Function()? conversationBackHandler;
+
+  /// Ro'yxatdagi qidiruvni yopadi (matn + maydonning o'zi).
+  ///
+  /// true qaytarsa — qidiruv ochiq edi va "orqaga" shu yerda ishlatildi.
+  /// Matn bo'sh bo'lsa ham maydon ochiq turishi mumkin, shuning uchun
+  /// faqat matnga qarab bo'lmaydi.
+  bool Function()? closeInboxSearch;
   String? _archiveOwner;
   DateTime? _lastBackPress;
 
@@ -276,6 +292,8 @@ class _ConversationPaneState extends State<_ConversationPane>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    context.findAncestorStateOfType<_ChatPageState>()?.conversationBackHandler =
+        _handleSystemBack;
     unawaited(_restoreMessagePreferencesForActiveChat());
   }
 
@@ -334,6 +352,12 @@ class _ConversationPaneState extends State<_ConversationPane>
 
   @override
   void dispose() {
+    // Ilgak sahifada qoladi va yo'q qilingan panelga bog'langan bo'lardi:
+    // keyingi "orqaga" bosishi hech narsa qilmay yutilib ketishi mumkin.
+    final page = context.findAncestorStateOfType<_ChatPageState>();
+    if (page != null && page.conversationBackHandler == _handleSystemBack) {
+      page.conversationBackHandler = null;
+    }
     WidgetsBinding.instance.removeObserver(this);
     _recordingTimer?.cancel();
     _audioRecorder.dispose();

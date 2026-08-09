@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/chat_models.dart';
 import '../auth/auth_controller.dart';
@@ -15,8 +16,7 @@ import '../settings/settings_controller.dart';
 /// Ilgari bu sahifa inbox ro'yxatini filtrlardi, ya'ni faqat suhbatdagi eng
 /// oxirgi xabar qo'ng'iroq bo'lsagina ko'rinardi: qo'ng'iroqdan keyin bitta
 /// xabar yozilsa u ro'yxatdan yo'qolardi, eski qo'ng'iroqlar esa umuman
-/// chiqmasdi. Server /api/calls/history da hammasini beradi — veb ilova
-/// allaqachon o'shani ishlatadi.
+/// chiqmasdi. Endi /api/calls/history dan oxirgi 200 tasi olinadi.
 class CallsPage extends StatefulWidget {
   const CallsPage({super.key, this.onChatOpened});
 
@@ -36,6 +36,8 @@ class CallsPage extends StatefulWidget {
 class _CallsPageState extends State<CallsPage> {
   List<CallHistoryEntry> _history = const [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
   Object? _error;
 
   @override
@@ -54,6 +56,9 @@ class _CallsPageState extends State<CallsPage> {
       if (!mounted) return;
       setState(() {
         _history = history;
+        // Server bir marta 200 tagacha beradi. To'liq kelgan bo'lsa,
+        // demak davomi ham bo'lishi mumkin.
+        _hasMore = history.length >= AppConfig.callHistoryPageSize;
         _loading = false;
       });
     } catch (error) {
@@ -61,6 +66,31 @@ class _CallsPageState extends State<CallsPage> {
       setState(() {
         _error = error;
         _loading = false;
+      });
+    }
+  }
+
+  /// Ro'yxat oxiriga yetganda keyingi bo'lakni oladi. Ilgari chegara
+  /// qattiq 200 ta edi va undan oldingi qo'ng'iroqlarni ko'rishning
+  /// imkoni yo'q edi.
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _history.isEmpty) return;
+    setState(() => _loadingMore = true);
+    try {
+      final older = await context
+          .read<ChatController>()
+          .fetchCallHistory(before: _history.last.createdAt);
+      if (!mounted) return;
+      setState(() {
+        _history = [..._history, ...older];
+        _hasMore = older.length >= AppConfig.callHistoryPageSize;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hasMore = false;
+        _loadingMore = false;
       });
     }
   }
@@ -77,10 +107,13 @@ class _CallsPageState extends State<CallsPage> {
       appBar: AppBar(title: Text(t('calls'))),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
+        child: Builder(builder: (context) {
+          // Faqat sarlavha qismi oldindan quriladi. Ilgari bu yerda
+          // ListView(children: [...]) turardi va u BUTUN tarixni birdan
+          // qurardi — har bir qator ustiga tarmoqdan rasm oladigan
+          // CircleAvatar bilan. Ro'yxat uzun bo'lsa sahifa shu sababli
+          // ochilmay turardi; server so'rovi bunga qo'shimcha edi.
+          final header = <Widget>[
             if (call.hasSession && call.remotePeer != null)
               _ActiveCallCard(
                 title: call.remotePeer!.displayName,
@@ -102,34 +135,52 @@ class _CallsPageState extends State<CallsPage> {
                 child: Center(
                   child: Text(t('calls_empty'), textAlign: TextAlign.center),
                 ),
-              )
-            else
-              ..._history.map(
-                (entry) => _CallHistoryTile(
-                  entry: entry,
-                  settings: settings,
-                  isOutgoing: entry.caller == me,
-                  onTap: () async {
-                    await chat.openChat(InboxItem(
-                      username: entry.peerUsername,
-                      fullName: entry.peerFullName,
-                      avatar: entry.peerAvatar,
-                      lastActive: null,
-                      lastMessage: '',
-                      lastMessageAt: entry.createdAt,
-                      unreadCount: 0,
-                    ));
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      // Suhbat Suhbatlar bo'limida ochiladi — o'sha yerga
-                      // o'tamiz, aks holda ekranda Kontaktlar qolardi.
-                      widget.onChatOpened?.call();
-                    }
-                  },
-                ),
               ),
-          ],
-        ),
+          ];
+          final entries = (_loading || _error != null) ? const [] : _history;
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: header.length + entries.length + (_hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index < header.length) return header[index];
+              if (index == header.length + entries.length) {
+                // Oxiriga yetildi — keyingi bo'lakni so'raymiz. Bu
+                // itemBuilder ning ichida, ya'ni qurilish paytida:
+                // setState ni to'g'ridan-to'g'ri chaqirib bo'lmaydi.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  unawaited(_loadMore());
+                });
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              }
+              final entry = entries[index - header.length];
+              return _CallHistoryTile(
+                entry: entry,
+                settings: settings,
+                isOutgoing: entry.caller == me,
+                onTap: () {
+                  // Suhbat ochilishini kutmaymiz — u darhol ochiladi,
+                  // xabarlar esa keyin to'ldiriladi.
+                  Navigator.of(context).pop();
+                  widget.onChatOpened?.call();
+                  unawaited(chat.openChat(InboxItem(
+                    username: entry.peerUsername,
+                    fullName: entry.peerFullName,
+                    avatar: entry.peerAvatar,
+                    lastActive: null,
+                    lastMessage: '',
+                    lastMessageAt: entry.createdAt,
+                    unreadCount: 0,
+                  )));
+                },
+              );
+            },
+          );
+        }),
       ),
     );
   }

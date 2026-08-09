@@ -280,6 +280,31 @@ async function initIndexes() {
   for (const sql of indexes) {
     await pool.query(sql);
   }
+
+  // Qo'ng'iroqlar tarixi so'rovi uchun. Alohida, chunki:
+  //
+  // 1. CONCURRENTLY — xabarlar jadvali katta bo'lishi mumkin va oddiy
+  //    CREATE INDEX uni butun qurilish davomida yozishga yopib qo'yadi.
+  //    Server esa portni ochishdan oldin shu yerni kutadi, ya'ni deploy
+  //    paytida eski nusxaning yozuvlari ham to'xtab qolardi.
+  // 2. Shart so'rovdagi bilan aynan bir xil bo'lishi shart, aks holda
+  //    rejalashtiruvchi indeksdan foydalanmaydi.
+  // 3. chat_id birinchi ustun: so'rov foydalanuvchining suhbatlari bo'yicha
+  //    cheklaydi. Faqat created_at bo'yicha bo'lsa, kam qo'ng'iroq qilgan
+  //    odam uchun butun tizimdagi qo'ng'iroqlar indeksi ko'zdan
+  //    kechirilishi mumkin edi.
+  try {
+    await pool.query(
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_${MESSAGES_TABLE}_call_logs
+         ON ${MESSAGES_TABLE} (chat_id, created_at DESC)
+         WHERE content ~ '^__CALL:(audio|video):(missed|[0-9]+)__$'`,
+    );
+  } catch (e) {
+    // CONCURRENTLY yiqilsa yaroqsiz indeks qolishi mumkin — server ishga
+    // tushishiga to'sqinlik qilmaydi, keyingi safar qayta urinadi.
+    console.warn(`[DB] call_logs indeksi qurilmadi: ${e.message}`);
+  }
+
   console.log(`Indexlar tayyor (${indexes.length} ta)`);
 }
 
