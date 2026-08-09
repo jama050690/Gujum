@@ -216,8 +216,9 @@ class _ForwardPickerState extends State<_ForwardPicker> {
       return;
     }
     // Har harf uchun so'rov yubormaymiz — suhbatlar qidiruvidagi kabi.
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
+    _debounce = Timer(AppConfig.searchDebounce, () async {
       if (!mounted) return;
+      if (query.length < AppConfig.minGlobalSearchChars) return;
       setState(() => _searching = true);
       try {
         final result = await widget.chat.searchUsers(query);

@@ -33,6 +33,10 @@ extension _ChatPageStateBuild on _ChatPageState {
           applyState(() => _showArchived = false);
           return;
         }
+        // Boshqa bo'limdan kelingan bo'lsa — o'sha yerga qaytamiz.
+        // Masalan Sozlamalar → "Saqlangan xabarlar": suhbat yopilgach
+        // ro'yxatda qolib ketmasdan Sozlamalarga qaytadi.
+        if (HomeShellScope.of(context)?.popTab() == true) return;
         // Chat ro'yxatida — ikki marta bosish kerak
         final now = DateTime.now();
         final last = _lastBackPress;

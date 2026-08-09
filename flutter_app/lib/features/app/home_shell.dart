@@ -30,13 +30,41 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  /// Qaysi bo'limlar ochilgan. IndexedStack barcha bolalarini birdan
+  /// quradi, ya'ni ilova ishga tushishi bilan Kontaktlar manzillar kitobini
+  /// o'qishni, Profil esa serverdan yuklashni boshlab yuborardi — hatto siz
+  /// u bo'limlarga kirmasangiz ham. Endi bo'lim birinchi ochilgandagina
+  /// quriladi, keyin esa holati saqlanib qoladi.
+  final Set<int> _visited = <int>{0};
+
+  /// Bo'limlar tarixi: "orqaga" avvalgi bo'limga qaytaradi.
+  ///
+  /// Masalan Sozlamalar → "Saqlangan xabarlar" (Suhbatlar bo'limi) →
+  /// "orqaga" endi Sozlamalarga qaytaradi, ilgari esa suhbatlar
+  /// ro'yxatida qolib ketilardi.
+  final List<int> _tabHistory = <int>[];
+
+  bool _popTab() {
+    if (_tabHistory.isEmpty) return false;
+    setState(() => _index = _tabHistory.removeLast());
+    return true;
+  }
+
+  Widget _tab(int index, Widget Function() build) =>
+      _visited.contains(index) ? build() : const SizedBox.shrink();
+
   void _selectTab(int value) {
+    if (value == _index) return;
     // Suhbat ochiq bo'lsa yopamiz: aks holda boshqa bo'limdan qaytganda
     // ro'yxat emas, o'sha suhbat ko'rinardi.
     if (value != HomeTab.chats && _index == HomeTab.chats) {
       context.read<ChatController>().closeChat();
     }
-    setState(() => _index = value);
+    setState(() {
+      _tabHistory.add(_index);
+      _visited.add(value);
+      _index = value;
+    });
   }
 
   @override
@@ -59,8 +87,11 @@ class _HomeShellState extends State<HomeShell> {
       // suhbatni yopish va chiqish.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _index == 0) return;
-        setState(() => _index = 0);
+        // Suhbatlar bo'limida "orqaga" ni ChatPage hal qiladi (suhbat,
+        // qidiruv, arxiv, keyin bo'limlar tarixi).
+        if (didPop || _index == HomeTab.chats) return;
+        if (_popTab()) return;
+        setState(() => _index = HomeTab.chats);
       },
       child: Scaffold(
         // Telegramda ro'yxat panel ostidan o'tib ketadi (extendBody: true).
@@ -71,13 +102,15 @@ class _HomeShellState extends State<HomeShell> {
         // turadi, faqat kontent uning ostiga kirmaydi.
         body: HomeShellScope(
           selectTab: _selectTab,
+          popTab: _popTab,
           child: IndexedStack(
-          index: _index,
-          children: [
-            ChatPage(active: _index == 0),
-            const FriendsPage(titleKey: 'contacts'),
-            const SettingsPage(),
-            const ProfilePage(),
+            index: _index,
+            children: [
+              ChatPage(active: _index == HomeTab.chats),
+              _tab(HomeTab.contacts,
+                  () => const FriendsPage(titleKey: 'contacts')),
+              _tab(HomeTab.settings, () => const SettingsPage()),
+              _tab(HomeTab.profile, () => const ProfilePage()),
             ],
           ),
         ),

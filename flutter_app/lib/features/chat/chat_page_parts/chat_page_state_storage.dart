@@ -78,7 +78,7 @@ void _handleSearchChanged(ChatController chat, String value) {
   _searchDebounce?.cancel();
 
   final query = value.trim();
-  if (query.length < 2) {
+  if (query.length < AppConfig.minGlobalSearchChars) {
     applyState(() {
       _loadingGlobalSearch = false;
       _globalResults = const [];
@@ -87,7 +87,7 @@ void _handleSearchChanged(ChatController chat, String value) {
   }
 
   applyState(() => _loadingGlobalSearch = true);
-  _searchDebounce = Timer(const Duration(milliseconds: 320), () async {
+  _searchDebounce = Timer(AppConfig.searchDebounce, () async {
     try {
       final results = await chat.searchUsers(query);
       if (!mounted || _searchController.text.trim() != query) {
