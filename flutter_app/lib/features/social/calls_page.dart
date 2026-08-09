@@ -77,10 +77,13 @@ class _CallsPageState extends State<CallsPage> {
       appBar: AppBar(title: Text(t('calls'))),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
+        child: Builder(builder: (context) {
+          // Faqat sarlavha qismi oldindan quriladi. Ilgari bu yerda
+          // ListView(children: [...]) turardi va u BUTUN tarixni birdan
+          // qurardi — har bir qator ustiga tarmoqdan rasm oladigan
+          // CircleAvatar bilan. Ro'yxat uzun bo'lsa sahifa shu sababli
+          // ochilmay turardi; server so'rovi bunga qo'shimcha edi.
+          final header = <Widget>[
             if (call.hasSession && call.remotePeer != null)
               _ActiveCallCard(
                 title: call.remotePeer!.displayName,
@@ -102,33 +105,40 @@ class _CallsPageState extends State<CallsPage> {
                 child: Center(
                   child: Text(t('calls_empty'), textAlign: TextAlign.center),
                 ),
-              )
-            else
-              ..._history.map(
-                (entry) => _CallHistoryTile(
-                  entry: entry,
-                  settings: settings,
-                  isOutgoing: entry.caller == me,
-                  onTap: () {
-                    // Suhbat ochilishini kutmaymiz — u darhol ochiladi,
-                    // xabarlar esa keyin to'ldiriladi. Kutilsa, tarixdan
-                    // bosilgandan keyin ekran bir zum qotib turardi.
-                    Navigator.of(context).pop();
-                    widget.onChatOpened?.call();
-                    unawaited(chat.openChat(InboxItem(
-                      username: entry.peerUsername,
-                      fullName: entry.peerFullName,
-                      avatar: entry.peerAvatar,
-                      lastActive: null,
-                      lastMessage: '',
-                      lastMessageAt: entry.createdAt,
-                      unreadCount: 0,
-                    )));
-                  },
-                ),
               ),
-          ],
-        ),
+          ];
+          final entries = (_loading || _error != null) ? const [] : _history;
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: header.length + entries.length,
+            itemBuilder: (context, index) {
+              if (index < header.length) return header[index];
+              final entry = entries[index - header.length];
+              return _CallHistoryTile(
+                entry: entry,
+                settings: settings,
+                isOutgoing: entry.caller == me,
+                onTap: () {
+                  // Suhbat ochilishini kutmaymiz — u darhol ochiladi,
+                  // xabarlar esa keyin to'ldiriladi.
+                  Navigator.of(context).pop();
+                  widget.onChatOpened?.call();
+                  unawaited(chat.openChat(InboxItem(
+                    username: entry.peerUsername,
+                    fullName: entry.peerFullName,
+                    avatar: entry.peerAvatar,
+                    lastActive: null,
+                    lastMessage: '',
+                    lastMessageAt: entry.createdAt,
+                    unreadCount: 0,
+                  )));
+                },
+              );
+            },
+          );
+        }),
       ),
     );
   }
