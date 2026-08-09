@@ -271,6 +271,17 @@ async function initIndexes() {
        ON ${USERS_TABLE} (RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 9))
        WHERE phone IS NOT NULL`,
 
+    // Qo'ng'iroqlar tarixi xabarlar jadvalidan "__CALL:%__" naqshi bo'yicha
+    // olinadi. Naqsh indekslanmaydi, shuning uchun so'rov foydalanuvchining
+    // barcha suhbatlaridagi HAMMA xabarni ko'zdan kechirardi va yozishmalar
+    // o'sgani sari sekinlashardi. Qisman indeks faqat qo'ng'iroq
+    // yozuvlarini, vaqt bo'yicha tartiblangan holda saqlaydi — so'rovdagi
+    // shart bilan aynan bir xil, aks holda rejalashtiruvchi undan
+    // foydalana olmaydi.
+    `CREATE INDEX IF NOT EXISTS idx_${MESSAGES_TABLE}_call_logs
+       ON ${MESSAGES_TABLE} (created_at DESC)
+       WHERE content LIKE '__CALL:%__'`,
+
     // O'chirilgan akkauntlar arxivi 2 yildan keyin shu ustun bo'yicha
     // tozalanadi.
     `CREATE INDEX IF NOT EXISTS idx_deleted_accounts_deleted_at

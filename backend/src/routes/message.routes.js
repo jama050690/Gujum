@@ -11,6 +11,11 @@ import { emitToUser } from "../socket/handler.js";
 const router = express.Router();
 
 // GET /api/calls/history
+// Qo'ng'iroqlar tarixi sahifasi oxirgilarini ko'rsatadi — hammasini
+// qaytarishning hojati yo'q. Chegarasiz so'rov yozishmalar o'sgani sari
+// sekinlashardi: sahifa ochilishi serverni kutib turardi.
+const CALL_HISTORY_LIMIT = 200;
+
 router.get("/calls/history", async (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ message: "username kerak" });
@@ -47,8 +52,9 @@ router.get("/calls/history", async (req, res) => {
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
         AND m.content LIKE '__CALL:%__'
       ORDER BY m.created_at DESC
+      LIMIT $2
       `,
-      [userId],
+      [userId, CALL_HISTORY_LIMIT],
     );
 
     return res.json(rows);
