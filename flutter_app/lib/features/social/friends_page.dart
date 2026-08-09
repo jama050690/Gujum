@@ -872,6 +872,17 @@ class _SearchTab extends StatelessWidget {
                     .toLowerCase()
                     .contains(query))
             .toList(growable: false);
+
+    // Serverdan kelgan natijalarda kontaktlaringizda allaqachon bor odam
+    // bo'lsa, u ikki marta ko'rinardi: bir marta qidiruv natijasi
+    // sifatida, bir marta kontaktlar ro'yxatida. Kontaktdagi yozuv
+    // qoldiriladi — u yerda odam telefon kitobingizdagi nomi bilan
+    // turadi. Suhbatlar sahifasi va uzatish oynasi ham shunday qiladi.
+    final shownUsernames =
+        visibleMatches.map((match) => match.user.username).toSet();
+    final extraResults = results
+        .where((user) => !shownUsernames.contains(user.username))
+        .toList(growable: false);
     return Column(
       children: [
         if (showPhoneContactsSection)
@@ -923,7 +934,7 @@ class _SearchTab extends StatelessWidget {
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else
-                    ...results.map((user) {
+                    ...extraResults.map((user) {
                       final imageUrl =
                           AppConfig.resolveMediaUrl(user.avatar, settings.baseUrl);
                       return ListTile(
