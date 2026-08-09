@@ -720,10 +720,25 @@ class ChatController extends ChangeNotifier {
 
   /// Qo'ng'iroqlar tarixi. ChatRepository Provider orqali berilmagan,
   /// shuning uchun sahifa uni shu yerdan oladi.
+  /// Oxirgi olingan qo'ng'iroqlar tarixi.
+  ///
+  /// Sahifa har ochilganda serverdan so'ralardi va shu vaqt davomida
+  /// faqat aylanma ko'rinardi — bitta so'rov 1-2 soniya ketadi. Endi
+  /// avvalgi ro'yxat darhol ko'rsatiladi, yangilanish orqada ketadi.
+  List<CallHistoryEntry> _callHistory = const [];
+  List<CallHistoryEntry> get callHistory => _callHistory;
+
   Future<List<CallHistoryEntry>> fetchCallHistory({DateTime? before}) async {
     final user = _authController.user;
     if (user == null) return const [];
-    return _chatRepository.fetchCallHistory(user.username, before: before);
+    final result =
+        await _chatRepository.fetchCallHistory(user.username, before: before);
+    // Faqat birinchi bo'lak keshlanadi; davomi sahifada yig'iladi.
+    if (before == null) {
+      _callHistory = result;
+      notifyListeners();
+    }
+    return result;
   }
 
   // --- INBOX VA SYNC ---
