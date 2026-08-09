@@ -922,12 +922,6 @@ class _SearchTab extends StatelessWidget {
                       padding: EdgeInsets.all(24),
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  else if (results.isEmpty && controller.text.trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Text(t('friend_search_hint')),
-                    )
                   else
                     ...results.map((user) {
                       final imageUrl =
@@ -971,16 +965,15 @@ class _SearchTab extends StatelessWidget {
                         style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                     )
-                  else if (visibleMatches.isEmpty)
+                  // Faqat haqiqiy bo'sh holat uchun matn: kontaktlar
+                  // orasida Gujum foydalanuvchisi yo'q. Qidiruv natija
+                  // bermasa hech narsa yozilmaydi — ro'yxatning o'zi
+                  // bo'shligi shundoq ham ko'rinib turadi.
+                  else if (visibleMatches.isEmpty && query.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
-                      // Qidiruvda hech narsa topilmasligi "kontaktlaringiz
-                      // orasida Gujum foydalanuvchisi yo'q" degani emas —
-                      // ikkalasiga bir xil matn chiqarib bo'lmaydi.
-                      child: Text(query.isEmpty
-                          ? t('contacts_empty_gujum')
-                          : t('friend_search_hint')),
+                      child: Text(t('contacts_empty_gujum')),
                     ),
                 ];
                 return ListView.builder(
@@ -1024,7 +1017,7 @@ class _SearchTab extends StatelessWidget {
           child: searching
               ? const Center(child: CircularProgressIndicator())
               : results.isEmpty
-                  ? Center(child: Text(t('friend_search_hint')))
+                  ? const SizedBox.shrink()
                   : ListView.separated(
                       itemCount: results.length,
                       separatorBuilder: (_, _) => const Divider(height: 1),

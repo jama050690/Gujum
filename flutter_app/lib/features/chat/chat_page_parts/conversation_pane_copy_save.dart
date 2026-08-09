@@ -363,14 +363,6 @@ class _ForwardPickerState extends State<_ForwardPicker> {
                         selected: _selected.containsKey(user.username),
                         onTap: () => _toggle(_itemFor(user)),
                       ),
-                    if (!_searching &&
-                        chats.isEmpty &&
-                        extra.isEmpty &&
-                        query.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Center(child: Text(t('friend_search_hint'))),
-                      ),
                   ],
                 ),
               ),
